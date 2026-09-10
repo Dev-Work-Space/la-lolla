@@ -1,0 +1,497 @@
+// LaLolla · schema do banco
+//
+// Regras de negócio que o schema PRECISA respeitar (ver DOCUMENTACAO.md do
+// projeto antigo, seção 2):
+//   2.1  custo da peça = codigoFornecedor × fator
+//   2.2  o preço de venda NÃO mora no catálogo — é congelado no item da venda
+//   2.3  código interno (SKU) ≠ código do fornecedor
+//   2.4  estoque só muda por movimento, nunca por edição direta
+//   2.10 venda não se apaga: cancela-se
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // A URL nao mora mais aqui: o CLI do Prisma 7 le de prisma.config.ts,
+  // e o runtime le de src/lib/prisma.ts (DATABASE_URL, porta 6543).
+}
+
+// ─────────────────────────── Pessoas ───────────────────────────
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nome      String
+  telefone  String?
+  cpf       String?  @unique
+  email     String?
+  observacao String?
+  criadoEm  DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  vendas    Venda[]
+  orcamentos Orcamento[]
+
+  @@index([nome])
+  @@map("clientes")
+}
+
+model Fornecedor {
+  id       String   @id @default(cuid())
+  nome     String
+  cnpj     String?  @unique
+  telefone String?
+  observacao String?
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  pecas    Peca[]
+  compras  Compra[]
+
+  @@index([nome])
+  @@map("fornecedores")
+}
+
+// ─────────────────────────── Catálogo ───────────────────────────
+
+enum TipoItem {
+  PECA
+  INSUMO
+}
+
+model Peca {
+  id        String   @id @default(cuid())
+  sku       String   @unique // código interno: LL-0001
+  tipo      TipoItem @default(PECA)
+  nome      String
+  categoria String
+  tamanho   String?
+
+  // Regra 2.1. Os três campos são invisíveis para quem não tem a permissão
+  // "financeiro" — o service os remove antes de devolver.
+  codigoFornecedor Decimal? @db.Decimal(10, 2)
+  fator            Decimal? @db.Decimal(10, 4)
+  custo            Decimal? @db.Decimal(10, 2)
+
+  precoTabela Decimal? @db.Decimal(10, 2)
+
+  // Numeração por unidade na etiqueta: SKU-01, SKU-02… (peças iguais
+  // recebem códigos diferentes para permitir rastreio individual).
+  ultimaSerie Int @default(0)
+
+  fornecedorId String?
+  fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+
+  imagens    ImagemPeca[]
+  movimentos MovimentoEstoque[]
+  itensVenda ItemVenda[]
+  itensOrcamento ItemOrcamento[]
+  itensCompra    ItemCompra[]
+
+  arquivada Boolean @default(false)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([categoria])
+  @@index([nome])
+  @@index([tipo, arquivada])
+  @@map("pecas")
+}
+
+model ImagemPeca {
+  id     String @id @default(cuid())
+  pecaId String
+  peca   Peca   @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+
+  // Guardamos o CAMINHO no bucket, nunca a URL assinada (que expira).
+  pathThumb    String
+  pathMedia    String
+  pathOriginal String
+
+  largura   Int
+  altura    Int
+  bytes     Int
+  principal Boolean @default(false)
+
+  criadoEm DateTime @default(now())
+
+  @@index([pecaId])
+  @@map("imagens_peca")
+}
+
+// ─────────────────────────── Vendas ───────────────────────────
+
+enum StatusVenda {
+  ABERTA
+  FECHADA
+  CANCELADA // regra 2.10: venda não se apaga
+}
+
+enum FormaPagamento {
+  DINHEIRO
+  PIX
+  DEBITO
+  CREDITO
+}
+
+model Venda {
+  id     String      @id @default(cuid())
+  numero Int         @unique @default(autoincrement())
+  status StatusVenda @default(ABERTA)
+
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  vendedorId String?
+  vendedor   Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+
+  subtotal Decimal @db.Decimal(10, 2)
+  desconto Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  itens      ItemVenda[]
+  pagamentos Pagamento[]
+
+  canceladaEm     DateTime?
+  motivoCancelada String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status, criadoEm])
+  @@index([clienteId])
+  @@map("vendas")
+}
+
+model ItemVenda {
+  id      String @id @default(cuid())
+  vendaId String
+  venda   Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  pecaId  String
+  peca    Peca   @relation(fields: [pecaId], references: [id])
+
+  quantidade Int
+
+  // Regra 2.2: preço CONGELADO no momento da venda. Se o catálogo mudar
+  // amanhã, a venda de ontem continua valendo o que valia.
+  precoUnit Decimal @db.Decimal(10, 2)
+
+  // Série da peça vendida (SKU-01), quando houver etiqueta individual.
+  serie String?
+
+  @@index([vendaId])
+  @@map("itens_venda")
+}
+
+model Pagamento {
+  id      String         @id @default(cuid())
+  vendaId String
+  venda   Venda          @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  forma   FormaPagamento
+  valor   Decimal        @db.Decimal(10, 2)
+  parcelas Int           @default(1)
+
+  // Pix, Débito e Crédito exigem comprovante. A PENDÊNCIA É DERIVADA daqui:
+  // não existe campo "pendente" — quem precisa de comprovante e está com
+  // comprovanteId nulo, está pendente. Um estado só, sem sincronizar nada.
+  comprovanteId String?
+  comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
+
+  criadoEm DateTime @default(now())
+
+  @@index([vendaId])
+  @@map("pagamentos")
+}
+
+model Comprovante {
+  id       String   @id @default(cuid())
+  path     String // bucket PRIVADO — documento financeiro
+  mimeType String
+  bytes    Int
+  criadoEm DateTime @default(now())
+
+  pagamentos  Pagamento[]
+  lancamentos Lancamento[]
+
+  @@map("comprovantes")
+}
+
+// ─────────────────────────── Orçamentos ───────────────────────────
+
+enum StatusOrcamento {
+  ABERTO
+  CONVERTIDO // virou venda (regra 2.5: trava depois disso)
+  PERDIDO
+}
+
+model Orcamento {
+  id     String          @id @default(cuid())
+  numero Int             @unique @default(autoincrement())
+  status StatusOrcamento @default(ABERTO)
+
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  subtotal Decimal @db.Decimal(10, 2)
+  desconto Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  validoAte DateTime?
+  vendaId   String?   @unique // preenchido quando converte
+
+  itens ItemOrcamento[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status, criadoEm])
+  @@map("orcamentos")
+}
+
+model ItemOrcamento {
+  id          String    @id @default(cuid())
+  orcamentoId String
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  pecaId      String
+  peca        Peca      @relation(fields: [pecaId], references: [id])
+
+  quantidade Int
+  precoUnit  Decimal @db.Decimal(10, 2)
+
+  @@index([orcamentoId])
+  @@map("itens_orcamento")
+}
+
+// ─────────────────────────── Estoque ───────────────────────────
+
+enum MotivoMovimento {
+  COMPRA
+  VENDA
+  DEVOLUCAO
+  AJUSTE
+  INVENTARIO
+  PERDA
+}
+
+model MovimentoEstoque {
+  id     String @id @default(cuid())
+  pecaId String
+  peca   Peca   @relation(fields: [pecaId], references: [id], onDelete: Cascade)
+
+  // Regra 2.4: o saldo é a SOMA dos deltas, nunca um campo editável.
+  // + entrada, − saída.
+  delta  Int
+  motivo MotivoMovimento
+  origem String? // id da venda/compra que gerou
+
+  observacao String?
+  criadoEm   DateTime @default(now())
+
+  @@index([pecaId, criadoEm])
+  @@map("movimentos_estoque")
+}
+
+// ─────────────────────────── Compras ───────────────────────────
+
+model Compra {
+  id     String @id @default(cuid())
+  numero Int    @unique @default(autoincrement())
+
+  fornecedorId String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id])
+
+  total     Decimal   @db.Decimal(10, 2)
+  aPrazo    Boolean   @default(false)
+  vencimento DateTime?
+
+  itens ItemCompra[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([fornecedorId, criadoEm])
+  @@map("compras")
+}
+
+model ItemCompra {
+  id       String @id @default(cuid())
+  compraId String
+  compra   Compra @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  pecaId   String
+  peca     Peca   @relation(fields: [pecaId], references: [id])
+
+  quantidade Int
+  custoUnit  Decimal @db.Decimal(10, 2)
+
+  @@index([compraId])
+  @@map("itens_compra")
+}
+
+// ─────────────────────────── Financeiro ───────────────────────────
+
+enum TipoConta {
+  PAGAR
+  RECEBER
+}
+
+enum StatusConta {
+  ABERTA
+  PAGA
+  CANCELADA
+}
+
+model Conta {
+  id     String      @id @default(cuid())
+  tipo   TipoConta
+  status StatusConta @default(ABERTA)
+
+  descricao  String
+  valor      Decimal  @db.Decimal(10, 2)
+  vencimento DateTime
+
+  pagoEm    DateTime?
+  // Na baixa de vencimento o comprovante é OBRIGATÓRIO (diferente da venda,
+  // onde ele é pendência). A regra vive no service, não no banco.
+  lancamentoId String?  @unique
+  lancamento   Lancamento? @relation(fields: [lancamentoId], references: [id], onDelete: SetNull)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([tipo, status, vencimento])
+  @@map("contas")
+}
+
+model Carteira {
+  id       String  @id @default(cuid())
+  nome     String  @unique
+  cofrinho Boolean @default(false)
+  ordem    Int     @default(0)
+
+  lancamentos       Lancamento[]
+  transferenciasSai Transferencia[] @relation("origem")
+  transferenciasEnt Transferencia[] @relation("destino")
+
+  criadoEm DateTime @default(now())
+
+  @@map("carteiras")
+}
+
+model Lancamento {
+  id         String  @id @default(cuid())
+  carteiraId String
+  carteira   Carteira @relation(fields: [carteiraId], references: [id])
+
+  descricao String
+  valor     Decimal @db.Decimal(10, 2) // + entrada, − saída
+  categoria String?
+
+  comprovanteId String?
+  comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
+
+  conta Conta?
+
+  criadoEm DateTime @default(now())
+
+  @@index([carteiraId, criadoEm])
+  @@map("lancamentos")
+}
+
+model Transferencia {
+  id        String   @id @default(cuid())
+  origemId  String
+  origem    Carteira @relation("origem", fields: [origemId], references: [id])
+  destinoId String
+  destino   Carteira @relation("destino", fields: [destinoId], references: [id])
+
+  valor    Decimal  @db.Decimal(10, 2)
+  criadoEm DateTime @default(now())
+
+  @@map("transferencias")
+}
+
+// ─────────────────────────── Usuários ───────────────────────────
+
+enum Papel {
+  SUPER_ADMIN // joao, hemily — não podem ser rebaixados nem excluídos
+  ADMIN
+  VENDEDOR
+}
+
+model Usuario {
+  id    String @id @default(cuid())
+  email String @unique
+  nome  String
+  papel Papel  @default(VENDEDOR)
+
+  // { pecas: {ver,criar,editar,excluir}, vendas: {...}, ... }
+  // ADMIN e SUPER_ADMIN ignoram este campo: têm tudo, sempre.
+  permissoes Json @default("{}")
+
+  // null = primeiro acesso: a primeira senha digitada vira a senha dele.
+  senhaHash String?
+  ativo     Boolean @default(true)
+
+  sessoes Sessao[]
+  vendas  Venda[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@map("usuarios")
+}
+
+model Sessao {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // SHA-256 do token, nunca o token em texto. Quem tiver o banco não
+  // consegue se passar por um usuário logado.
+  tokenHash String   @unique
+  expiraEm  DateTime
+  ip        String?
+  userAgent String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([expiraEm])
+  @@map("sessoes")
+}
+
+model TentativaLogin {
+  id       String   @id @default(cuid())
+  chave    String // "email|ip"
+  criadoEm DateTime @default(now())
+
+  @@index([chave, criadoEm])
+  @@map("tentativas_login")
+}
+
+// ─────────────────────────── Config e auditoria ───────────────────────────
+
+model Config {
+  chave String @id
+  valor Json
+
+  atualizadoEm DateTime @updatedAt
+
+  @@map("config")
+}
+
+model Evento {
+  id        String   @id @default(cuid())
+  tipo      String
+  usuarioId String?
+  entidade  String?
+  entidadeId String?
+  dados     Json?
+  criadoEm  DateTime @default(now())
+
+  @@index([criadoEm])
+  @@index([entidade, entidadeId])
+  @@map("eventos")
+}
