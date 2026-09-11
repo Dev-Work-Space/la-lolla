@@ -4,41 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
-import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
-import {
-  Home,
-  ShoppingBag,
-  ShoppingCart,
-  Boxes,
-  Wallet,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import type { Permissoes } from "@/modules/usuarios/permissoes";
+import { itensVisiveis } from "./navegacao";
 
 /*
- * A navegação que o João desenhou no app antigo, mantida de propósito:
- * Início · Portal de vendas · Portal de compras · Estoque · Financeiro · Cadastros
+ * Barra fixa de baixo, só no celular. No PC a navegação vive no cabeçalho.
+ * A LISTA não mora aqui — está em ./navegacao.ts, que não é módulo cliente e
+ * por isso pode ser lido também pelo servidor. Ver o comentário lá.
  *
- * Mesma lista no celular (barra fixa embaixo) e no PC (barra no topo) — uma
- * fonte só, para as duas não divergirem com o tempo.
+ * Este componente precisa ser cliente por um motivo só: `usePathname`, para
+ * saber qual aba acender.
  */
-type Item = { href: string; nome: string; curto: string; icone: LucideIcon; area: Area };
-
-const ITENS: Item[] = [
-  { href: "/", nome: "Início", curto: "Início", icone: Home, area: "pecas" },
-  { href: "/vendas", nome: "Portal de vendas", curto: "Vendas", icone: ShoppingBag, area: "vendas" },
-  { href: "/compras", nome: "Portal de compras", curto: "Compras", icone: ShoppingCart, area: "pecas" },
-  { href: "/estoque", nome: "Estoque", curto: "Estoque", icone: Boxes, area: "pecas" },
-  { href: "/financeiro", nome: "Financeiro", curto: "Caixa", icone: Wallet, area: "financeiro" },
-  { href: "/cadastros", nome: "Cadastros", curto: "Clientes", icone: Users, area: "pessoas" },
-];
-
 export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; papel: Papel }) {
   const pathname = usePathname();
-  const admin = papel === "ADMIN" || papel === "SUPER_ADMIN";
-
-  // Início é sempre visível; o resto depende da permissão de ver a área.
-  const visiveis = ITENS.filter((i) => i.href === "/" || admin || permissoes[i.area]?.ver);
+  const visiveis = itensVisiveis(permissoes, papel);
 
   const ativo = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
@@ -46,14 +25,16 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
   return (
     <nav
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur",
-        "md:static md:border-t-0 md:bg-transparent md:backdrop-blur-none",
-        // pb com safe-area: no iPhone a barra de gestos come o rodapé
-        "pb-[env(safe-area-inset-bottom)] md:pb-0",
+        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden",
+        // No iPhone a barra de gestos come o rodapé; isto devolve o espaço.
+        "pb-[env(safe-area-inset-bottom)]",
       )}
+      aria-label="Navegação principal"
     >
       <div
-        className="mx-auto grid w-full max-w-7xl md:hidden"
+        className="mx-auto grid w-full max-w-3xl"
+        // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr) e não encolhe
+        // abaixo do conteúdo — foi assim que a barra estourou no app antigo.
         style={{ gridTemplateColumns: `repeat(${visiveis.length}, minmax(0, 1fr))` }}
       >
         {visiveis.map((i) => {
@@ -77,5 +58,3 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
     </nav>
   );
 }
-
-export { ITENS as ITENS_NAV };

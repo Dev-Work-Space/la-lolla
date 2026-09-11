@@ -2,18 +2,19 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/modules/auth/auth.actions";
 import { Button } from "@/components/ui/button";
-import { ITENS_NAV } from "./barra-navegacao";
+import { itensVisiveis } from "./navegacao";
 import type { Sessao } from "@/lib/auth/sessao";
 
 /*
  * Server Component: o cabeçalho não tem estado nem evento, só um formulário
  * de logout que é uma Server Action. Nada disto precisa ir para o navegador.
+ *
+ * A lista vem de ./navegacao.ts (módulo neutro) e NÃO de barra-navegacao.tsx:
+ * importar um valor de um módulo "use client" aqui devolve uma referência,
+ * não o array — e `.filter` estoura com 500.
  */
 export function Cabecalho({ sessao }: { sessao: Sessao }) {
-  const admin = sessao.papel === "ADMIN" || sessao.papel === "SUPER_ADMIN";
-  const visiveis = ITENS_NAV.filter(
-    (i) => i.href === "/" || admin || sessao.permissoes[i.area]?.ver,
-  );
+  const visiveis = itensVisiveis(sessao.permissoes, sessao.papel);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">

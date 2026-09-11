@@ -20,17 +20,40 @@ datasource db {
 
 // ─────────────────────────── Pessoas ───────────────────────────
 
+enum TipoPessoa {
+  PF
+  PJ
+}
+
 model Cliente {
-  id        String   @id @default(cuid())
-  nome      String
-  telefone  String?
-  cpf       String?  @unique
-  email     String?
-  observacao String?
-  criadoEm  DateTime @default(now())
+  id   String @id @default(cuid())
+  nome String
+
+  // "pf" | "pj" — no app antigo o tipo troca rótulos (Nome/Razão social,
+  // CPF/CNPJ) e habilita a busca na Receita. Trocar de tipo LIMPA o
+  // documento: CPF não vira CNPJ.
+  tipo     TipoPessoa @default(PF)
+  fantasia String?
+  doc      String?    @unique // só dígitos, sem máscara
+
+  telefone   String?
+  email      String?
+  nascimento String? // "AAAA-MM-DD"; usado no filtro "Aniversariantes"
+
+  cep         String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  uf          String?
+
+  observacoes String?
+
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  vendas    Venda[]
+  vendas     Venda[]
   orcamentos Orcamento[]
 
   @@index([nome])
@@ -38,16 +61,26 @@ model Cliente {
 }
 
 model Fornecedor {
-  id       String   @id @default(cuid())
-  nome     String
-  cnpj     String?  @unique
+  id   String @id @default(cuid())
+  nome String
+
+  tipo     TipoPessoa @default(PJ)
+  fantasia String?
+  doc      String?    @unique
+
   telefone String?
-  observacao String?
-  criadoEm DateTime @default(now())
+  email    String?
+  cidade   String?
+  uf       String?
+
+  observacoes String?
+
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  pecas    Peca[]
-  compras  Compra[]
+  pecas   Peca[]
+  compras Compra[]
+  contas  Conta[]
 
   @@index([nome])
   @@map("fornecedores")
@@ -350,6 +383,10 @@ model Conta {
   descricao  String
   valor      Decimal  @db.Decimal(10, 2)
   vencimento DateTime
+
+  // A tela de fornecedores soma as contas em aberto de cada um.
+  fornecedorId String?
+  fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 
   pagoEm    DateTime?
   // Na baixa de vencimento o comprovante é OBRIGATÓRIO (diferente da venda,

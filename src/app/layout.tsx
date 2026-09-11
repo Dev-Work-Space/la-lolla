@@ -3,9 +3,15 @@ import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
+/*
+ * A variável precisa se chamar --font-sans: é o nome que o bloco
+ * `@theme inline` do globals.css procura. Publicando como --font-inter, a
+ * regra virava `--font-sans: var(--font-sans)` (uma referência a si mesma),
+ * o navegador desistia e o app inteiro caía no serifado padrão.
+ */
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-inter",
+  variable: "--font-sans",
   display: "swap",
 });
 
