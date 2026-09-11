@@ -50,7 +50,7 @@ export async function PainelClientes({
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
   return (
-    <div className="space-y-4">
+    <div className="ll-entra space-y-4">
       <Indicadores>
         <Indicador
           titulo="Clientes"

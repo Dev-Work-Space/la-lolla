@@ -36,7 +36,7 @@ export async function PainelContas({
   const total = contas.filter((c) => !c.paga && !c.cancelada).reduce((s, c) => s + c.valor, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="ll-entra space-y-4">
       {pode.criar && <FormConta tipo={tipo} />}
 
       <Chips opcoes={FILTROS_CONTA} atual={filtro} href={link} />

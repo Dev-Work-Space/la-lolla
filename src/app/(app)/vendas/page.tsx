@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
@@ -12,6 +13,7 @@ import {
   Pilula,
   Vazio,
 } from "@/components/padrao/indicadores";
+import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { Button } from "@/components/ui/button";
 import {
   FILTROS_VENDA,
@@ -22,8 +24,26 @@ import {
 import { BuscaVendas } from "@/modules/vendas/components/busca-vendas";
 
 export const runtime = "nodejs";
+
 export const metadata = { title: "Portal de vendas · LaLolla" };
 
+type ListaDeVendas = Awaited<ReturnType<typeof listarVendas>>;
+
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
+/*
+ * Portal de vendas.
+ *
+ * A tela entra ANTES do banco responder: título, botão "Nova venda", busca e
+ * filtros são desenhados na hora, e os três blocos que dependem de consulta
+ * (contagem, indicadores e lista) chegam depois, cada um no seu <Suspense>.
+ *
+ * A lista é pedida UMA vez e a mesma promessa vai para os dois blocos que
+ * precisam dela — a contagem do cabeçalho e a lista em si. Chamar
+ * `listarVendas` duas vezes seria uma segunda viagem ao banco pela mesma
+ * resposta; `cache()` do React não serviria aqui porque a função recebe um
+ * objeto, e objeto novo a cada chamada nunca bate na memoização.
+ */
 export default async function VendasPage({
   searchParams,
 }: {
@@ -36,10 +56,8 @@ export default async function VendasPage({
   const atual = (filtro as FiltroVenda) ?? "todas";
   const fin = veFinanceiro(sessao.data);
 
-  const [ind, vendas] = await Promise.all([
-    indicadoresVendas(fin),
-    listarVendas({ filtro: atual, busca, veFinanceiro: fin }),
-  ]);
+  // Sem `await`: a consulta começa agora e a página continua sendo montada.
+  const pVendas = listarVendas({ filtro: atual, busca, veFinanceiro: fin });
 
   const podeCriar = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.vendas.criar;
 
@@ -51,17 +69,19 @@ export default async function VendasPage({
     return q ? `/vendas?${q}` : "/vendas";
   };
 
-  const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  const chave = `${atual}:${busca ?? ""}`;
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Portal de vendas</h1>
-          <p className="text-sm text-muted-foreground">
-            {plural(vendas.length, "venda", "vendas")}
-            {busca ? ` para “${busca}”` : ""}
-          </p>
+          <Suspense
+            key={chave}
+            fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}
+          >
+            <ContagemVendas promessa={pVendas} busca={busca} />
+          </Suspense>
         </div>
         {podeCriar && (
           <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
@@ -70,6 +90,48 @@ export default async function VendasPage({
         )}
       </div>
 
+      <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
+        <IndicadoresDeVendas veFinanceiro={fin} />
+      </Suspense>
+
+      <div className="mt-4 space-y-4">
+        <BuscaVendas valor={busca} filtro={atual} />
+        <Chips opcoes={FILTROS_VENDA} atual={atual} href={link} />
+
+        <Suspense key={chave} fallback={<EsqueletoLista linhas={6} />}>
+          <ListaDasVendas
+            promessa={pVendas}
+            busca={busca}
+            filtro={atual}
+            podeCriar={podeCriar}
+          />
+        </Suspense>
+      </div>
+    </main>
+  );
+}
+
+/* "12 vendas para 'ana'" — a linha sob o título. */
+async function ContagemVendas({
+  promessa,
+  busca,
+}: {
+  promessa: Promise<ListaDeVendas>;
+  busca?: string;
+}) {
+  const vendas = await promessa;
+  return (
+    <p className="ll-entra text-sm text-muted-foreground">
+      {plural(vendas.length, "venda", "vendas")}
+      {busca ? ` para “${busca}”` : ""}
+    </p>
+  );
+}
+
+async function IndicadoresDeVendas({ veFinanceiro: fin }: { veFinanceiro: boolean }) {
+  const ind = await indicadoresVendas(fin);
+  return (
+    <div className="ll-entra">
       <Indicadores>
         <Indicador
           titulo="Vendido hoje"
@@ -99,59 +161,72 @@ export default async function VendasPage({
           tom={ind.semComprovante ? "neg" : "neutro"}
         />
       </Indicadores>
+    </div>
+  );
+}
 
-      <div className="mt-4 space-y-4">
-        <BuscaVendas valor={busca} filtro={atual} />
-        <Chips opcoes={FILTROS_VENDA} atual={atual} href={link} />
+async function ListaDasVendas({
+  promessa,
+  busca,
+  filtro,
+  podeCriar,
+}: {
+  promessa: Promise<ListaDeVendas>;
+  busca?: string;
+  filtro: FiltroVenda;
+  podeCriar: boolean;
+}) {
+  const vendas = await promessa;
 
-        <Lista>
-          {vendas.length > 0 ? (
-            vendas.map((v) => {
-              const sub = [
-                v.criadoEm.toLocaleDateString("pt-BR"),
-                plural(v.itens.length, "peça", "peças"),
-              ];
-              if (v.desconto > 0) sub.push(`desconto ${brl(v.desconto)}`);
-              if (v.devolvido > 0) sub.push(`devolvido ${brl(v.devolvido)}`);
-              if (v.vendedor) sub.push(v.vendedor.nome);
+  return (
+    <div className="ll-entra ll-entra-2">
+      <Lista>
+        {vendas.length > 0 ? (
+          vendas.map((v) => {
+            const sub = [
+              v.criadoEm.toLocaleDateString("pt-BR"),
+              plural(v.itens.length, "peça", "peças"),
+            ];
+            if (v.desconto > 0) sub.push(`desconto ${brl(v.desconto)}`);
+            if (v.devolvido > 0) sub.push(`devolvido ${brl(v.devolvido)}`);
+            if (v.vendedor) sub.push(v.vendedor.nome);
 
-              return (
-                <Linha
-                  key={v.id}
-                  nome={`#${v.numero} · ${v.cliente?.nome ?? "Sem cliente"}`}
-                  pilulas={
-                    <>
-                      {v.cancelada && <Pilula tom="due">cancelada</Pilula>}
-                      {!v.cancelada && v.saldo > 0 && <Pilula tom="due">a receber</Pilula>}
-                      {!v.cancelada && v.comprovantesPendentes > 0 && (
-                        <Pilula tom="accent">sem comprovante</Pilula>
-                      )}
-                    </>
-                  }
-                  sub={sub.join(" · ")}
-                  valor={brl(v.total)}
-                  valorSub={v.saldo > 0 ? `falta ${brl(v.saldo)}` : "quitada"}
-                  onClickHref={`/vendas/${v.id}`}
-                />
-              );
-            })
-          ) : busca || atual !== "todas" ? (
-            <Vazio texto="Nenhuma venda com esse filtro." />
-          ) : (
-            <BlocoVazio
-              titulo="Nenhuma venda ainda"
-              texto="Lance a primeira venda: escolha as peças, informe como a cliente pagou e o app cuida do estoque, do caixa e das parcelas."
-              acao={
-                podeCriar ? (
-                  <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
-                    Lançar a primeira venda
-                  </Button>
-                ) : undefined
-              }
-            />
-          )}
-        </Lista>
-      </div>
-    </main>
+            return (
+              <Linha
+                key={v.id}
+                nome={`#${v.numero} · ${v.cliente?.nome ?? "Sem cliente"}`}
+                pilulas={
+                  <>
+                    {v.cancelada && <Pilula tom="due">cancelada</Pilula>}
+                    {!v.cancelada && v.saldo > 0 && <Pilula tom="due">a receber</Pilula>}
+                    {!v.cancelada && v.comprovantesPendentes > 0 && (
+                      <Pilula tom="accent">sem comprovante</Pilula>
+                    )}
+                  </>
+                }
+                sub={sub.join(" · ")}
+                valor={brl(v.total)}
+                valorSub={v.saldo > 0 ? `falta ${brl(v.saldo)}` : "quitada"}
+                onClickHref={`/vendas/${v.id}`}
+              />
+            );
+          })
+        ) : busca || filtro !== "todas" ? (
+          <Vazio texto="Nenhuma venda com esse filtro." />
+        ) : (
+          <BlocoVazio
+            titulo="Nenhuma venda ainda"
+            texto="Lance a primeira venda: escolha as peças, informe como a cliente pagou e o app cuida do estoque, do caixa e das parcelas."
+            acao={
+              podeCriar ? (
+                <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
+                  Lançar a primeira venda
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+      </Lista>
+    </div>
   );
 }

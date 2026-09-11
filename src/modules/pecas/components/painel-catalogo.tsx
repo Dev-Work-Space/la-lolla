@@ -69,7 +69,9 @@ export async function PainelCatalogo({
   };
 
   return (
-    <div className="space-y-4">
+    // ll-entra: este bloco chega depois da casca da tela, e entra deslizando
+    // em vez de piscar no lugar do esqueleto.
+    <div className="ll-entra space-y-4">
       {ind.veFinanceiro ? (
         <Indicadores>
           <Indicador titulo="Estoque a custo" valor={brl(ind.aCusto)} sub="Valor imobilizado" />

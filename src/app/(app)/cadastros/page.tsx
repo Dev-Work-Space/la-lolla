@@ -1,11 +1,14 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { Segmentado } from "@/components/padrao/indicadores";
+import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { PainelClientes } from "@/modules/pessoas/components/painel-clientes";
 import { PainelFornecedores } from "@/modules/pessoas/components/painel-fornecedores";
 import type { FiltroCliente } from "@/modules/pessoas/pessoa.schema";
 
 export const runtime = "nodejs";
+
 export const metadata = { title: "Cadastros · LaLolla" };
 
 /*
@@ -35,7 +38,7 @@ export default async function CadastrosPage({
   };
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
       <Segmentado
         opcoes={[
           ["clientes", "Clientes"],
@@ -46,15 +49,27 @@ export default async function CadastrosPage({
       />
 
       <div className="mt-5">
-        {qual === "clientes" ? (
-          <PainelClientes
-            busca={busca}
-            filtro={(filtro as FiltroCliente) ?? "todos"}
-            pode={pode}
-          />
-        ) : (
-          <PainelFornecedores busca={busca} pode={pode} />
-        )}
+        {/* As abas já estão na tela; a lista chega quando o banco responder. */}
+        <Suspense
+          key={`${qual}:${busca ?? ""}:${filtro ?? ""}`}
+          fallback={
+            <div className="space-y-4">
+              <EsqueletoIndicadores quantos={qual === "clientes" ? 4 : 2} />
+              <div className="h-10 animate-pulse rounded bg-muted" />
+              <EsqueletoLista linhas={7} />
+            </div>
+          }
+        >
+          {qual === "clientes" ? (
+            <PainelClientes
+              busca={busca}
+              filtro={(filtro as FiltroCliente) ?? "todos"}
+              pode={pode}
+            />
+          ) : (
+            <PainelFornecedores busca={busca} pode={pode} />
+          )}
+        </Suspense>
       </div>
     </main>
   );

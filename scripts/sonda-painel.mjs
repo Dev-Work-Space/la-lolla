@@ -20,6 +20,31 @@ const conferir = (n, c, d = "") => {
   }
 };
 
+/*
+ * Lê do banco — SÓ LEITURA — o que decide se dois widgets devem aparecer.
+ * Sem isto a sonda só passaria num banco vazio.
+ */
+const { PrismaClient } = await import("@prisma/client");
+const { PrismaPg } = await import("@prisma/adapter-pg");
+const db = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: 5 }),
+});
+
+const metaCfg = await db.config.findUnique({ where: { chave: "meta" }, select: { valor: true } });
+const metaDefinida = Number(metaCfg?.valor ?? 0) > 0;
+
+const agora = new Date();
+const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1);
+const vendasMes = await db.venda.count({
+  where: { status: { not: "CANCELADA" }, criadoEm: { gte: mes0 } },
+});
+const vendeuNoMes = vendasMes > 0;
+await db.$disconnect();
+
+console.log(
+  `  (banco: meta ${metaDefinida ? "definida" : "zerada"}, ${vendasMes} venda(s) no mês)`,
+);
+
 const navegador = await chromium.launch({ executablePath: EDGE, headless: true });
 const ctx = await navegador.newContext({ viewport: { width: 1366, height: 950 } });
 const page = await ctx.newPage();
@@ -45,9 +70,27 @@ try {
   for (const id of ["saudacao", "pendencias", "numeros", "ritmo14", "resumo"]) {
     conferir(`widget "${id}" na tela`, wgts.includes(id));
   }
-  // Estes dois somem quando não há dado — é a regra do app antigo.
-  conferir('"meta" some sem meta definida', !wgts.includes("meta"));
-  conferir('"maisvendidas" some sem venda no mês', !wgts.includes("maisvendidas"));
+
+  /*
+   * "meta" e "maisvendidas" somem quando não há dado — é a regra do app
+   * antigo, e é ISSO que se confere aqui.
+   *
+   * Antes estas duas linhas exigiam que os widgets estivessem AUSENTES, o que
+   * só valia num banco vazio: bastou o João definir uma meta e existir uma
+   * venda no mês para a sonda acusar falha num app certo. Conferir a regra
+   * contra o estado real do banco vale nos dois sentidos e não quebra
+   * sozinho.
+   */
+  const regra = (id, temDado, comDado, semDado) =>
+    conferir(temDado ? comDado : semDado, temDado === wgts.includes(id));
+
+  regra("meta", metaDefinida, '"meta" aparece com meta definida', '"meta" some sem meta');
+  regra(
+    "maisvendidas",
+    vendeuNoMes,
+    '"maisvendidas" aparece com venda no mês',
+    '"maisvendidas" some sem venda no mês',
+  );
 
   console.log("\n=== CONTEÚDO ===");
   let txt = await page.textContent("body");

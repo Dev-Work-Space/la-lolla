@@ -172,3 +172,73 @@
     @apply font-sans;
   }
 }
+
+/* ═══════════════════════ ENTRADA DOS BLOCOS ═══════════════════════
+ *
+ * A tela agora entra ANTES do banco responder: título, abas, busca e
+ * filtros aparecem no toque, e cada bloco de dados chega quando fica
+ * pronto. Estas animações são o que torna essa chegada legível — sem
+ * elas o conteúdo "pisca" no lugar do esqueleto e a tela parece tremer.
+ *
+ * São curtas de propósito (220ms). Animação de entrada longa atrasa a
+ * leitura do número, que é justamente o que a pessoa foi ali buscar.
+ *
+ * O deslocamento é de 8px, para baixo. Mais que isso empurra o resto da
+ * página e dá a sensação de que algo pulou.
+ */
+
+@keyframes ll-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ll-entra-tela {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Um bloco de dados que acabou de chegar do servidor. */
+.ll-entra {
+  animation: ll-entra 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * Escalonamento: quando dois blocos chegam juntos, entrarem exatamente
+ * ao mesmo tempo parece um piscar só. Um atraso mínimo entre eles dá a
+ * leitura de cima para baixo, que é como a pessoa lê a tela.
+ */
+.ll-entra-2 {
+  animation-delay: 0.05s;
+}
+.ll-entra-3 {
+  animation-delay: 0.1s;
+}
+
+/* A tela inteira ao trocar de aba/rota: mais sutil que os blocos. */
+.ll-entra-tela {
+  animation: ll-entra-tela 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * Quem pediu menos movimento no sistema recebe menos movimento. Não é
+ * só enfeite: animação de entrada incomoda de verdade quem tem
+ * sensibilidade vestibular, e o conteúdo continua o mesmo sem ela.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ll-entra,
+  .ll-entra-tela {
+    animation: none;
+  }
+}

@@ -59,28 +59,52 @@ export function BarraLateral({
         "focus-within:shadow-[4px_0_24px_-10px_rgba(22,21,26,.28)]",
       )}
     >
-      {/* Marca: fechada mostra só o monograma; aberta, a logo inteira. */}
-      <Link href="/" className="mb-6 flex h-9 shrink-0 items-center overflow-hidden">
-        <span
+      {/*
+       * Marca: fechada mostra só o "L"; aberta, a logo inteira.
+       *
+       * O "L" é RECORTADO da logo oficial (scripts/recortar-l-da-logo.mjs),
+       * não digitado numa fonte serifada qualquer. Antes eram dois desenhos
+       * diferentes e dava para ver: a letra fechada tinha outro traço, outra
+       * espessura e outra serifa que a da marca.
+       *
+       * E a troca é um CRUZAMENTO, não um corte. Estava `hidden`/`block`, que
+       * pisca — a mesma armadilha que os rótulos dos itens já evitavam com
+       * opacidade. Os dois ficam empilhados na mesma altura (h-7), então o
+       * "L" some enquanto o "aLolla" nasce, sem salto de tamanho.
+       */}
+      <Link
+        href="/"
+        aria-label="Início"
+        className={cn(
+          "relative mb-6 flex h-9 shrink-0 items-center overflow-hidden",
+          "justify-center group-hover:justify-start group-focus-within:justify-start",
+          "transition-[justify-content] duration-200 ease-(--ll-ease)",
+        )}
+      >
+        <Image
+          src="/logo-lalolla-l.png"
+          alt=""
           aria-hidden
+          width={53}
+          height={85}
+          priority
           className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-lg font-serif text-xl font-bold",
-            "text-(--ll-brand) transition-opacity duration-150",
-            "group-hover:hidden group-focus-within:hidden",
+            "h-7 w-auto max-w-none opacity-100 transition-opacity duration-200 ease-(--ll-ease)",
+            "group-hover:opacity-0 group-focus-within:opacity-0",
           )}
-        >
-          L
-        </span>
-        <span className="hidden min-w-0 group-hover:block group-focus-within:block">
-          <Image
-            src="/logo-lalolla.png"
-            alt="LaLolla"
-            width={353}
-            height={90}
-            priority
-            className="h-7 w-auto"
-          />
-        </span>
+        />
+        <Image
+          src="/logo-lalolla.png"
+          alt="LaLolla"
+          width={353}
+          height={90}
+          priority
+          className={cn(
+            "absolute left-0 h-7 w-auto max-w-none opacity-0",
+            "transition-opacity duration-200 ease-(--ll-ease)",
+            "group-hover:opacity-100 group-focus-within:opacity-100",
+          )}
+        />
       </Link>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1">

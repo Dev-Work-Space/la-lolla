@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NaoEncontrado } from "@/lib/errors";
@@ -243,7 +244,18 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
 
 /* ─────────────────────── indicadores ─────────────────────── */
 
-export async function indicadoresFinanceiro() {
+/*
+ * `cache()` do React memoiza por REQUISIÇÃO.
+ *
+ * Faz diferença agora que a tela do Financeiro é montada em pedaços: os
+ * quatro indicadores de cima e o painel da aba são blocos independentes, cada
+ * um no seu <Suspense>, e os DOIS precisam da lista de carteiras. Sem isto
+ * seriam duas viagens ao banco para a mesma resposta; com isto, uma só, e
+ * cada bloco aparece assim que fica pronto.
+ *
+ * Não recebe argumento, então a memoização é exata — não há chave para errar.
+ */
+export const indicadoresFinanceiro = cache(async () => {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const em7 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 7);
@@ -284,7 +296,7 @@ export async function indicadoresFinanceiro() {
     vencendoEm7: aVencer,
     despesasMes,
   };
-}
+});
 
 export async function buscarConta(id: string) {
   const c = await prisma.conta.findUnique({

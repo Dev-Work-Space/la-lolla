@@ -25,7 +25,7 @@ export function PainelCarteiras({
   const total = carteiras.reduce((s, c) => s + c.saldo, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="ll-entra space-y-4">
       <p className="rounded-lg border border-dashed px-4 py-3 text-sm leading-relaxed text-muted-foreground">
         <strong className="text-foreground">Carteira é onde o dinheiro está</strong> — espécie,
         conta do banco, reserva. Não confunda com a forma de pagamento: um Pix e um crédito podem

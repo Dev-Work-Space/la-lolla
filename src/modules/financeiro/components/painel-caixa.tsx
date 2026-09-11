@@ -41,7 +41,7 @@ export async function PainelCaixa({
   const totalSaiu = saiu.reduce((s, l) => s + l.valor, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="ll-entra space-y-4">
       {pode.criar && (
         <div className="flex flex-wrap gap-2">
           <FormLancamento tipo="entrada" carteiras={carteiras} />

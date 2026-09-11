@@ -28,7 +28,7 @@ export async function PainelInsumos({
   const [ind, linhas] = await Promise.all([indicadoresInsumos(), listarInsumos(busca)]);
 
   return (
-    <div className="space-y-4">
+    <div className="ll-entra space-y-4">
       <div className="grid grid-cols-2 gap-2">
         <Indicador
           titulo="Em estoque"
