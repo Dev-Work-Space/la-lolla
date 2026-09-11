@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { SCRIPT_TEMA } from "@/components/layout/tema.constantes";
 import "./globals.css";
 
 /*
@@ -32,15 +33,35 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // Zoom liberado de propósito: bloquear é problema de acessibilidade.
-  // O jeito certo de evitar o zoom automático do Safari é fonte de 16px
-  // nos campos, não desligar o recurso da pessoa.
-  maximumScale: 5,
+  /*
+   * Zoom travado, a pedido do João: no celular ele quer que pareça um
+   * sistema, não uma página — sem afastar com dois dedos, sem toque duplo
+   * dando zoom, sem deslizar de lado.
+   *
+   * A ressalva fica registrada e continua valendo: travar o zoom atrapalha
+   * quem enxerga pouco. Por isso o resto do app tem de compensar — campos com
+   * fonte de 16px (que já é o caso, e é o que impede o Safari de dar zoom
+   * sozinho ao focar) e telas que cabem na largura sem ninguém precisar
+   * afastar para ler.
+   */
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        {/*
+          Aplica o tema escolhido ANTES da primeira pintura.
+
+          Sem isto o app pinta claro, o React acorda, lê a escolha e troca para
+          escuro — e quem escolheu escuro leva um flash branco na cara toda vez
+          que abre. É por isso que este script fica aqui, cru e bloqueante, em
+          vez de virar um componente.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+      </head>
       <body className="flex min-h-full flex-col font-sans">
         {children}
         <Toaster richColors position="top-center" />

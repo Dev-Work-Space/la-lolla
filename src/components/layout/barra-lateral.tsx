@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BotaoTema } from "./tema";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { itensVisiveis } from "./navegacao";
@@ -123,7 +124,7 @@ export function BarraLateral({
               title={i.nome}
               className={cn(
                 "flex items-center overflow-hidden whitespace-nowrap rounded-[11px] p-3 text-sm font-semibold",
-                "justify-center gap-0",
+                "justify-center gap-0 outline-none focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
                 "group-hover:justify-start group-hover:gap-3 group-hover:px-4",
                 "group-focus-within:justify-start group-focus-within:gap-3 group-focus-within:px-4",
                 "transition-[background-color,color,padding,gap] duration-200 ease-(--ll-ease)",
@@ -148,7 +149,15 @@ export function BarraLateral({
         })}
       </div>
 
-      <form action={logoutAction} className="mt-4 shrink-0">
+      {/*
+        Claro/escuro fica junto do "Sair": são as duas coisas que não são
+        navegação. Fechada, a barra mostra só o ícone, como os outros itens.
+      */}
+      <div className="mt-4 flex shrink-0 justify-center group-hover:justify-start group-focus-within:justify-start">
+        <BotaoTema />
+      </div>
+
+      <form action={logoutAction} className="mt-1 shrink-0">
         <button
           type="submit"
           title={`Sair (${nome})`}

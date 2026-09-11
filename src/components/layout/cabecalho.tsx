@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/modules/auth/auth.actions";
 import { Button } from "@/components/ui/button";
+import { BotaoTema } from "./tema";
 import type { Sessao } from "@/lib/auth/sessao";
 
 /*
@@ -13,8 +14,13 @@ import type { Sessao } from "@/lib/auth/sessao";
 export function Cabecalho({ sessao }: { sessao: Sessao }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur md:hidden">
-      <div className="flex items-center gap-3 px-4 py-2">
-        <Link href="/" className="shrink-0">
+      {/*
+        Alvo de dedo em tudo que se toca aqui.
+        A sonda de celular pegou: a logo tinha 20px de altura clicável e o
+        "Sair" 28px. No balcão, com a mão ocupada, 20px é errar.
+      */}
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        <Link href="/" aria-label="Início" className="grid h-10 shrink-0 place-items-center px-1">
           <Image
             src="/logo-lalolla.png"
             alt="LaLolla"
@@ -24,10 +30,11 @@ export function Cabecalho({ sessao }: { sessao: Sessao }) {
             className="h-5 w-auto"
           />
         </Link>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="max-w-28 truncate text-xs text-muted-foreground">{sessao.nome}</span>
+        <div className="ml-auto flex items-center gap-0.5">
+          <span className="max-w-20 truncate text-xs text-muted-foreground">{sessao.nome}</span>
+          <BotaoTema className="size-10" />
           <form action={logoutAction}>
-            <Button type="submit" variant="ghost" size="sm">
+            <Button type="submit" variant="ghost" className="h-10 px-3">
               Sair
             </Button>
           </form>

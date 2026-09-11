@@ -147,10 +147,40 @@ try {
     !(await page.textContent("main")).includes("Montar painel"),
   );
 
+  /*
+   * Vai aos Ajustes e só volta quando a seção estiver mostrando O QUE ESTÁ
+   * SALVO — não o padrão.
+   *
+   * A seção pinta primeiro com o arranjo padrão e só depois troca pelo que
+   * está no aparelho (é o que evita o servidor e o navegador desenharem
+   * coisas diferentes). Clicar nessa janela mexia na lista ERRADA e ainda
+   * gravava por cima do que estava salvo — o teste falhava uma vez a cada
+   * duas, do jeito mais confuso possível.
+   *
+   * A conferência é contar os ligados: se bate com o que está gravado, a
+   * troca já aconteceu.
+   */
   const irAosAjustes = async () => {
     await page.goto(`${BASE}/ajustes`, { waitUntil: "domcontentloaded" });
     await esperarPronto(page);
     await page.waitForSelector("text=Meu painel do Início", { timeout: 15000 });
+    await page.waitForFunction(
+      () => {
+        let esperado;
+        try {
+          const salvo = JSON.parse(localStorage.getItem("lalolla-painel") ?? "null");
+          if (!Array.isArray(salvo)) return true; // nada salvo: o padrão já vale
+          esperado = salvo.filter((i) => i.on).length;
+        } catch {
+          return true;
+        }
+        const caixas = document.querySelectorAll('input[type="checkbox"]');
+        const ligadas = [...caixas].filter((c) => c.checked).length;
+        return caixas.length > 0 && ligadas === esperado;
+      },
+      undefined,
+      { timeout: 15000 },
+    );
   };
 
   /*
@@ -181,6 +211,40 @@ try {
     await esperarPronto(page);
     await page.waitForTimeout(400);
   };
+
+  /*
+   * O Início tem a MESMA corrida dos Ajustes: pinta o arranjo padrão e só
+   * depois troca pelo que está salvo no aparelho. Ler a largura do bloco
+   * nesse intervalo devolvia o valor padrão e a sonda acusava falha num app
+   * certo — uma vez a cada duas, que é o pior tipo de teste.
+   *
+   * Esperar o resultado aparecer é o que uma pessoa faz: ela olha até a tela
+   * parar de mudar, não fotografa no meio.
+   */
+  const esperarSpan = (id, colunas) =>
+    page
+      .waitForFunction(
+        ([i, n]) => {
+          const el = document.querySelector(`[data-wgt="${i}"]`);
+          return !!el && getComputedStyle(el).gridColumn.includes(`span ${n}`);
+        },
+        [id, colunas],
+        { timeout: 10000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+
+  const esperarSumir = (id) =>
+    page
+      .waitForFunction((i) => !document.querySelector(`[data-wgt="${i}"]`), id, { timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+
+  const esperarAparecer = (id) =>
+    page
+      .waitForFunction((i) => !!document.querySelector(`[data-wgt="${i}"]`), id, { timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
 
   await irAosAjustes();
   const secao = await page.textContent("main");
@@ -213,36 +277,24 @@ try {
     page.locator(`label:has-text("${nome}") input[type="checkbox"]`).first();
   await mexerNoPainel(() => caixaDe("Números do momento").uncheck());
   await voltarAoInicio();
-  wgts = await presentes();
-  conferir('"numeros" sumiu ao desligar', !wgts.includes("numeros"));
+  conferir('"numeros" sumiu ao desligar', await esperarSumir("numeros"));
 
   await page.reload({ waitUntil: "networkidle" });
   await esperarPronto(page);
-  wgts = await presentes();
-  conferir("continua desligado depois de recarregar", !wgts.includes("numeros"));
+  conferir("continua desligado depois de recarregar", await esperarSumir("numeros"));
 
   console.log("\n=== MUDAR TAMANHO ===");
   await irAosAjustes();
   await mexerNoPainel(() => page.locator(`button:has-text("Largura toda")`).first().click());
   await voltarAoInicio();
-  const novo = await page.$$eval("[data-wgt]", (els) =>
-    els.map((e) => ({ id: e.getAttribute("data-wgt"), span: getComputedStyle(e).gridColumn })),
-  );
-  conferir(
-    "saudação virou largura toda (12)",
-    /span 12/.test(novo.find((s) => s.id === "saudacao")?.span ?? ""),
-  );
+  conferir("saudação virou largura toda (12)", await esperarSpan("saudacao", 12));
 
   console.log("\n=== RESTAURAR PADRÃO ===");
   await irAosAjustes();
   await mexerNoPainel(() => page.click(`button:has-text("Restaurar padrão")`));
   await voltarAoInicio();
-  wgts = await presentes();
-  conferir('"numeros" voltou', wgts.includes("numeros"));
-  const volta = await page.$$eval("[data-wgt]", (els) =>
-    els.map((e) => ({ id: e.getAttribute("data-wgt"), span: getComputedStyle(e).gridColumn })),
-  );
-  conferir("saudação voltou a 8", /span 8/.test(volta.find((s) => s.id === "saudacao")?.span ?? ""));
+  conferir('"numeros" voltou', await esperarAparecer("numeros"));
+  conferir("saudação voltou a 8", await esperarSpan("saudacao", 8));
 
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });

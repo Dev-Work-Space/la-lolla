@@ -3,6 +3,7 @@ import { exigirPermissao } from "@/lib/auth/guard";
 import { lerAjustes, usoDasCategorias } from "@/modules/ajustes/ajustes.service";
 import { FormAjustes } from "@/modules/ajustes/components/form-ajustes";
 import { MontarPainel } from "@/modules/painel/components/montar-painel";
+import { EscolhaDeTema } from "@/components/layout/tema";
 
 export const runtime = "nodejs";
 export const metadata = { title: "Ajustes · LaLolla" };
@@ -37,6 +38,21 @@ export default async function AjustesPage() {
           e esta seção vale só para o aparelho de quem está olhando.
         */}
         <MontarPainel />
+
+        <section className="rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Aparência</h2>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              Claro, escuro, ou o que o aparelho já estiver usando.{" "}
+              <strong className="font-medium text-foreground">Vale só neste aparelho</strong>, como
+              o arranjo do painel — o celular do balcão pode ficar no claro e o computador no
+              escuro.
+            </p>
+          </div>
+          <div className="p-4">
+            <EscolhaDeTema />
+          </div>
+        </section>
       </div>
     </main>
   );
