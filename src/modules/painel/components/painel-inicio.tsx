@@ -3,7 +3,6 @@
 import { Suspense, use, useEffect, useState } from "react";
 import { COLUNAS, lerPainel, normalizarPainel, type ItemPainel } from "../widgets";
 import { RenderWidget, widgetTemConteudo, type DadosPainel } from "./widgets-render";
-import { ConfigPainel } from "./config-painel";
 
 /*
  * Monta o Início a partir da configuração do aparelho.
@@ -15,11 +14,10 @@ import { ConfigPainel } from "./config-painel";
  *
  * Os dados chegam como PROMESSA, não prontos.
  *
- * O motivo: o título e o botão "Montar painel" não dependem do banco, e antes
- * esperavam por ele mesmo assim — a página inteira ficava parada no `await`
- * e a pessoa via a tela cinza. Agora o cabeçalho é desenhado na hora e só a
- * grade espera, dentro do <Suspense>. Quem toca em "Montar painel" consegue
- * abrir o menu antes mesmo dos números chegarem.
+ * O motivo: o título não depende do banco, e antes esperava por ele mesmo
+ * assim — a página inteira ficava parada no `await` e a pessoa via a tela
+ * cinza. Agora o cabeçalho é desenhado na hora e só a grade espera, dentro do
+ * <Suspense>.
  */
 export function PainelInicio({ dados }: { dados: Promise<DadosPainel> }) {
   // Primeira pintura usa o padrão, e o efeito troca pela configuração salva.
@@ -29,16 +27,21 @@ export function PainelInicio({ dados }: { dados: Promise<DadosPainel> }) {
   const [pronto, setPronto] = useState(false);
 
   useEffect(() => {
+    // Leitura única de uma fonte que só existe no navegador. Ler direto no
+    // render faria servidor e cliente desenharem coisas diferentes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCfg(lerPainel());
     setPronto(true);
   }, []);
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold tracking-tight">Início</h1>
-        <ConfigPainel cfg={cfg} aoMudar={setCfg} />
-      </div>
+      {/*
+        O botão "Montar painel" morava aqui e foi para os Ajustes, a pedido do
+        João: o Início é para olhar a loja, não para configurá-la. A leitura do
+        arranjo continua sendo feita aqui, no localStorage deste aparelho.
+      */}
+      <h1 className="mb-4 text-xl font-bold tracking-tight">Início</h1>
 
       <Suspense fallback={<EsqueletoGrade />}>
         <Grade dados={dados} cfg={cfg} pronto={pronto} />
@@ -68,7 +71,7 @@ function Grade({
       <div className="ll-entra rounded-xl border border-dashed px-6 py-14 text-center">
         <p className="font-semibold">Seu painel está vazio.</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Escolha o que mostrar aqui em <strong>Montar painel</strong>.
+          Escolha o que mostrar aqui em <strong>Ajustes › Meu painel do Início</strong>.
         </p>
       </div>
     ) : null;

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarAjustesAction } from "../ajustes.actions";
+import { EditorCategorias } from "./editor-categorias";
 import { AJUSTES_PADRAO, ROTULOS, type Ajustes } from "../ajustes.tipos";
 import type { ErrosDeCampo } from "@/lib/result";
 
@@ -16,7 +17,14 @@ import type { ErrosDeCampo } from "@/lib/result";
  * diz isso. O multiplicador é o caso: alterá-lo NÃO recalcula peças já
  * cadastradas, e quem não souber disso vai achar que o app está errado.
  */
-export function FormAjustes({ atuais }: { atuais: Ajustes }) {
+export function FormAjustes({
+  atuais,
+  usoCategorias,
+}: {
+  atuais: Ajustes;
+  /** Quantas peças usam cada categoria — o editor usa para não deixar apagar categoria em uso. */
+  usoCategorias: Record<string, number>;
+}) {
   const router = useRouter();
   const [erros, setErros] = useState<ErrosDeCampo>({});
   const [aviso, setAviso] = useState<string | null>(null);
@@ -69,22 +77,11 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
           sufixo="%"
         />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="categorias">{ROTULOS.categorias.nome}</Label>
-          <textarea
-            id="categorias"
-            name="categorias"
-            rows={7}
-            defaultValue={atuais.categorias.join("\n")}
-            className="w-full rounded-lg border bg-card px-3 py-2 text-base leading-relaxed"
-            aria-invalid={!!erros.categorias}
-          />
-          {erros.categorias ? (
-            <p className="text-sm text-destructive">{erros.categorias[0]}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">{ROTULOS.categorias.ajuda}</p>
-          )}
-        </div>
+        <EditorCategorias
+          iniciais={atuais.categorias}
+          usos={usoCategorias}
+          erro={erros.categorias?.[0]}
+        />
       </section>
 
       <section className="space-y-4 rounded-xl border bg-card p-4">

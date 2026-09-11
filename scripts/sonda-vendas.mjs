@@ -84,6 +84,24 @@ try {
   await db.peca.update({ where: { id: pecaId }, data: { totalRecebido: { increment: 10 } } });
   conferir("peça criada com 10 unidades", true);
 
+  /*
+   * Guarda o "vendido hoje" DE PARTIDA.
+   *
+   * No fim a sonda cancela a venda e confere que o número voltou ao que era.
+   * Antes ela exigia R$ 0,00, o que só valia num banco sem nenhuma venda do
+   * dia — bastava sobrar uma venda de outro teste para acusar falha num app
+   * certo. Comparar com o valor de partida vale em qualquer banco.
+   */
+  const vendidoHoje = async () => {
+    await page.goto(`${BASE}/vendas`, { waitUntil: "networkidle" });
+    await esperarPronto(page);
+    const t = (await page.textContent("body")).replace(/\s+/g, " ");
+    const m = t.match(/VENDIDO HOJE\s*R\$\s*([\d.]+,\d{2})/i);
+    return m ? Number(m[1].replace(/\./g, "").replace(",", ".")) : null;
+  };
+  const hojeAntes = await vendidoHoje();
+  conferir("leu o 'vendido hoje' de partida", hojeAntes !== null, String(hojeAntes));
+
   console.log("\n=== FAZER A VENDA (2 peças, R$ 10 de desconto) ===");
   await page.goto(`${BASE}/vendas/nova`, { waitUntil: "networkidle" });
   await esperarPronto(page);
@@ -221,8 +239,12 @@ try {
   await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("some da lista padrão", !txt.includes(MARCA + "Anel de Venda"));
-  const semDinheiro = /VENDIDO HOJE\s*R\$\s*0,00/i.test(txt.replace(/\s+/g, " "));
-  conferir("não entra em 'vendido hoje'", semDinheiro, txt.match(/VENDIDO HOJE[^A-Z]*/i)?.[0]);
+  const hojeDepois = await vendidoHoje();
+  conferir(
+    "'vendido hoje' voltou ao que era antes da venda",
+    hojeDepois !== null && Math.abs(hojeDepois - hojeAntes) < 0.005,
+    `antes ${hojeAntes}, depois ${hojeDepois}`,
+  );
 
   await page.goto(`${BASE}/vendas?filtro=canceladas`, { waitUntil: "networkidle" });
   await esperarPronto(page);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { brl } from "@/lib/formato";
 import {
   BlocoVazio,
@@ -146,12 +147,17 @@ export async function PainelCatalogo({
           <span className="text-xs text-muted-foreground">
             {linhas.length} de {plural(totalCatalogo, "peça", "peças")}
           </span>
-          <a
+          {/*
+            `Link`, não `<a>`: com âncora crua o navegador RECARREGAVA o app
+            inteiro só para limpar um filtro — tela branca, tudo de novo do
+            zero. Era o único lugar que ainda fazia isso.
+          */}
+          <Link
             href="/estoque"
             className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             Limpar filtros
-          </a>
+          </Link>
         </div>
       )}
 

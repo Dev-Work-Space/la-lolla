@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { sessaoAtual } from "@/lib/auth/sessao";
 import { LoginForm } from "@/modules/auth/components/login-form";
@@ -17,9 +18,24 @@ export default async function LoginPage({
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-8">
       <div className="w-full max-w-sm">
-        <div className="mb-7 flex flex-col items-center gap-1.5">
-          <span className="font-serif text-4xl font-bold tracking-tight">LaLolla</span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-amber-700 dark:text-amber-500">
+        {/*
+          A LOGO de verdade, não a marca redesenhada em fonte serifada. Era o
+          mesmo problema do "L" da barra lateral: parecido de longe, errado de
+          perto — outro traço, outra espessura, outra serifa.
+
+          `priority` porque é a primeira coisa que aparece na primeira tela do
+          app: carregar depois faria o bloco pular.
+        */}
+        <div className="mb-7 flex flex-col items-center gap-2">
+          <Image
+            src="/logo-lalolla.png"
+            alt="LaLolla"
+            width={353}
+            height={90}
+            priority
+            className="h-12 w-auto sm:h-14"
+          />
+          <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-(--ll-brand)">
             <span className="pl-[0.5em] -mr-[0.5em]">semijoias</span>
           </span>
         </div>

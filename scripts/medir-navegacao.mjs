@@ -28,7 +28,7 @@ const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
  * de propósito, senão o rótulo da barra lateral casaria e daria 0 ms.
  */
 const PERCURSO = [
-  ["Início", "/", "Montar painel"],
+  ["Início", "/", "Início"],
   ["Portal de vendas", "/vendas", "Portal de vendas"],
   ["Portal de compras", "/compras", "Portal de compras"],
   ["Estoque", "/estoque", "Insumos"],

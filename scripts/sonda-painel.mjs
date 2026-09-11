@@ -39,6 +39,14 @@ const vendasMes = await db.venda.count({
   where: { status: { not: "CANCELADA" }, criadoEm: { gte: mes0 } },
 });
 const vendeuNoMes = vendasMes > 0;
+
+// O convite "Primeiro passo" depende de faturamento do ANO, não do mês.
+const ano0 = new Date(agora.getFullYear(), 0, 1);
+const somaAno = await db.venda.aggregate({
+  where: { status: { not: "CANCELADA" }, criadoEm: { gte: ano0 } },
+  _sum: { total: true },
+});
+const faturouNoAno = Number(somaAno._sum.total ?? 0) > 0;
 await db.$disconnect();
 
 console.log(
@@ -96,8 +104,18 @@ try {
   let txt = await page.textContent("body");
   conferir("saudação com o nome", /Bom dia|Boa tarde|Boa noite/.test(txt) && /Teste/.test(txt));
   conferir("data por extenso", /\d{1,2} de \w+ de \d{4}/.test(txt));
-  conferir('estado inicial "Primeiro passo"', /Primeiro passo/.test(txt));
-  conferir("convite da primeira venda", /o resto do painel se preenche sozinho/.test(txt));
+  /*
+   * "Primeiro passo" é o convite que aparece enquanto a loja não faturou nada
+   * no ano. Exigir que ele esteja SEMPRE na tela só valia num banco vazio —
+   * mesma armadilha da meta e das mais vendidas. Confere a regra, não o
+   * estado: aparece sem faturamento, some com faturamento.
+   */
+  if (faturouNoAno) {
+    conferir('"Primeiro passo" some depois da primeira venda', !/Primeiro passo/.test(txt));
+  } else {
+    conferir('estado inicial "Primeiro passo"', /Primeiro passo/.test(txt));
+    conferir("convite da primeira venda", /o resto do painel se preenche sozinho/.test(txt));
+  }
   conferir("botões de ação rápida", /Nova venda/.test(txt) && /Nova peça/.test(txt));
   conferir('bloco "Precisa de você"', /Precisa de você/.test(txt));
   // Com estoque positivo em todas as peças, o cartão tem de dizer que está
@@ -118,9 +136,56 @@ try {
   conferir("pendências ocupa 4 colunas", /span 4/.test(pend?.span ?? ""), pend?.span);
   conferir("8 + 4 fecham a linha de 12", true);
 
-  console.log("\n=== MONTAR PAINEL ===");
-  await abrirDialogo(page, 'button:has-text("Montar painel")');
-  const dlg = await page.textContent('[role="dialog"]');
+  /*
+   * MONTAR PAINEL mudou de lugar: era um diálogo no Início e virou uma seção
+   * da tela de Ajustes, a pedido do João — o Início é para olhar a loja, não
+   * para configurá-la. A sonda acompanha a mudança e testa no endereço novo.
+   */
+  console.log("\n=== MONTAR PAINEL (agora nos Ajustes) ===");
+  conferir(
+    "o botão saiu do Início",
+    !(await page.textContent("main")).includes("Montar painel"),
+  );
+
+  const irAosAjustes = async () => {
+    await page.goto(`${BASE}/ajustes`, { waitUntil: "domcontentloaded" });
+    await esperarPronto(page);
+    await page.waitForSelector("text=Meu painel do Início", { timeout: 15000 });
+  };
+
+  /*
+   * Mexe no painel e só volta quando o aparelho GRAVOU.
+   *
+   * A seção existir na tela não quer dizer que ela já está ouvindo: antes da
+   * hidratação o clique não dispara nada e o localStorage fica como estava —
+   * a sonda seguia em frente achando que tinha mudado. Insistir até o valor
+   * gravado mudar é o que uma pessoa faria ao ver que nada aconteceu.
+   */
+  const mexerNoPainel = async (acao, tentativas = 6) => {
+    const antes = await page.evaluate(() => localStorage.getItem("lalolla-painel"));
+    for (let i = 0; i < tentativas; i++) {
+      await acao();
+      const gravou = await page
+        .waitForFunction((a) => localStorage.getItem("lalolla-painel") !== a, antes, {
+          timeout: 2500,
+        })
+        .then(() => true)
+        .catch(() => false);
+      if (gravou) return;
+      await page.waitForTimeout(600);
+    }
+    throw new Error("o painel não gravou depois de várias tentativas");
+  };
+  const voltarAoInicio = async () => {
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    await esperarPronto(page);
+    await page.waitForTimeout(400);
+  };
+
+  await irAosAjustes();
+  const secao = await page.textContent("main");
+  conferir("a seção vive nos Ajustes", /Meu painel do Início/.test(secao));
+  conferir("avisa que vale só neste aparelho", /Vale só neste aparelho/.test(secao));
   for (const nome of [
     "Saudação e faturamento do ano",
     "Precisa de você",
@@ -130,18 +195,24 @@ try {
     "Mais vendidas no mês",
     "Atalho para o resumo completo",
   ]) {
-    conferir(`lista "${nome}"`, dlg.includes(nome));
+    conferir(`lista "${nome}"`, secao.includes(nome));
   }
   for (const t of ["Pequeno", "Médio", "Grande", "Largura toda"]) {
-    conferir(`tamanho "${t}"`, dlg.includes(t));
+    conferir(`tamanho "${t}"`, secao.includes(t));
   }
-  conferir("tem Restaurar padrão", /Restaurar padrão/.test(dlg));
+  conferir("tem Restaurar padrão", /Restaurar padrão/.test(secao));
 
   console.log("\n=== DESLIGAR UM BLOCO ===");
-  const checks = page.locator('[role="dialog"] input[type="checkbox"]');
-  await checks.nth(2).uncheck(); // "Números do momento"
-  await page.click('[role="dialog"] button:has-text("Pronto")');
-  await page.waitForTimeout(600);
+  /*
+   * Pelo NOME, não por posição. `nth(2)` dependia da ordem salva no aparelho —
+   * e a ordem é justamente uma das coisas que esta sonda mexe, então a
+   * execução anterior podia deixar outro bloco naquela casa e o teste
+   * desligava o widget errado.
+   */
+  const caixaDe = (nome) =>
+    page.locator(`label:has-text("${nome}") input[type="checkbox"]`).first();
+  await mexerNoPainel(() => caixaDe("Números do momento").uncheck());
+  await voltarAoInicio();
   wgts = await presentes();
   conferir('"numeros" sumiu ao desligar', !wgts.includes("numeros"));
 
@@ -151,10 +222,9 @@ try {
   conferir("continua desligado depois de recarregar", !wgts.includes("numeros"));
 
   console.log("\n=== MUDAR TAMANHO ===");
-  await abrirDialogo(page, 'button:has-text("Montar painel")');
-  await page.locator('[role="dialog"] button:has-text("Largura toda")').first().click();
-  await page.click('[role="dialog"] button:has-text("Pronto")');
-  await page.waitForTimeout(600);
+  await irAosAjustes();
+  await mexerNoPainel(() => page.locator(`button:has-text("Largura toda")`).first().click());
+  await voltarAoInicio();
   const novo = await page.$$eval("[data-wgt]", (els) =>
     els.map((e) => ({ id: e.getAttribute("data-wgt"), span: getComputedStyle(e).gridColumn })),
   );
@@ -164,10 +234,9 @@ try {
   );
 
   console.log("\n=== RESTAURAR PADRÃO ===");
-  await abrirDialogo(page, 'button:has-text("Montar painel")');
-  await page.click('[role="dialog"] button:has-text("Restaurar padrão")');
-  await page.click('[role="dialog"] button:has-text("Pronto")');
-  await page.waitForTimeout(600);
+  await irAosAjustes();
+  await mexerNoPainel(() => page.click(`button:has-text("Restaurar padrão")`));
+  await voltarAoInicio();
   wgts = await presentes();
   conferir('"numeros" voltou', wgts.includes("numeros"));
   const volta = await page.$$eval("[data-wgt]", (els) =>

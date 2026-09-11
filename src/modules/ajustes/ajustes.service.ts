@@ -44,6 +44,22 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
   };
 });
 
+/*
+ * Quantas peças usam cada categoria.
+ *
+ * Serve ao editor de categorias dos Ajustes. Sem esse número, tirar uma
+ * categoria da lista é um tiro no escuro: as peças continuariam apontando
+ * para algo que não existe mais e sumiriam dos filtros sem ninguém perceber.
+ */
+export async function usoDasCategorias(): Promise<Record<string, number>> {
+  const linhas = await prisma.peca.groupBy({
+    by: ["categoria"],
+    where: { tipo: "PECA", arquivada: false },
+    _count: true,
+  });
+  return Object.fromEntries(linhas.map((l) => [l.categoria, l._count]));
+}
+
 export async function gravarAjuste(chave: keyof typeof CHAVES, valor: unknown) {
   return prisma.config.upsert({
     where: { chave: CHAVES[chave] },
