@@ -196,8 +196,15 @@ model Venda {
   itens      ItemVenda[]
   pagamentos Pagamento[]
 
+  observacao String?
+
   canceladaEm     DateTime?
   motivoCancelada String?
+
+  // Parcelas a receber. Uma venda a prazo gera Conta(tipo: RECEBER) — assim
+  // "contas a receber" e "parcelas da venda" são a mesma coisa, e não duas
+  // listas que precisam concordar entre si.
+  parcelas Conta[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -219,6 +226,15 @@ model ItemVenda {
   // Regra 2.2: preço CONGELADO no momento da venda. Se o catálogo mudar
   // amanhã, a venda de ontem continua valendo o que valia.
   precoUnit Decimal @db.Decimal(10, 2)
+
+  // O CUSTO também congela. Sem isso a margem de uma venda de janeiro seria
+  // recalculada com o custo de hoje — e o histórico mentiria a cada
+  // atualização de preço do fornecedor.
+  custoUnit Decimal? @db.Decimal(10, 2)
+
+  // Quantas unidades voltaram. A devolução não apaga o item: abate do total
+  // e devolve ao estoque, deixando o rastro de que a venda existiu.
+  devolvido Int @default(0)
 
   // Série da peça vendida (SKU-01), quando houver etiqueta individual.
   serie String?
@@ -396,6 +412,12 @@ model Conta {
   // A tela de fornecedores soma as contas em aberto de cada um.
   fornecedorId String?
   fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+
+  // Quando a conta é parcela de uma venda a prazo.
+  vendaId String?
+  venda   Venda?  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  parcela Int?    // 1 de 3, 2 de 3...
+  deParcelas Int?
 
   pagoEm    DateTime?
   // Na baixa de vencimento o comprovante é OBRIGATÓRIO (diferente da venda,
