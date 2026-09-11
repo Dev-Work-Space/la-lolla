@@ -365,11 +365,15 @@ model Compra {
   fornecedorId String
   fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id])
 
-  total     Decimal   @db.Decimal(10, 2)
-  aPrazo    Boolean   @default(false)
+  total      Decimal   @db.Decimal(10, 2)
+  aPrazo     Boolean   @default(false)
   vencimento DateTime?
+  observacao String?
 
-  itens ItemCompra[]
+  itens   ItemCompra[]
+  // Regra 2.12: dar entrada em peça É saída de caixa. À vista vira lançamento,
+  // a prazo vira conta a pagar. Uma compra nunca fica sem rastro no dinheiro.
+  parcelas Conta[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -421,6 +425,10 @@ model Conta {
   // Quando a conta é parcela de uma venda a prazo.
   vendaId String?
   venda   Venda?  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  // Quando é parcela de uma compra do fornecedor.
+  compraId String?
+  compra   Compra? @relation(fields: [compraId], references: [id], onDelete: Cascade)
   parcela Int?    // 1 de 3, 2 de 3...
   deParcelas Int?
 
