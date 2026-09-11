@@ -19,6 +19,7 @@ import {
 import { BuscaEstoque } from "./busca-estoque";
 import { FiltrosCatalogo } from "./filtros-catalogo";
 import { NovaPeca } from "./nova-peca";
+import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -44,10 +45,11 @@ export async function PainelCatalogo({
   veFinanceiro: boolean;
   pode: { criar: boolean; editar: boolean };
 }) {
-  const [ind, { linhas, totalCatalogo }, opcoes] = await Promise.all([
+  const [ind, { linhas, totalCatalogo }, opcoes, ajustes] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
     listarCatalogo({ busca, filtro, fornecedorId, categoria, veFinanceiro }),
     opcoesDeFiltro(),
+    lerAjustes(),
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -109,7 +111,13 @@ export async function PainelCatalogo({
         </div>
       )}
 
-      {pode.criar && <NovaPeca veFinanceiro={veFinanceiro} />}
+      {pode.criar && (
+        <NovaPeca
+          veFinanceiro={veFinanceiro}
+          fator={ajustes.fator}
+          categorias={ajustes.categorias}
+        />
+      )}
 
       <BuscaEstoque
         aba="catalogo"
@@ -200,7 +208,12 @@ export async function PainelCatalogo({
             texto="Peça é cada modelo que você tem para vender: um par de brincos, um colar. O custo sai do código do fornecedor e o código interno LL-0001 é gerado aqui."
             acao={
               pode.criar ? (
-                <NovaPeca veFinanceiro={veFinanceiro} rotulo="Lançar a primeira peça" />
+                <NovaPeca
+                  veFinanceiro={veFinanceiro}
+                  rotulo="Lançar a primeira peça"
+                  fator={ajustes.fator}
+                  categorias={ajustes.categorias}
+                />
               ) : undefined
             }
           />

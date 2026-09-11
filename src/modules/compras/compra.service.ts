@@ -132,6 +132,11 @@ export async function registrarCompra(entrada: CompraEntrada) {
         data: {
           custo: dec(i.custoUnit),
           fornecedorId: fornecedor.id,
+          // Total recebido do fornecedor: DIFERENTE do estoque atual. Sobe
+          // aqui e desce só na devolução ao fornecedor. É com ele que se
+          // calcula o que se deve por peças antigas e o que é "nunca
+          // comprada" (documentação, seção 15).
+          totalRecebido: { increment: i.quantidade },
           // À vista já sai pago; a prazo fica devendo e a peça acende
           // "A pagar" no catálogo.
           pagoFornecedor: entrada.pagamento.tipo === "avista",
@@ -163,7 +168,8 @@ export async function registrarCompra(entrada: CompraEntrada) {
               parcelas > 1
                 ? `Compra #${compra.numero} · ${fornecedor.nome} · ${k + 1}/${parcelas}`
                 : `Compra #${compra.numero} · ${fornecedor.nome}`,
-            valor: dec(k === 0 ? base + sobra : base),
+            // Sobra de centavos na ÚLTIMA parcela (documentação, seção 15).
+            valor: dec(k === parcelas - 1 ? base + sobra : base),
             vencimento:
               k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo),
             fornecedorId: fornecedor.id,

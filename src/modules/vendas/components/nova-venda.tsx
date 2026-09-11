@@ -46,7 +46,10 @@ const FORMAS: Array<[Forma, string]> = [
 ];
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const paraNumero = (s: string) => Number(s.replace(/\./g, "").replace(",", ".")) || 0;
+const paraNumero = (s: string) => Number(String(s).replace(/\./g, "").replace(",", ".")) || 0;
+
+/* Atalhos de desconto. O 5% é o padrão à vista dos Ajustes. */
+const ATALHOS_DESCONTO = [0, 5, 10, 15];
 
 export function NovaVenda() {
   const router = useRouter();
@@ -56,7 +59,12 @@ export function NovaVenda() {
   const [buscando, buscar] = useTransition();
 
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
-  const [desconto, setDesconto] = useState("");
+  /*
+   * Desconto é PERCENTUAL sobre o subtotal (documentação, seção 15). Guardo o
+   * percentual aqui e mando o valor em reais já calculado para o servidor —
+   * quem manda no dinheiro é o número, mas quem a pessoa digita é o "%".
+   */
+  const [descontoPct, setDescontoPct] = useState("0");
   const [observacao, setObservacao] = useState("");
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome: string }>>([]);
@@ -100,12 +108,13 @@ export function NovaVenda() {
 
   const contas = useMemo(() => {
     const subtotal = r2(itens.reduce((s, i) => s + i.precoUnit * i.quantidade, 0));
-    const desc = Math.min(paraNumero(desconto), subtotal);
+    const pct = Math.min(Math.max(paraNumero(descontoPct), 0), 100);
+    const desc = r2((subtotal * pct) / 100);
     const total = r2(Math.max(0, subtotal - desc));
     const pago = r2(pagos.reduce((s, p) => s + p.valor, 0));
     const saldo = r2(Math.max(0, total - pago));
     return { subtotal, desc, total, pago, saldo, troco: r2(Math.max(0, pago - total)) };
-  }, [itens, desconto, pagos]);
+  }, [itens, descontoPct, pagos]);
 
   function adicionar(p: Peca) {
     setItens((a) => {
@@ -348,14 +357,39 @@ export function NovaVenda() {
 
           <div className="space-y-1.5">
             <Label htmlFor="desconto">Desconto</Label>
-            <Input
-              id="desconto"
-              inputMode="decimal"
-              value={desconto}
-              onChange={(e) => setDesconto(e.target.value)}
-              placeholder="0,00"
-              className="text-base"
-            />
+            <div className="flex flex-wrap gap-1">
+              {ATALHOS_DESCONTO.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={paraNumero(descontoPct) === p}
+                  onClick={() => setDescontoPct(String(p))}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    paraNumero(descontoPct) === p
+                      ? "border-foreground bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {p === 0 ? "Sem desconto" : `${p}%`}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="desconto"
+                inputMode="decimal"
+                value={descontoPct}
+                onChange={(e) => setDescontoPct(e.target.value.replace(/[^0-9,.]/g, ""))}
+                placeholder="0"
+                className="w-20 text-base"
+                aria-label="Desconto em porcento"
+              />
+              <span className="text-sm text-muted-foreground">
+                % sobre o subtotal
+                {contas.desc > 0 ? ` · ${brl(contas.desc)}` : ""}
+              </span>
+            </div>
           </div>
 
           <dl className="space-y-1.5 border-t pt-3 text-sm">

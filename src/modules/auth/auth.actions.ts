@@ -7,10 +7,15 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { criarSessao, encerrarSessao, limparSessoesVencidas } from "@/lib/auth/sessao";
 import { tratarErro } from "@/lib/errors";
+import { conferirSenha, MENSAGEM, MIN_SENHA } from "./senha";
 import { ok, fail, type Result } from "@/lib/result";
 
-const MIN_SENHA = Number(process.env.MIN_SENHA ?? 10);
-const MAX_TENTATIVAS = 20;
+/*
+ * Da documentação funcional, seção 03: bloqueio após 8 senhas erradas em 15
+ * minutos, e o bloqueio continua valendo mesmo se o sistema for reiniciado —
+ * é por isso que as tentativas moram no BANCO, não na memória do processo.
+ */
+const MAX_TENTATIVAS = 8;
 const JANELA_MIN = 15;
 
 const loginSchema = z.object({
@@ -46,7 +51,10 @@ export async function loginAction(formData: FormData): Promise<Result<{ primeiro
     const chave = `${usuario}|${ip}`;
 
     if ((await tentativasRecentes(chave)) >= MAX_TENTATIVAS) {
-      return fail("SEM_PERMISSAO", `Muitas tentativas. Espere ${JANELA_MIN} minutos e tente de novo.`);
+      return fail(
+        "SEM_PERMISSAO",
+        `Muitas tentativas. Tente de novo em ${JANELA_MIN} minutos.`,
+      );
     }
     await prisma.tentativaLogin.create({ data: { chave } });
 
@@ -65,10 +73,9 @@ export async function loginAction(formData: FormData): Promise<Result<{ primeiro
 
     // Primeiro acesso: quem ainda não tem senha define a dele agora.
     if (conta.senhaHash === null) {
-      if (senha.length < MIN_SENHA) {
-        return fail("DADOS_INVALIDOS", `Sua senha precisa de pelo menos ${MIN_SENHA} caracteres.`, {
-          senha: [`Mínimo de ${MIN_SENHA} caracteres`],
-        });
+      const problema = conferirSenha(senha);
+      if (problema) {
+        return fail("DADOS_INVALIDOS", MENSAGEM[problema], { senha: [MENSAGEM[problema]] });
       }
       await prisma.usuario.update({
         where: { id: conta.id },

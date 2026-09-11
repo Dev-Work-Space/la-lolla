@@ -1,4 +1,4 @@
-import { Home, ShoppingBag, ShoppingCart, Boxes, Wallet, Users, type LucideIcon } from "lucide-react";
+import { Home, ShoppingBag, ShoppingCart, Boxes, Wallet, Users, Settings, type LucideIcon } from "lucide-react";
 import type { Papel } from "@prisma/client";
 import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
 
@@ -30,6 +30,13 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/estoque", nome: "Estoque", curto: "Estoque", icone: Boxes, area: "pecas" },
   { href: "/financeiro", nome: "Financeiro", curto: "Caixa", icone: Wallet, area: "financeiro" },
   { href: "/cadastros", nome: "Cadastros", curto: "Clientes", icone: Users, area: "pessoas" },
+  /*
+   * Ajustes fica por último e só aparece para quem pode editá-lo. O ponto de
+   * atenção 5 da documentação diz que hoje a engrenagem abre para qualquer
+   * perfil e o Vendedor vê campos que não consegue salvar — aqui ele nem vê o
+   * caminho.
+   */
+  { href: "/ajustes", nome: "Ajustes", curto: "Ajustes", icone: Settings, area: "ajustes" },
 ];
 
 /** Início é sempre visível; o resto depende de poder ver a área. */

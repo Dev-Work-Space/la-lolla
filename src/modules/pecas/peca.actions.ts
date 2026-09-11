@@ -162,6 +162,44 @@ export async function saldoAtualAction(pecaId: string): Promise<Result<{ saldo: 
   }
 }
 
+/*
+ * Excluir peça — documentação, "Editar peça".
+ *
+ * São duas actions de propósito: a primeira só LÊ e alimenta o aviso ("o app
+ * avisa o que está em jogo"), a segunda executa. Montar o aviso no servidor
+ * da página o deixaria velho entre abrir a tela e confirmar — justo o número
+ * que a pessoa está usando para decidir.
+ *
+ * Exige a permissão de EXCLUIR, não a de editar: na grade de permissões da
+ * documentação elas são caixas separadas.
+ */
+export async function impactoExcluirAction(
+  pecaId: string,
+): Promise<Result<import("./peca.service").ImpactoExcluir>> {
+  const sessao = await exigirPermissao("pecas", "excluir");
+  if (!sessao.ok) return sessao;
+  try {
+    const { impactoDeExcluir } = await import("./peca.service");
+    return ok(await impactoDeExcluir(pecaId));
+  } catch (e) {
+    return tratarErro(e, "impactoExcluirAction");
+  }
+}
+
+export async function excluirPecaAction(pecaId: string): Promise<Result<{ nome: string }>> {
+  const sessao = await exigirPermissao("pecas", "excluir");
+  if (!sessao.ok) return sessao;
+  try {
+    const { excluirPeca } = await import("./peca.service");
+    const p = await excluirPeca(pecaId);
+    revalidatePath("/estoque");
+    revalidatePath(`/estoque/${pecaId}`);
+    return ok({ nome: p.nome });
+  } catch (e) {
+    return tratarErro(e, "excluirPecaAction");
+  }
+}
+
 /** Zod 4 devolve `issues`; convertemos para o formato que o formulário usa. */
 function z4Fields(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }) {
   const out: Record<string, string[]> = {};

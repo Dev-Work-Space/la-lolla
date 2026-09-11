@@ -109,6 +109,16 @@ model Peca {
 
   precoTabela Decimal? @db.Decimal(10, 2)
 
+  // Se for MENOR que o sugerido, passa a ser o preço usado na venda e aparece
+  // na etiqueta como desconto ("DE" riscado e percentual).
+  precoPromocional Decimal? @db.Decimal(10, 2)
+
+  // Quanto já veio do fornecedor no total. É DIFERENTE do estoque atual:
+  // sobe na entrada e desce na devolução ao fornecedor. É com ele que se
+  // calcula o que ainda se deve por peças antigas, e é ele que define
+  // "nunca comprada".
+  totalRecebido Int @default(0)
+
   // Numeração por unidade na etiqueta: SKU-01, SKU-02… (peças iguais
   // recebem códigos diferentes para permitir rastreio individual).
   ultimaSerie Int @default(0)
@@ -547,6 +557,12 @@ model Sessao {
   // consegue se passar por um usuário logado.
   tokenHash String   @unique
   expiraEm  DateTime
+
+  // A sessão cai por INATIVIDADE: 3 dias sem uso, como manda a documentação
+  // funcional. Cada requisição autenticada empurra este carimbo para a
+  // frente; `expiraEm` continua como teto absoluto.
+  ultimoUso DateTime @default(now())
+
   ip        String?
   userAgent String?
 

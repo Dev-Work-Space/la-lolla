@@ -86,6 +86,9 @@ async function criar() {
         custo: calcularCusto(m.codigo, m.fator),
         precoTabela: m.preco || null,
         fornecedorId: fornecedor.id,
+        // A carga inicial é uma entrada do fornecedor: conta como recebida,
+        // senão a peça nasce marcada como "nunca comprada" com estoque.
+        totalRecebido: m.entrada,
       },
       select: { id: true },
     });

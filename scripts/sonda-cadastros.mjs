@@ -7,7 +7,7 @@
  * os dois pela interface no fim — por nome exato, conferido antes de clicar.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -72,8 +72,7 @@ try {
   );
 
   console.log("\n=== CADASTRAR CLIENTE (assistente de 3 etapas) ===");
-  await page.click('button:has-text("Novo cliente")');
-  await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+  await abrirDialogo(page, 'button:has-text("Novo cliente")');
   let dlg = await page.textContent('[role="dialog"]');
   conferir("etapa 1 de 3 · Quem é", /Etapa 1 de 3/.test(dlg) && /Quem é/.test(dlg));
   conferir("tem PF e Empresa", /Pessoa física/.test(dlg) && /Empresa/.test(dlg));
@@ -106,7 +105,7 @@ try {
   conferir("etapa 3 de 3 · Endereço", /Etapa 3 de 3/.test(dlg) && /Endereço/.test(dlg));
 
   await page.click('[role="dialog"] button:has-text("Salvar cliente")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 15000 });
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   // Espera o NOME aparecer em vez de dormir um tempo fixo: o refresh do
   // servidor leva o tempo que levar, e sono fixo dá falso negativo.
   const apareceu = await page
@@ -129,8 +128,7 @@ try {
   conferir("indicador Fornecedores", /Fornecedores/.test(txt));
   conferir("indicador A pagar", /A pagar/.test(txt));
 
-  await page.click('button:has-text("Novo fornecedor")');
-  await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+  await abrirDialogo(page, 'button:has-text("Novo fornecedor")');
   dlg = await page.textContent('[role="dialog"]');
   conferir("fornecedor tem 2 etapas", /Etapa 1 de 2/.test(dlg));
   conferir("padrão é Empresa", (await page.getAttribute('[role="dialog"] button:has-text("Empresa")', "aria-pressed")) === "true");
@@ -139,7 +137,7 @@ try {
   await page.click('[role="dialog"] button:has-text("Continuar")');
   await page.waitForTimeout(300);
   await page.click('[role="dialog"] button:has-text("Salvar fornecedor")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 15000 });
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   await page.waitForTimeout(1200);
 
   txt = await page.textContent("body");

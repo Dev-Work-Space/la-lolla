@@ -7,6 +7,7 @@ import { brl, dataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { FormMovimento } from "@/modules/pecas/components/form-movimento";
+import { ExcluirPeca } from "@/modules/pecas/components/excluir-peca";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,8 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   if (!p) notFound();
 
   const podeEditar = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.editar;
+  // Excluir é caixa própria na grade de permissões, não um apêndice de editar.
+  const podeExcluir = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.excluir;
   const insumo = p.tipo === "INSUMO";
   const un = insumo ? p.unidade : "un";
 
@@ -77,14 +80,35 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
           </p>
         </div>
-        {podeEditar && <FormMovimento pecaId={p.id} nome={p.nome} saldo={p.saldo} unidade={un} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {podeExcluir && (
+            <ExcluirPeca pecaId={p.id} nome={p.nome} insumo={insumo} veFinanceiro={fin} />
+          )}
+          {podeEditar && (
+            <FormMovimento pecaId={p.id} nome={p.nome} saldo={p.saldo} unidade={un} />
+          )}
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Indicador
           titulo="Em estoque"
           valor={`${p.saldo} ${un}`}
-          sub={p.saldo <= 0 ? "zerada" : noMinimo ? `no mínimo (${p.minimo})` : "disponível"}
+          /*
+           * "Nunca chegou" e "acabou" são situações diferentes e o rótulo
+           * precisa dizer qual é: quem vê "zerada" numa peça recém-cadastrada
+           * sai procurando a saída que nunca existiu. Fora esses casos, o
+           * total já recebido é o número que a documentação pede aqui.
+           */
+          sub={
+            p.totalRecebido === 0
+              ? "nunca comprada"
+              : p.saldo <= 0
+                ? `zerada · ${p.totalRecebido} ${un} recebidas ao todo`
+                : noMinimo
+                  ? `no mínimo (${p.minimo}) · ${p.totalRecebido} recebidas`
+                  : `${p.totalRecebido} ${un} recebidas ao todo`
+          }
           tom={p.saldo <= 0 || noMinimo ? "neg" : "neutro"}
         />
         <Indicador

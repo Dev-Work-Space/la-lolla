@@ -57,9 +57,29 @@ export async function fecharVenda(entrada: VendaEntrada) {
       }
     }
 
-    // Estoque insuficiente AVISA, mas não impede: na loja a peça às vezes está
-    // na mão da cliente antes de o app saber. O movimento fica negativo e o
-    // catálogo mostra o vermelho — melhor do que impedir a venda.
+    /*
+     * SALDO NEGATIVO É RECUSADO EM QUALQUER CAMINHO (documentação, seção 15).
+     *
+     * Eu havia deixado passar com aviso, pensando no balcão — a peça na mão da
+     * cliente antes de o app saber. O João manteve a regra do documento, e ele
+     * tem razão: saldo negativo contamina o estoque a custo e o saldo com
+     * fornecedor, que são números de dinheiro.
+     *
+     * A mensagem diz o que fazer, em vez de só barrar.
+     */
+    for (const it of entrada.itens) {
+      const p = porId.get(it.pecaId)!;
+      const saldo = p.movimentos.reduce((sm, m) => sm + m.delta, 0);
+      if (it.quantidade > saldo) {
+        throw new ErroDominio(
+          "REGRA_NEGOCIO",
+          saldo <= 0
+            ? `"${p.nome}" está sem estoque. Dê entrada pelo Portal de compras antes de vender.`
+            : `"${p.nome}" tem só ${saldo} em estoque e a venda pede ${it.quantidade}.`,
+        );
+      }
+    }
+
     const itensCalc = entrada.itens.map((i) => ({
       quantidade: i.quantidade,
       devolvido: 0,
@@ -78,6 +98,15 @@ export async function fecharVenda(entrada: VendaEntrada) {
     }
 
     const saldo = r2(total - pago);
+    // Venda avulsa (sem cliente) não pode ficar a prazo: não haveria de quem
+    // cobrar. Documentação, seção 02 e 15.
+    if (saldo > 0.005 && !entrada.clienteId) {
+      throw new ErroDominio(
+        "REGRA_NEGOCIO",
+        "Selecione o cliente para venda a prazo — venda avulsa precisa sair quitada.",
+      );
+    }
+
     if (saldo > 0.005 && !entrada.aPrazo) {
       throw new ErroDominio(
         "REGRA_NEGOCIO",
@@ -133,17 +162,18 @@ export async function fecharVenda(entrada: VendaEntrada) {
     if (saldo > 0.005 && entrada.aPrazo) {
       const { parcelas, intervalo, primeiroVencimento } = entrada.aPrazo;
       const valorBase = Math.floor((saldo / parcelas) * 100) / 100;
-      // A sobra de centavos vai toda na PRIMEIRA parcela: é o que o cliente
-      // paga mais perto, e evita uma última parcela com valor esquisito.
+      // A sobra de centavos vai na ÚLTIMA parcela — documentação, seção 15:
+      // R$ 100,00 em 3 = 33,33 + 33,33 + 33,34.
       const sobra = r2(saldo - valorBase * parcelas);
 
       for (let k = 0; k < parcelas; k++) {
+        const ultima = k === parcelas - 1;
         await tx.conta.create({
           data: {
             tipo: "RECEBER",
             status: "ABERTA",
             descricao: `Venda #${venda.numero} · parcela ${k + 1}/${parcelas}`,
-            valor: new Prisma.Decimal((k === 0 ? valorBase + sobra : valorBase).toFixed(2)),
+            valor: new Prisma.Decimal((ultima ? valorBase + sobra : valorBase).toFixed(2)),
             vencimento:
               k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo),
             vendaId: venda.id,

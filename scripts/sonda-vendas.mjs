@@ -12,7 +12,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -75,9 +75,13 @@ try {
     select: { id: true, nome: true, sku: true },
   });
   pecaId = peca.id;
+  // Entrada de fornecedor mexe em DUAS coisas: o movimento (que dá o saldo) e
+  // o total recebido (que tira a peça de "nunca comprada"). Injetar só o
+  // movimento deixaria a peça com estoque e etiqueta de nunca comprada.
   await db.movimentoEstoque.create({
     data: { pecaId, delta: 10, motivo: "COMPRA", observacao: "preparo do teste" },
   });
+  await db.peca.update({ where: { id: pecaId }, data: { totalRecebido: { increment: 10 } } });
   conferir("peça criada com 10 unidades", true);
 
   console.log("\n=== FAZER A VENDA (2 peças, R$ 10 de desconto) ===");
@@ -90,12 +94,14 @@ try {
   await page.click(`button:has-text("${peca.sku}")`);
   await page.waitForTimeout(300);
   await page.click(`button[aria-label="Mais um ${MARCA}Anel de Venda"]`);
-  await page.fill("#desconto", "10,00");
-  await page.waitForTimeout(300);
+  // Desconto é PERCENTUAL sobre o subtotal (documentação, seção 15):
+  // 5% de R$ 200 = R$ 10 de desconto, total R$ 190.
+  await page.fill("#desconto", "5");
+  await page.waitForTimeout(400);
 
   let txt = await page.textContent("body");
   conferir("subtotal 2 × 100 = 200", /R\$\s*200,00/.test(txt));
-  conferir("total 200 − 10 = 190", /R\$\s*190,00/.test(txt));
+  conferir("5% de desconto = total 190", /R\$\s*190,00/.test(txt));
 
   // paga 150 em dinheiro; sobram 40 a prazo
   await page.click('button:has-text("Dinheiro")');
@@ -110,6 +116,25 @@ try {
   await page.waitForTimeout(200);
   txt = await page.textContent("body");
   conferir("2× de R$ 20,00", /2×\s*de\s*R\$\s*20,00/.test(txt.replace(/\s+/g, " ")));
+
+  /*
+   * Sobra a prazo EXIGE cliente (documentação, seção 15: venda avulsa sai
+   * quitada). Esta sonda fechava sem escolher ninguém e passava; hoje o app
+   * recusa, com razão — não dá para cobrar quem não tem nome.
+   */
+  const semCliente = await page.$eval("#cliente", (s) => s.value === "");
+  conferir("a venda começa sem cliente", semCliente);
+  await page.click('button:has-text("Fechar venda")');
+  await page.waitForTimeout(2000);
+  txt = await page.textContent("body");
+  conferir("recusa fiar sem cliente", /Selecione o cliente/i.test(txt), txt.slice(0, 120));
+  conferir("e continua na tela da venda", page.url().endsWith("/vendas/nova"), page.url());
+
+  // Agora com cliente: o primeiro da lista depois de "Sem cliente".
+  const opcao = await page.$eval("#cliente", (s) => s.options[1]?.value ?? "");
+  conferir("existe cliente para escolher", Boolean(opcao));
+  await page.selectOption("#cliente", opcao);
+  await page.waitForTimeout(300);
 
   await page.click('button:has-text("Fechar venda")');
   await page.waitForURL((u) => /\/vendas\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith("/nova"), { timeout: 30000 });
@@ -151,8 +176,7 @@ try {
   conferir("saldo 10 − 2 = 8", movs.reduce((s, m) => s + m.delta, 0) === 8);
 
   console.log("\n=== DEVOLVER 1 PEÇA ===");
-  await page.click('button:has-text("Devolver")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Devolver")');
   await page.fill(`input[aria-label="Devolver de ${MARCA}Anel de Venda"]`, "1");
   await page.click('[role="dialog"] button:has-text("Confirmar devolução")');
   await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
@@ -174,8 +198,7 @@ try {
   await page.screenshot({ path: "scripts/shots/venda-ficha.png", fullPage: true });
 
   console.log("\n=== CANCELAR ===");
-  await page.click('button:has-text("Cancelar venda")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Cancelar venda")');
   await page.fill("#motivo", "teste automatizado");
   await page.click('[role="dialog"] button:has-text("Cancelar venda")');
   await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });

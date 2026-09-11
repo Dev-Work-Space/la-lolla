@@ -3,7 +3,7 @@
  * Só leitura e localStorage; não escreve nada no banco.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -76,8 +76,7 @@ try {
   conferir("8 + 4 fecham a linha de 12", true);
 
   console.log("\n=== MONTAR PAINEL ===");
-  await page.click('button:has-text("Montar painel")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Montar painel")');
   const dlg = await page.textContent('[role="dialog"]');
   for (const nome of [
     "Saudação e faturamento do ano",
@@ -109,8 +108,7 @@ try {
   conferir("continua desligado depois de recarregar", !wgts.includes("numeros"));
 
   console.log("\n=== MUDAR TAMANHO ===");
-  await page.click('button:has-text("Montar painel")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Montar painel")');
   await page.locator('[role="dialog"] button:has-text("Largura toda")').first().click();
   await page.click('[role="dialog"] button:has-text("Pronto")');
   await page.waitForTimeout(600);
@@ -123,8 +121,7 @@ try {
   );
 
   console.log("\n=== RESTAURAR PADRÃO ===");
-  await page.click('button:has-text("Montar painel")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Montar painel")');
   await page.click('[role="dialog"] button:has-text("Restaurar padrão")');
   await page.click('[role="dialog"] button:has-text("Pronto")');
   await page.waitForTimeout(600);

@@ -49,6 +49,10 @@ export type LinhaCatalogo = {
   fornecedor: string | null;
   codigoFornecedor: number | null;
   precoTabela: number | null;
+  /** Menor que o sugerido: vira o preço usado na venda e sai na etiqueta. */
+  precoPromocional: number | null;
+  /** O preço que de fato vai para a venda. */
+  precoVigente: number | null;
   /** só para quem vê financeiro */
   custo?: number | null;
   margem?: number | null;
@@ -63,6 +67,8 @@ const SELECAO = {
   tamanho: true,
   minimo: true,
   precoTabela: true,
+  precoPromocional: true,
+  totalRecebido: true,
   codigoFornecedor: true,
   custo: true,
   pagoFornecedor: true,
@@ -124,10 +130,14 @@ export async function listarCatalogo(opcoes: {
 
   let linhas: LinhaCatalogo[] = pecas.map((p) => {
     const saldo = p.movimentos.reduce((s, m) => s + m.delta, 0);
-    // "Nunca comprada" é diferente de "acabou": a primeira nunca chegou.
-    const nuncaComprada = !p.movimentos.some((m) => m.delta > 0);
+    // "Nunca comprada" = total recebido zero (documentação, seção 15). É
+    // diferente de "acabou": a primeira nunca chegou.
+    const nuncaComprada = p.totalRecebido === 0;
     const custo = dec(p.custo);
     const preco = dec(p.precoTabela);
+    const promo = dec(p.precoPromocional);
+    // Promocional só vale se for MENOR que o sugerido (documentação, seção 02).
+    const vigente = promo !== null && preco !== null && promo < preco ? promo : preco;
 
     const base: LinhaCatalogo = {
       id: p.id,
@@ -143,11 +153,13 @@ export async function listarCatalogo(opcoes: {
       fornecedor: p.fornecedor?.nome ?? null,
       codigoFornecedor: veFinanceiro ? dec(p.codigoFornecedor) : null,
       precoTabela: preco,
+      precoPromocional: promo,
+      precoVigente: vigente,
     };
 
     // Os campos de dinheiro só existem no objeto de quem pode vê-los.
     if (!veFinanceiro) return base;
-    return { ...base, custo, margem: calcularMargem(custo, preco), aPagar: !p.pagoFornecedor };
+    return { ...base, custo, margem: calcularMargem(custo, vigente), aPagar: !p.pagoFornecedor };
   });
 
   // Os mesmos sete filtros, com o mesmo significado.
@@ -340,6 +352,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       fator: true,
       custo: true,
       pagoFornecedor: true,
+      totalRecebido: true,
       ultimaSerie: true,
       criadoEm: true,
       fornecedor: { select: { id: true, nome: true } },
@@ -393,6 +406,9 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
     criadoEm: p.criadoEm,
     ultimaSerie: p.ultimaSerie,
     saldo: acumulado,
+    // Quantas já ENTRARAM desde sempre — a documentação pede esse número no
+    // cartão de estoque, e é ele que separa "acabou" de "nunca chegou".
+    totalRecebido: p.totalRecebido,
     reservada: reservada._sum.quantidade ?? 0,
     vendidas: vendidas._sum.quantidade ?? 0,
     historico,

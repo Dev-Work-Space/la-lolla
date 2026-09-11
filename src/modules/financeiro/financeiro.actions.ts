@@ -113,7 +113,8 @@ export async function criarContaAction(formData: FormData): Promise<Result<{ qua
             tipo: d.tipo,
             descricao:
               d.parcelas > 1 ? `${d.descricao} · ${k + 1}/${d.parcelas}` : d.descricao,
-            valor: dec(k === 0 ? base + sobra : base),
+            // Sobra de centavos na ÚLTIMA parcela (documentação, seção 15).
+            valor: dec(k === d.parcelas - 1 ? base + sobra : base),
             vencimento: venc,
             fornecedorId: d.fornecedorId || null,
             ...(d.parcelas > 1 ? { parcela: k + 1, deParcelas: d.parcelas } : {}),

@@ -3,7 +3,7 @@
  * Só leitura.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";

@@ -10,7 +10,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -77,8 +77,7 @@ try {
     /Carteira é onde o dinheiro está/i.test(txt),
   );
 
-  await page.click('button:has-text("Nova carteira")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Nova carteira")');
   await page.fill("#nome", MARCA + "Cofre");
   await page.fill("#saldoInicial", "1.000,00");
   await page.click('[role="dialog"] button:has-text("Salvar")');
@@ -96,8 +95,7 @@ try {
   console.log("\n=== SAÍDA DE DINHEIRO É GRAVADA NEGATIVA ===");
   await page.goto(`${BASE}/financeiro?aba=caixa`, { waitUntil: "networkidle" });
   await esperarPronto(page);
-  await page.click('button:has-text("Saída de dinheiro")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Saída de dinheiro")');
   await page.fill("#descricao", MARCA + "Conta de luz");
   await page.fill("#valor", "250,00");
   await page.selectOption("#carteiraId", cart.id);
@@ -127,8 +125,7 @@ try {
   console.log("\n=== CONTA A PAGAR EM 2 PARCELAS ===");
   await page.goto(`${BASE}/financeiro?aba=pagar`, { waitUntil: "networkidle" });
   await esperarPronto(page);
-  await page.click('button:has-text("Nova conta a pagar")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Nova conta a pagar")');
   await page.fill("#descricao-c", MARCA + "Aluguel");
   await page.fill("#valor-c", "900,00");
   await page.fill("#parcelas-c", "2");
@@ -155,8 +152,7 @@ try {
   console.log("\n=== DAR BAIXA MUDA O SALDO DE VERDADE ===");
   await page.reload({ waitUntil: "networkidle" });
   await esperarPronto(page);
-  await page.click(`button[aria-label^="Dar baixa em ${MARCA}Aluguel"]`);
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, `button[aria-label^="Dar baixa em ${MARCA}Aluguel"]`);
   const dlg = await page.textContent('[role="dialog"]');
   conferir("avisa que comprovante ainda não está pronto", /comprovante/i.test(dlg));
   await page.selectOption(`select[name="carteiraId"]`, cart.id);

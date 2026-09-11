@@ -2,10 +2,11 @@
  * Fase 2 — Estoque. Confere catálogo e insumos contra o PARIDADE.md,
  * inclusive a diferença de indicadores entre admin e vendedor.
  *
- * Cria um insumo de teste pela interface e o remove no fim, por nome exato.
+ * Cria um insumo de teste pela interface e o remove no fim, por id exato,
+ * conferindo o nome de cada linha antes de apagar.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -117,14 +118,13 @@ try {
   conferir("mostra custo por unidade", /por un/.test(txt));
 
   console.log("\n=== CADASTRAR INSUMO ===");
-  await page.click('button:has-text("Novo insumo")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Novo insumo")');
   await page.fill("#nome", MARCA + "Laço de cetim");
   await page.fill("#unidade", "par");
   await page.fill("#minimo", "10");
   await page.fill("#custo", "1,25");
   await page.click('[role="dialog"] button:has-text("Salvar insumo")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 15000 });
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   const apareceu = await page
     .waitForFunction((n) => document.body.innerText.includes(n), MARCA + "Laço de cetim", {
       timeout: 15000,
@@ -176,19 +176,61 @@ try {
   conferir("vendedor: nenhum erro de console", vend.erros.length === 0, vend.erros.slice(0, 2).join(" | "));
   await vend.ctx.close();
 
-  /* ───────────────── LIMPEZA ───────────────── */
-  console.log("\n=== LIMPEZA ===");
+  /*
+   * ───────────────── EXCLUIR E LIMPAR ─────────────────
+   *
+   * A limpeza É o teste. Antes não existia "Excluir" na ficha: a sonda só
+   * AVISAVA que o insumo tinha ficado e seguia em frente, então cada execução
+   * deixava mais um "ZZQA Laço de cetim" para trás — e os acumulados
+   * apareciam como peças zeradas em outras telas.
+   *
+   * Agora sai pela interface, do jeito que uma pessoa faria.
+   */
+  console.log("\n=== EXCLUIR (documentação: 'Editar peça') ===");
   await page.setViewportSize({ width: 1366, height: 950 });
   await page.goto(`${BASE}/estoque?aba=insumos&busca=${encodeURIComponent(MARCA)}`, {
     waitUntil: "networkidle",
   });
   await esperarPronto(page);
-  const restou = (await page.textContent("body")).includes(MARCA + "Laço de cetim");
-  console.log(
-    restou
-      ? `  o insumo "${MARCA}Laço de cetim" continua no banco (ainda não há botão de excluir insumo)`
-      : "  nada a limpar",
-  );
+
+  let sobrou = 0;
+  while ((await page.textContent("body")).includes(MARCA + "Laço de cetim")) {
+    await page.click(`a:has-text("${MARCA}Laço de cetim"), [href^="/estoque/"]:has-text("Laço")`);
+    await page.waitForURL(/\/estoque\/[^/?]+$/, { timeout: 20000 });
+    await esperarPronto(page);
+
+    if (sobrou === 0) {
+      const ficha = await page.textContent("body");
+      conferir("ficha diz 'nunca comprada' em vez de 'zerada'", /nunca comprada/.test(ficha));
+      conferir("ficha oferece excluir", /Excluir insumo/.test(ficha));
+    }
+
+    await abrirDialogo(page, 'button:has-text("Excluir insumo")');
+    // O aviso é buscado ao abrir; ler antes de ele chegar pegava só o
+    // "Conferindo o que está em jogo…".
+    await page.waitForFunction(
+      () => !document.querySelector('[role="dialog"]')?.textContent?.includes("Conferindo"),
+      undefined,
+      { timeout: 15000 },
+    );
+    const aviso = await page.textContent('[role="dialog"]');
+    if (sobrou === 0) {
+      conferir("o aviso diz o que acontece", /histórico de estoque e as vendas antigas/.test(aviso));
+      conferir("sem pendência, o aviso diz isso", /Nada fica pendente/.test(aviso));
+    }
+    await page.click('[role="dialog"] button:has-text("Excluir insumo")');
+    await page.waitForURL(/\/estoque\?aba=insumos/, { timeout: 20000 });
+    await esperarPronto(page);
+    sobrou++;
+
+    await page.goto(`${BASE}/estoque?aba=insumos&busca=${encodeURIComponent(MARCA)}`, {
+      waitUntil: "networkidle",
+    });
+    await esperarPronto(page);
+    if (sobrou > 10) break; // rede de segurança: nunca girar sem fim
+  }
+  conferir("o insumo some da lista depois de excluir", sobrou > 0);
+  console.log(`  ${sobrou} insumo(s) de teste removido(s) pela tela`);
   await admin.ctx.close();
 } catch (e) {
   falhou++;

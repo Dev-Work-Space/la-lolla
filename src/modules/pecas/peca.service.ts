@@ -219,7 +219,106 @@ export async function movimentarEstoque(entrada: {
   if (entrada.delta === 0) {
     throw new ErroDominio("DADOS_INVALIDOS", "O movimento não pode ser zero.");
   }
-  return prisma.movimentoEstoque.create({ data: entrada, select: { id: true } });
+
+  return prisma.$transaction(async (tx) => {
+    const m = await tx.movimentoEstoque.create({ data: entrada, select: { id: true } });
+
+    /*
+     * "Total recebido" sobe em TODA entrada vinda do fornecedor, não só na
+     * compra registrada no Portal — a documentação (seção 15) diz que ele
+     * sobe "na entrada" e desce na devolução ao fornecedor.
+     *
+     * Sem isso, uma peça que entrou por movimento manual continuaria
+     * marcada como "nunca comprada" mesmo com 10 unidades na prateleira.
+     *
+     * Venda, perda e inventário NÃO mexem nele: não vieram do fornecedor.
+     */
+    if (entrada.delta > 0 && (entrada.motivo === "COMPRA" || entrada.motivo === "AJUSTE")) {
+      await tx.peca.update({
+        where: { id: entrada.pecaId },
+        data: { totalRecebido: { increment: entrada.delta } },
+      });
+    }
+
+    return m;
+  });
+}
+
+/* ══════════════════════ EXCLUIR (ARQUIVAR) ══════════════════════ */
+
+/*
+ * A documentação pede que, ao excluir, o app avise o que está em jogo:
+ * unidades em estoque e seu valor a custo, reservas em orçamento, vendas em
+ * que a peça aparece e se ela ainda consta a acertar com o fornecedor.
+ *
+ * E diz duas coisas que decidem a implementação inteira:
+ *   "as vendas ficam, com o nome gravado"
+ *   "as movimentações são preservadas"
+ *
+ * Ou seja: excluir NÃO apaga a linha. Apagar de verdade levaria junto o
+ * histórico de estoque e quebraria as vendas antigas, que apontam para a
+ * peça. Excluir aqui é ARQUIVAR — a peça sai de todas as listas (o catálogo,
+ * os insumos, os indicadores e o painel já filtram `arquivada: false`) e tudo
+ * que já aconteceu continua de pé.
+ */
+export type ImpactoExcluir = {
+  nome: string;
+  sku: string;
+  saldo: number;
+  valorACusto: number;
+  reservadas: number;
+  vendas: number;
+  aAcertar: boolean;
+};
+
+export async function impactoDeExcluir(pecaId: string): Promise<ImpactoExcluir> {
+  const [peca, reserva] = await Promise.all([
+    prisma.peca.findUnique({
+      where: { id: pecaId },
+      select: {
+        nome: true,
+        sku: true,
+        custo: true,
+        pagoFornecedor: true,
+        fornecedorId: true,
+        movimentos: { select: { delta: true } },
+        // Venda cancelada não conta: ela não segura mais nada.
+        itensVenda: {
+          where: { venda: { status: { not: "CANCELADA" } } },
+          select: { vendaId: true },
+        },
+      },
+    }),
+    // Reserva é item de orçamento ABERTO — mesma conta da ficha.
+    prisma.itemOrcamento.aggregate({
+      where: { pecaId, orcamento: { status: "ABERTO" } },
+      _sum: { quantidade: true },
+    }),
+  ]);
+  if (!peca) throw new ErroDominio("NAO_ENCONTRADO", "Peça não encontrada.");
+
+  const saldo = peca.movimentos.reduce((s, m) => s + m.delta, 0);
+  const custo = peca.custo ? Number(peca.custo) : 0;
+
+  return {
+    nome: peca.nome,
+    sku: peca.sku,
+    saldo,
+    valorACusto: Math.max(saldo, 0) * custo,
+    reservadas: reserva._sum.quantidade ?? 0,
+    // Uma venda pode ter a peça em mais de uma linha; o que interessa à
+    // pessoa é em quantas VENDAS ela aparece.
+    vendas: new Set(peca.itensVenda.map((i) => i.vendaId)).size,
+    aAcertar: Boolean(peca.fornecedorId) && !peca.pagoFornecedor,
+  };
+}
+
+export async function excluirPeca(pecaId: string) {
+  return prisma.peca.update({
+    where: { id: pecaId },
+    data: { arquivada: true },
+    select: { id: true, nome: true, tipo: true },
+  });
 }
 
 /** Numeração por unidade na etiqueta: LL-0001-01, LL-0001-02… */

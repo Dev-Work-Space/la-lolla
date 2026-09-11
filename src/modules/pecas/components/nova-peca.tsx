@@ -24,7 +24,18 @@ import {
  * aqui é só conveniência — quem manda é a action, que ignora custo e fator
  * quando a sessão não pode gravá-los.
  */
-export function NovaPeca({ veFinanceiro, rotulo }: { veFinanceiro: boolean; rotulo?: string }) {
+export function NovaPeca({
+  veFinanceiro,
+  rotulo,
+  fator = 2.9,
+  categorias = [],
+}: {
+  veFinanceiro: boolean;
+  rotulo?: string;
+  /** Multiplicador vindo dos Ajustes; usado como padrão no cadastro. */
+  fator?: number;
+  categorias?: string[];
+}) {
   const [aberto, setAberto] = useState(false);
   const router = useRouter();
 
@@ -60,7 +71,29 @@ export function NovaPeca({ veFinanceiro, rotulo }: { veFinanceiro: boolean; rotu
         <form action={enviar} className="space-y-4">
           <Campo id="nome" rotulo="Nome da peça" erro={erroDe("nome")} autoFocus required />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo id="categoria" rotulo="Categoria" erro={erroDe("categoria")} required />
+            <div className="space-y-1.5">
+              <Label htmlFor="categoria">Categoria</Label>
+              {categorias.length > 0 ? (
+                <select
+                  id="categoria"
+                  name="categoria"
+                  className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
+                  aria-invalid={!!erroDe("categoria")}
+                  required
+                >
+                  {categorias.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input id="categoria" name="categoria" className="text-base" required />
+              )}
+              {erroDe("categoria") && (
+                <p className="text-sm text-destructive">{erroDe("categoria")}</p>
+              )}
+            </div>
             <Campo id="tamanho" rotulo="Tamanho" erro={erroDe("tamanho")} />
           </div>
 
@@ -87,10 +120,12 @@ export function NovaPeca({ veFinanceiro, rotulo }: { veFinanceiro: boolean; rotu
                 />
                 <Campo
                   id="fator"
-                  rotulo="Fator"
+                  rotulo="Multiplicador"
                   erro={erroDe("fator")}
                   inputMode="decimal"
-                  placeholder="1,00"
+                  /* Vem dos Ajustes (padrão 2,9) já preenchido — é o número
+                     que a loja usa em quase toda peça. */
+                  defaultValue={String(fator).replace(".", ",")}
                 />
               </div>
             </div>

@@ -20,13 +20,10 @@ import type {
  * para o celular do João.
  */
 
-/** Padrão do app antigo (`cfg().diasParado`). Mora em Config, editável. */
-const DIAS_PARADO_PADRAO = 60;
-
+/** Vem dos Ajustes (padrão 60 dias). */
 export async function diasParado(): Promise<number> {
-  const c = await prisma.config.findUnique({ where: { chave: "diasParado" } });
-  const n = Number(c?.valor);
-  return Number.isFinite(n) && n > 0 ? n : DIAS_PARADO_PADRAO;
+  const { lerAjustes } = await import("@/modules/ajustes/ajustes.service");
+  return (await lerAjustes()).diasParado;
 }
 
 const diasEntre = (de: Date, ate: Date) =>

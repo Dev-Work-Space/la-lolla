@@ -40,6 +40,7 @@ async function main() {
   await prisma.movimentoEstoque.create({
     data: { pecaId, delta: 10, motivo: "COMPRA", observacao: "preparo" },
   });
+  await prisma.peca.update({ where: { id: pecaId }, data: { totalRecebido: { increment: 10 } } });
 
   // Prova que a peça está visível numa consulta normal antes da transação.
   const existe = await prisma.peca.findUnique({ where: { id: pecaId }, select: { id: true } });

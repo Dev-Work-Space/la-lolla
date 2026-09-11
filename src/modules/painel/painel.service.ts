@@ -79,12 +79,21 @@ export async function dadosDoInicio(nome: string) {
       prisma.conta.count({ where: { status: "ABERTA", vencimento: { lt: dia0 } } }),
       prisma.conta.count({ where: { status: "ABERTA", vencimento: { gte: dia0, lte: em7 } } }),
       prisma.orcamento.count({ where: { status: "ABERTO", validoAte: { lt: em7 } } }),
-      // Peças zeradas em SQL: contar saldo por peça no banco evita trazer o
-      // catálogo inteiro com todos os movimentos só para somar.
+      /*
+       * Peças zeradas em SQL: contar saldo por peça no banco evita trazer o
+       * catálogo inteiro com todos os movimentos só para somar.
+       *
+       * "Zerada" é peça que ACABOU, não peça que nunca chegou. O catálogo já
+       * faz essa separação (filtro "Zeradas" x "Nunca compradas") e o painel
+       * contava as duas juntas — um cadastro recém-criado, ainda sem a
+       * primeira compra, aparecia no "Precisa de você" como se tivesse
+       * acabado. Só entra quem já recebeu alguma vez.
+       */
       prisma.$queryRaw<Array<{ zeradas: bigint }>>`
         select count(*)::bigint as zeradas
         from pecas p
         where p.arquivada = false
+          and p."totalRecebido" > 0
           and coalesce(
             (select sum(m.delta) from movimentos_estoque m where m."pecaId" = p.id), 0
           ) <= 0

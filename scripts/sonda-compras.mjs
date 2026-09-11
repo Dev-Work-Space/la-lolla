@@ -12,7 +12,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -89,9 +89,7 @@ try {
   await esperarPronto(page);
   await page.waitForSelector("#fornecedor", { timeout: 30000 });
   await page.selectOption("#fornecedor", forn.id);
-  await page.fill("#busca-item", peca.sku);
-  await page.waitForSelector(`button:has-text("${peca.sku}")`, { timeout: 20000 });
-  await page.click(`button:has-text("${peca.sku}")`);
+  await buscarEClicar(page, "#busca-item", peca.sku, `button:has-text("${peca.sku}")`);
   await page.waitForTimeout(300);
 
   // 5 unidades a R$ 25 cada = R$ 125
@@ -155,9 +153,7 @@ try {
   await esperarPronto(page);
   await page.waitForSelector("#fornecedor", { timeout: 30000 });
   await page.selectOption("#fornecedor", forn.id);
-  await page.fill("#busca-item", peca.sku);
-  await page.waitForSelector(`button:has-text("${peca.sku}")`, { timeout: 20000 });
-  await page.click(`button:has-text("${peca.sku}")`);
+  await buscarEClicar(page, "#busca-item", peca.sku, `button:has-text("${peca.sku}")`);
   await page.waitForTimeout(300);
   await page.click(`button[aria-label="Mais um ${MARCA}Brinco de Compra"]`);
   await page.fill(`input[aria-label="Custo de ${MARCA}Brinco de Compra"]`, "30,00");

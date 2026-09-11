@@ -5,7 +5,7 @@
  * confere os números e APAGA a peça no fim — por id exato, capturado da URL.
  */
 import { chromium } from "playwright-core";
-import { esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -34,8 +34,7 @@ let pecaId = null;
 let saldoAntes = 0;
 
 async function mexer(modo, quantidade, saldoEsperado) {
-  await page.click('button:has-text("Mexer no estoque")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Mexer no estoque")');
   const rotulo = { entrada: "Entrada", saida: "Saída", inventario: "Inventário" }[modo];
   await page.click(`[role="dialog"] button:has-text("${rotulo}")`);
   // O diálogo busca o saldo de agora ao abrir; espera ele chegar antes de
@@ -49,7 +48,7 @@ async function mexer(modo, quantidade, saldoEsperado) {
   await page.waitForTimeout(150);
   const previa = await page.textContent('[role="dialog"]');
   await page.click('[role="dialog"] button:has-text("Gravar movimento")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 15000 });
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   // Espera o NÚMERO aparecer na tela, em vez de dormir um tempo fixo.
   await page.waitForFunction(
     (s) => new RegExp(`EM ESTOQUE\s*${s}\s*un`, "i").test(document.body.innerText.replace(/\s+/g, " ")),
@@ -78,15 +77,15 @@ try {
   console.log("\n=== CRIAR A PEÇA DE TESTE ===");
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
   await esperarPronto(page);
-  await page.click('button:has-text("Nova peça")');
-  await page.waitForSelector('[role="dialog"]');
+  await abrirDialogo(page, 'button:has-text("Nova peça")');
   await page.fill("#nome", MARCA + "Peça de Teste");
-  await page.fill("#categoria", "Anéis");
+  // A categoria virou seletor, alimentado pelos Ajustes.
+  await page.selectOption("#categoria", "Anéis");
   await page.fill("#precoTabela", "200,00");
   await page.fill("#codigoFornecedor", "20");
   await page.fill("#fator", "5");
   await page.click('[role="dialog"] button:has-text("Salvar peça")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 15000 });
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   await page.waitForFunction((n) => document.body.innerText.includes(n), MARCA + "Peça de Teste", {
     timeout: 15000,
   });

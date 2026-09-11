@@ -8,7 +8,16 @@ import { lerPermissoes, type Permissoes } from "@/modules/usuarios/permissoes";
 import type { Papel } from "@prisma/client";
 
 export const COOKIE_SESSAO = "lalolla_sessao";
-const DIAS_SESSAO = 30;
+/*
+ * A documentação funcional manda a sessão cair depois de 3 DIAS SEM USO —
+ * inatividade, não prazo fixo. Quem usa todo dia nunca é desconectado; um
+ * aparelho esquecido no balcão se fecha sozinho.
+ *
+ * DIAS_TETO existe como limite absoluto: mesmo em uso contínuo, a sessão é
+ * renovada de tempos em tempos.
+ */
+const DIAS_INATIVIDADE = 3;
+const DIAS_TETO = 30;
 
 export type Sessao = {
   usuarioId: string;
@@ -50,6 +59,7 @@ export const sessaoAtual = cache(async (): Promise<Sessao | null> => {
     where: { tokenHash: hashToken(token) },
     select: {
       expiraEm: true,
+      ultimoUso: true,
       usuario: {
         select: { id: true, nome: true, email: true, papel: true, permissoes: true, ativo: true },
       },
@@ -57,8 +67,25 @@ export const sessaoAtual = cache(async (): Promise<Sessao | null> => {
   });
 
   if (!registro) return null;
-  if (registro.expiraEm < new Date()) return null;
   if (!registro.usuario.ativo) return null;
+
+  const agora = new Date();
+  if (registro.expiraEm < agora) return null;
+
+  // Inatividade: 3 dias sem usar encerram a sessão.
+  const limite = new Date(registro.ultimoUso.getTime() + DIAS_INATIVIDADE * 86_400_000);
+  if (limite < agora) return null;
+
+  /*
+   * Empurra o carimbo de uso — mas só quando já passou tempo suficiente.
+   * Gravar a cada requisição faria uma escrita no banco por clique, e o ganho
+   * de precisão seria nenhum.
+   */
+  if (agora.getTime() - registro.ultimoUso.getTime() > 5 * 60_000) {
+    prisma.sessao
+      .update({ where: { tokenHash: hashToken(token) }, data: { ultimoUso: agora } })
+      .catch(() => {});
+  }
 
   const u = registro.usuario;
   return {
@@ -72,7 +99,7 @@ export const sessaoAtual = cache(async (): Promise<Sessao | null> => {
 
 export async function criarSessao(usuarioId: string, ip?: string, userAgent?: string) {
   const { token, hash } = gerarToken();
-  const expiraEm = new Date(Date.now() + DIAS_SESSAO * 24 * 60 * 60 * 1000);
+  const expiraEm = new Date(Date.now() + DIAS_TETO * 86_400_000);
 
   await prisma.sessao.create({
     data: { usuarioId, tokenHash: hash, expiraEm, ip, userAgent },
@@ -99,7 +126,14 @@ export async function encerrarSessao() {
   jar.delete(COOKIE_SESSAO);
 }
 
-/** Remove sessões vencidas. Chamado no login — sem cron, sem processo vivo. */
+/**
+ * Remove sessões mortas. Chamado no login — sem cron, sem processo vivo.
+ * Some tanto a que passou do teto quanto a que ficou 3 dias parada.
+ */
 export async function limparSessoesVencidas() {
-  await prisma.sessao.deleteMany({ where: { expiraEm: { lt: new Date() } } });
+  const agora = new Date();
+  const inativas = new Date(agora.getTime() - DIAS_INATIVIDADE * 86_400_000);
+  await prisma.sessao.deleteMany({
+    where: { OR: [{ expiraEm: { lt: agora } }, { ultimoUso: { lt: inativas } }] },
+  });
 }
