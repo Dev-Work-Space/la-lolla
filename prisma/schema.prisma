@@ -251,6 +251,11 @@ model Pagamento {
   valor   Decimal        @db.Decimal(10, 2)
   parcelas Int           @default(1)
 
+  // Onde o dinheiro entrou. Sem isso o saldo da carteira ignoraria as vendas,
+  // que são a maior entrada da loja.
+  carteiraId String?
+  carteira   Carteira? @relation(fields: [carteiraId], references: [id], onDelete: SetNull)
+
   // Pix, Débito e Crédito exigem comprovante. A PENDÊNCIA É DERIVADA daqui:
   // não existe campo "pendente" — quem precisa de comprovante e está com
   // comprovanteId nulo, está pendente. Um estado só, sem sincronizar nada.
@@ -438,7 +443,17 @@ model Carteira {
   cofrinho Boolean @default(false)
   ordem    Int     @default(0)
 
+  // Quanto já havia na carteira quando ela foi criada. Sem isso, o saldo
+  // começaria em zero e só bateria com a realidade depois de meses.
+  saldoInicial Decimal @default(0) @db.Decimal(10, 2)
+
+  // Carteira é ONDE o dinheiro está (espécie, banco, reserva) — NÃO é como
+  // o cliente pagou (Pix, débito). São eixos diferentes: um Pix cai no
+  // banco, um crédito também, e dinheiro vivo fica na espécie.
+  arquivada Boolean @default(false)
+
   lancamentos       Lancamento[]
+  pagamentos        Pagamento[]
   transferenciasSai Transferencia[] @relation("origem")
   transferenciasEnt Transferencia[] @relation("destino")
 
@@ -448,9 +463,13 @@ model Carteira {
 }
 
 model Lancamento {
-  id         String  @id @default(cuid())
-  carteiraId String
-  carteira   Carteira @relation(fields: [carteiraId], references: [id])
+  id String @id @default(cuid())
+
+  // Opcional de propósito: o app antigo permite lançar dinheiro sem dizer
+  // onde ele está, e mostra o total como "sem carteira" para a pessoa
+  // revisar depois. Obrigar aqui faria a tela mentir ou travar o lançamento.
+  carteiraId String?
+  carteira   Carteira? @relation(fields: [carteiraId], references: [id], onDelete: SetNull)
 
   descricao String
   valor     Decimal @db.Decimal(10, 2) // + entrada, − saída
