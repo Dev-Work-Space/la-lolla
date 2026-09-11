@@ -18,13 +18,24 @@ function criarClient() {
     throw new Error("DATABASE_URL não configurada. Copie .env.example para .env.");
   }
 
-  const adapter = new PrismaPg({
-    connectionString,
-    // Uma conexão por instância. Cada função serverless da Vercel roda em seu
-    // próprio processo: sem este teto, 50 acessos simultâneos viram centenas
-    // de conexões e o Supabase começa a recusar.
-    max: 1,
-  });
+  /*
+   * O tamanho do pool depende de ONDE o app roda, e a diferença é grande.
+   *
+   * Na Vercel cada requisição roda numa função própria: se cada uma abrisse
+   * 10 conexões, 50 acessos simultâneos viram 500 e o Supabase recusa. Lá o
+   * teto é 1, e é inegociável.
+   *
+   * No servidor local (desenvolvimento, ou `npm start` numa máquina) é UM
+   * processo só atendendo tudo. Com teto de 1, as consultas que eu escrevi
+   * para rodar juntas viram fila — e cada uma paga a ida e volta até o banco.
+   * Medido: 8 consultas levavam 228 ms enfileiradas contra 133 ms juntas.
+   *
+   * Dá para forçar pelo ambiente com PG_POOL_MAX, se algum dia precisar.
+   */
+  const naVercel = Boolean(process.env.VERCEL);
+  const max = Number(process.env.PG_POOL_MAX) || (naVercel ? 1 : 10);
+
+  const adapter = new PrismaPg({ connectionString, max });
 
   return new PrismaClient({
     adapter,
