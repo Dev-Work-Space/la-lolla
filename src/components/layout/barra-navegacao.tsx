@@ -29,7 +29,8 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
         // No iPhone a barra de gestos come o rodapé; isto devolve o espaço.
         "pb-[env(safe-area-inset-bottom)]",
       )}
-      aria-label="Navegação principal"
+      aria-label="Navegação do rodapé"
+      data-nav="inferior"
     >
       <div
         className="mx-auto grid w-full max-w-3xl"

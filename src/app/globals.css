@@ -9,6 +9,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --color-marca: var(--ll-brand);
+  --color-ouro: var(--ll-accent);
+  --color-ouro-suave: var(--ll-accent-soft);
+  --color-ok: var(--ll-ok);
+  --color-aviso: var(--ll-warn);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -48,40 +53,79 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   PALETA OFICIAL DA LALOLLA
+   Copiada do app antigo (web/estilo.css) sem alterar um tom.
+   Areia e tinta quente no claro; dourado como única cor de marca.
+   ══════════════════════════════════════════════════════════════ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* --- superfícies e tinta --- */
+  --ll-canvas: #F7F6F3;
+  --ll-surface: #FFFFFF;
+  --ll-surface-2: #F1EFE9;
+  --ll-surface-3: #E9E5DC;
+  --ll-ink: #1A1814;
+  --ll-ink-2: #4C463D;
+  --ll-muted: #7B756A;
+  --ll-line: #E6E1D6;
+  --ll-line-2: #D8D1C2;
+
+  /* --- marca --- */
+  --ll-brand: #A9792C;
+  --ll-accent: #8C6620;
+  --ll-accent-ink: #FFFFFF;
+  --ll-accent-soft: #F6EFDF;
+  --ll-accent-line: #E3D3B0;
+
+  /* --- estados --- */
+  --ll-ok: #1F6B4C;
+  --ll-ok-soft: #E7F1EC;
+  --ll-warn: #9A5322;
+  --ll-warn-soft: #F7EBE2;
+  --ll-danger: #A32B3C;
+  --ll-danger-soft: #FAEAEA;
+
+  /* --- barra lateral (68px fechada, 244px aberta no hover) --- */
+  --nav-fechada: 68px;
+  --nav-aberta: 244px;
+  --ll-ease: cubic-bezier(.22, .72, .24, 1);
+
+  /* --- ponte para os tokens do shadcn --- */
+  --background: var(--ll-canvas);
+  --foreground: var(--ll-ink);
+  --card: var(--ll-surface);
+  --card-foreground: var(--ll-ink);
+  --popover: var(--ll-surface);
+  --popover-foreground: var(--ll-ink);
+  --primary: var(--ll-ink);
+  --primary-foreground: var(--ll-canvas);
+  --secondary: var(--ll-surface-2);
+  --secondary-foreground: var(--ll-ink-2);
+  --muted: var(--ll-surface-2);
+  --muted-foreground: var(--ll-muted);
+  --accent: var(--ll-accent-soft);
+  --accent-foreground: var(--ll-accent);
+  --destructive: var(--ll-danger);
+  --destructive-foreground: #FFFFFF;
+  --border: var(--ll-line);
+  --input: var(--ll-line-2);
+  --ring: var(--ll-brand);
+  --chart-1: #9A7118;
+  --chart-2: #2C6FB5;
+  --chart-3: #8E2A52;
+  --chart-4: var(--ll-brand);
+  --chart-5: var(--ll-ok);
+  --sidebar: var(--ll-surface);
+  --sidebar-foreground: var(--ll-ink);
+  --sidebar-primary: var(--ll-accent);
+  --sidebar-primary-foreground: var(--ll-accent-ink);
+  --sidebar-accent: var(--ll-accent-soft);
+  --sidebar-accent-foreground: var(--ll-accent);
+  --sidebar-border: var(--ll-line);
+  --sidebar-ring: var(--ll-brand);
 }
+
+/* Escuro: o dourado clareia para manter contraste sobre fundo quase preto. */
 
 .dark {
   --background: oklch(0.145 0 0);
