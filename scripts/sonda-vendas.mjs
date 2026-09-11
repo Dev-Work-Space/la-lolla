@@ -12,6 +12,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -44,10 +45,12 @@ async function entrar(usuario, senha) {
   page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
   page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", usuario);
   await page.fill("#senha", senha);
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
+  await esperarPronto(page);
   return { ctx, page, erros };
 }
 
@@ -79,6 +82,7 @@ try {
 
   console.log("\n=== FAZER A VENDA (2 peças, R$ 10 de desconto) ===");
   await page.goto(`${BASE}/vendas/nova`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.fill("#busca-peca", peca.sku);
   // Busca pelo SKU, que e unico: com o nome, uma peca de rodada anterior
   // poderia entrar na lista e a venda sairia com o id errado.
@@ -109,6 +113,7 @@ try {
 
   await page.click('button:has-text("Fechar venda")');
   await page.waitForURL((u) => /\/vendas\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith("/nova"), { timeout: 30000 });
+  await esperarPronto(page);
   vendaId = page.url().split("/").pop();
   await page.waitForLoadState("networkidle");
   conferir("abriu a ficha da venda", vendaId !== null);
@@ -162,6 +167,7 @@ try {
   conferir("peça voltou ao estoque (saldo 9)", movs.reduce((s, m) => s + m.delta, 0) === 9);
 
   await page.reload({ waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("total caiu para R$ 90,00 (190 − 100)", /R\$\s*90,00/.test(txt), txt.match(/Total[^R]*R\$[^ ]+/)?.[0]);
 
@@ -189,18 +195,21 @@ try {
 
   console.log("\n=== CANCELADA SOME DO CÁLCULO ===");
   await page.goto(`${BASE}/vendas`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("some da lista padrão", !txt.includes(MARCA + "Anel de Venda"));
   const semDinheiro = /VENDIDO HOJE\s*R\$\s*0,00/i.test(txt.replace(/\s+/g, " "));
   conferir("não entra em 'vendido hoje'", semDinheiro, txt.match(/VENDIDO HOJE[^A-Z]*/i)?.[0]);
 
   await page.goto(`${BASE}/vendas?filtro=canceladas`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("aparece no filtro 'Canceladas'", /cancelada/i.test(txt));
 
   console.log("\n=== VENDEDORA NÃO VÊ CUSTO ===");
   const vend = await entrar("vendedora", "Vende@2026!");
   await vend.page.goto(`${BASE}/vendas`, { waitUntil: "networkidle" });
+  await esperarPronto(vend.page);
   const vtxt = await vend.page.textContent("body");
   const vhtml = (await vend.page.content()).toLowerCase();
   conferir("vê o portal", /Portal de vendas/.test(vtxt));

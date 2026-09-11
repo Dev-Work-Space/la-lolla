@@ -10,6 +10,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -43,10 +44,12 @@ async function entrar(usuario, senha) {
   page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
   page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", usuario);
   await page.fill("#senha", senha);
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
+  await esperarPronto(page);
   return { ctx, page, erros };
 }
 
@@ -56,6 +59,7 @@ try {
 
   console.log("\n=== ESTRUTURA ===");
   await page.goto(`${BASE}/financeiro`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   let txt = await page.textContent("body");
   for (const t of ["Em caixa", "A pagar", "A receber", "Despesas do mês"]) {
     conferir(`indicador "${t}"`, txt.includes(t));
@@ -66,6 +70,7 @@ try {
 
   console.log("\n=== CARTEIRA COM SALDO INICIAL ===");
   await page.goto(`${BASE}/financeiro?aba=carteiras`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir(
     "explica que carteira é ONDE o dinheiro está",
@@ -90,6 +95,7 @@ try {
 
   console.log("\n=== SAÍDA DE DINHEIRO É GRAVADA NEGATIVA ===");
   await page.goto(`${BASE}/financeiro?aba=caixa`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.click('button:has-text("Saída de dinheiro")');
   await page.waitForSelector('[role="dialog"]');
   await page.fill("#descricao", MARCA + "Conta de luz");
@@ -108,16 +114,19 @@ try {
   conferir("vinculado à carteira", lanc.carteiraId === cart.id);
 
   await page.reload({ waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("extrato mostra a saída", txt.includes(MARCA + "Conta de luz"));
   conferir("extrato mostra '− R$ 250,00'", /−\s*R\$\s*250,00/.test(txt));
 
   await page.goto(`${BASE}/financeiro?aba=carteiras`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("saldo virou 1000 − 250 = 750", /R\$\s*750,00/.test(txt));
 
   console.log("\n=== CONTA A PAGAR EM 2 PARCELAS ===");
   await page.goto(`${BASE}/financeiro?aba=pagar`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.click('button:has-text("Nova conta a pagar")');
   await page.waitForSelector('[role="dialog"]');
   await page.fill("#descricao-c", MARCA + "Aluguel");
@@ -145,6 +154,7 @@ try {
 
   console.log("\n=== DAR BAIXA MUDA O SALDO DE VERDADE ===");
   await page.reload({ waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.click(`button[aria-label^="Dar baixa em ${MARCA}Aluguel"]`);
   await page.waitForSelector('[role="dialog"]');
   const dlg = await page.textContent('[role="dialog"]');
@@ -178,6 +188,7 @@ try {
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/financeiro`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
     win: window.innerWidth,
@@ -190,6 +201,7 @@ try {
   console.log("\n=== VENDEDORA NÃO VÊ O FINANCEIRO ===");
   const vend = await entrar("vendedora", "Vende@2026!");
   const resp = await vend.page.goto(`${BASE}/financeiro`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(vend.page);
   const vtxt = await vend.page.textContent("body");
   conferir(
     "acesso negado ou 404",

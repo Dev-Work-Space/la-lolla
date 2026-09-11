@@ -5,6 +5,7 @@
  * confere os números e APAGA a peça no fim — por id exato, capturado da URL.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -67,13 +68,16 @@ async function saldoNaTela() {
 
 try {
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", "teste");
   await page.fill("#senha", "Teste@2026!");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
+  await esperarPronto(page);
 
   console.log("\n=== CRIAR A PEÇA DE TESTE ===");
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.click('button:has-text("Nova peça")');
   await page.waitForSelector('[role="dialog"]');
   await page.fill("#nome", MARCA + "Peça de Teste");
@@ -91,6 +95,7 @@ try {
   console.log("\n=== ABRIR A FICHA ===");
   await page.click(`a:has-text("${MARCA}Peça de Teste")`);
   await page.waitForURL(/\/estoque\/[^/]+$/, { timeout: 30000 });
+  await esperarPronto(page);
   await page.waitForLoadState("networkidle");
   pecaId = page.url().split("/").pop();
 
@@ -137,16 +142,19 @@ try {
   await page.goto(`${BASE}/estoque?busca=${encodeURIComponent(MARCA)}`, {
     waitUntil: "networkidle",
   });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("catálogo mostra 5 un.", /5 un\./.test(txt), txt.slice(0, 160));
   conferir("saiu de 'nunca comprada'", !/nunca comprada/.test(txt));
 
   await page.goto(`${BASE}/estoque/${pecaId}`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.screenshot({ path: "scripts/shots/ficha-peca.png", fullPage: true });
 
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/estoque/${pecaId}`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
     win: window.innerWidth,

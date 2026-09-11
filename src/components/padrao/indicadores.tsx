@@ -23,7 +23,10 @@ export function Indicador({
 }) {
   return (
     <div className="min-w-0 rounded-lg border bg-card p-3">
-      <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      {/* No celular o cartão é estreito e o título era cortado
+          ("A PAGAR AO FORNECED…"). Duas linhas com altura reservada: o texto
+          cabe inteiro e os cartões continuam alinhados entre si. */}
+      <p className="line-clamp-2 min-h-[2rem] text-[11px] font-medium uppercase leading-4 tracking-wide text-muted-foreground sm:line-clamp-none sm:min-h-0 sm:truncate">
         {titulo}
       </p>
       {/* nowrap + overflow-hidden: número grande encolhe a caixa, nunca
@@ -37,7 +40,7 @@ export function Indicador({
       >
         {valor}
       </p>
-      {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
+      {sub && <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground sm:line-clamp-none sm:truncate">{sub}</p>}
     </div>
   );
 }
@@ -167,7 +170,7 @@ export function Linha({
           <span className="truncate font-medium">{nome}</span>
           {pilulas}
         </div>
-        {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
+        {sub && <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground sm:line-clamp-none sm:truncate">{sub}</p>}
       </div>
       {valor && (
         <div className="shrink-0 text-right">

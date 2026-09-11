@@ -5,6 +5,7 @@
  * Cria um insumo de teste pela interface e o remove no fim, por nome exato.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -31,10 +32,12 @@ async function entrar(usuario, senha) {
   page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
   page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", usuario);
   await page.fill("#senha", senha);
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
+  await esperarPronto(page);
   return { ctx, page, erros };
 }
 
@@ -45,6 +48,7 @@ try {
 
   console.log("\n=== SUB-ABAS ===");
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   let txt = await page.textContent("body");
   conferir('aba "Peças"', txt.includes("Peças"));
   conferir('aba "Insumos"', txt.includes("Insumos"));
@@ -89,18 +93,21 @@ try {
 
   console.log("\n=== FILTRAR DE VERDADE ===");
   await page.goto(`${BASE}/estoque?filtro=zerado`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("filtro zeradas não traz peça com saldo", !/DEMO-0001/.test(txt));
   conferir("mostra a contagem N de M", /\d+ de \d+ peças/.test(txt));
   conferir("oferece limpar filtros", /Limpar filtros/.test(txt));
 
   await page.goto(`${BASE}/estoque?categoria=An%C3%A9is`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("filtro por categoria traz os anéis", /Anel Solitário/.test(txt));
   conferir("filtro por categoria exclui os brincos", !/Brinco Gota/.test(txt));
 
   console.log("\n=== INSUMOS ===");
   await page.goto(`${BASE}/estoque?aba=insumos`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir('indicador "Em estoque"', txt.includes("Em estoque"));
   conferir('indicador "Acabando"', txt.includes("Acabando"));
@@ -131,11 +138,13 @@ try {
 
   await page.screenshot({ path: "scripts/shots/estoque-insumos.png", fullPage: true });
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.screenshot({ path: "scripts/shots/estoque-catalogo.png", fullPage: true });
 
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
     win: window.innerWidth,
@@ -149,6 +158,7 @@ try {
   console.log("\n=== VENDEDOR NÃO VÊ DINHEIRO ===");
   const vend = await entrar("vendedora", "Vende@2026!");
   await vend.page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
+  await esperarPronto(vend.page);
   const vtxt = await vend.page.textContent("body");
   const vhtml = (await vend.page.content()).toLowerCase();
 
@@ -172,6 +182,7 @@ try {
   await page.goto(`${BASE}/estoque?aba=insumos&busca=${encodeURIComponent(MARCA)}`, {
     waitUntil: "networkidle",
   });
+  await esperarPronto(page);
   const restou = (await page.textContent("body")).includes(MARCA + "Laço de cetim");
   console.log(
     restou

@@ -3,6 +3,7 @@
  * Só leitura.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -28,10 +29,12 @@ page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
 
 try {
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", "teste");
   await page.fill("#senha", "Teste@2026!");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
+  await esperarPronto(page);
   await page.waitForLoadState("networkidle");
 
   const nav = page.locator('nav[data-nav="lateral"]').first();
@@ -120,6 +123,7 @@ try {
 
   console.log("\n=== ABA ATUAL EM DOURADO ===");
   await page.goto(`${BASE}/cadastros`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const atual = await page
     .locator('nav[aria-label="Navegação principal"] a[aria-current="page"]')
     .first()
@@ -145,6 +149,7 @@ try {
   console.log("\n=== CELULAR CONTINUA COM A BARRA DE BAIXO ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const lateralNoCel = await nav.isVisible();
   conferir("barra lateral escondida no celular", !lateralNoCel);
   const debaixo = await page.locator('nav[data-nav="inferior"] a[href="/estoque"]').first().boundingBox();
@@ -158,6 +163,7 @@ try {
 
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(BASE, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.screenshot({ path: "scripts/shots/lateral-fechada.png" });
   await nav.hover();
 

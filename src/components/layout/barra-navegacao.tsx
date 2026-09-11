@@ -44,6 +44,10 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
             <Link
               key={i.href}
               href={i.href}
+              /* No celular não existe hover: o Next busca quando o link entra
+                 na tela — e esta barra está sempre na tela. Na prática, todas
+                 as telas ficam prontas logo depois que o app abre. */
+              prefetch
               aria-current={ativo(i.href) ? "page" : undefined}
               className={cn(
                 "flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-center",

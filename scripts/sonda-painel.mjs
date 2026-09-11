@@ -3,6 +3,7 @@
  * Só leitura e localStorage; não escreve nada no banco.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -28,10 +29,12 @@ page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
 
 try {
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", "teste");
   await page.fill("#senha", "Teste@2026!");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
+  await esperarPronto(page);
   await page.waitForLoadState("networkidle");
 
   console.log("\n=== OS 7 WIDGETS ===");
@@ -101,6 +104,7 @@ try {
   conferir('"numeros" sumiu ao desligar', !wgts.includes("numeros"));
 
   await page.reload({ waitUntil: "networkidle" });
+  await esperarPronto(page);
   wgts = await presentes();
   conferir("continua desligado depois de recarregar", !wgts.includes("numeros"));
 
@@ -134,6 +138,7 @@ try {
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
     win: window.innerWidth,
@@ -143,6 +148,7 @@ try {
 
   await page.setViewportSize({ width: 1366, height: 950 });
   await page.goto(BASE, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   await page.screenshot({ path: "scripts/shots/inicio-1366.png", fullPage: true });
 
   conferir("nenhum erro de console", erros.length === 0, erros.slice(0, 2).join(" | "));

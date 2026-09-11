@@ -12,6 +12,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -45,10 +46,12 @@ async function entrar(usuario, senha) {
   page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
   page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", usuario);
   await page.fill("#senha", senha);
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
+  await esperarPronto(page);
   return { ctx, page, erros };
 }
 
@@ -83,6 +86,7 @@ try {
 
   console.log("\n=== COMPRA À VISTA ===");
   await page.goto(`${BASE}/compras/nova`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.waitForSelector("#fornecedor", { timeout: 30000 });
   await page.selectOption("#fornecedor", forn.id);
   await page.fill("#busca-item", peca.sku);
@@ -107,6 +111,7 @@ try {
     (u) => /\/compras\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith("/nova"),
     { timeout: 30000 },
   );
+  await esperarPronto(page);
   const compraId = page.url().split("/").pop();
   criados.compras.push(compraId);
   await page.waitForTimeout(1000);
@@ -147,6 +152,7 @@ try {
 
   console.log("\n=== COMPRA A PRAZO (3 parcelas) ===");
   await page.goto(`${BASE}/compras/nova`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.waitForSelector("#fornecedor", { timeout: 30000 });
   await page.selectOption("#fornecedor", forn.id);
   await page.fill("#busca-item", peca.sku);
@@ -166,6 +172,7 @@ try {
     (u) => /\/compras\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith("/nova"),
     { timeout: 30000 },
   );
+  await esperarPronto(page);
   const compra2 = page.url().split("/").pop();
   criados.compras.push(compra2);
   await page.waitForTimeout(1000);
@@ -195,11 +202,13 @@ try {
 
   console.log("\n=== APARECE NO FINANCEIRO ===");
   await page.goto(`${BASE}/financeiro?aba=pagar`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.waitForTimeout(800);
   txt = await page.textContent("body");
   conferir("parcelas da compra em contas a pagar", /Compra #\d+/.test(txt));
 
   await page.goto(`${BASE}/financeiro?aba=caixa`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.waitForTimeout(800);
   txt = await page.textContent("body");
   conferir("compra à vista no extrato", /Compra #\d+/.test(txt));
@@ -207,6 +216,7 @@ try {
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/compras`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.waitForTimeout(800);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
@@ -220,6 +230,7 @@ try {
   console.log("\n=== VENDEDORA NÃO COMPRA ===");
   const vend = await entrar("vendedora", "Vende@2026!");
   const resp = await vend.page.goto(`${BASE}/compras/nova`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(vend.page);
   const vtxt = await vend.page.textContent("body");
   conferir(
     "acesso negado (mexe em dinheiro)",

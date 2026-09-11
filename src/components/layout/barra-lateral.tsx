@@ -91,6 +91,10 @@ export function BarraLateral({
             <Link
               key={i.href}
               href={i.href}
+              /* prefetch: o Next busca a tela ANTES do clique. Como a barra
+                 abre no hover, quando o mouse chega no item a tela já está
+                 vindo — ao clicar, está pronta. */
+              prefetch
               aria-current={atual ? "page" : undefined}
               title={i.nome}
               className={cn(

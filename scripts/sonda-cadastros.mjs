@@ -7,6 +7,7 @@
  * os dois pela interface no fim — por nome exato, conferido antes de clicar.
  */
 import { chromium } from "playwright-core";
+import { esperarPronto } from "./sonda-comum.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -38,13 +39,16 @@ page.on("pageerror", (e) => erros.push("pageerror: " + e.message));
 try {
   // login
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await esperarPronto(page);
   await page.fill("#usuario", "teste");
   await page.fill("#senha", "Teste@2026!");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 });
+  await esperarPronto(page);
 
   console.log("\n=== ESTRUTURA DA TELA ===");
   await page.goto(`${BASE}/cadastros`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   let txt = await page.textContent("body");
 
   conferir("aba Clientes existe", /Clientes/.test(txt));
@@ -120,6 +124,7 @@ try {
 
   console.log("\n=== FORNECEDORES ===");
   await page.goto(`${BASE}/cadastros?aba=fornecedores`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("indicador Fornecedores", /Fornecedores/.test(txt));
   conferir("indicador A pagar", /A pagar/.test(txt));
@@ -144,6 +149,7 @@ try {
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/cadastros`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
   const larg = await page.evaluate(() => ({
     doc: document.documentElement.scrollWidth,
     win: window.innerWidth,
@@ -157,6 +163,7 @@ try {
   try {
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/cadastros?busca=${encodeURIComponent(MARCA)}`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
     const btn = page.locator(`button[aria-label="Excluir ${MARCA}Cliente Teste"]`);
     if (await btn.count()) {
       await btn.first().click();
@@ -173,6 +180,7 @@ try {
       console.log("  nenhum cliente de teste para remover");
     }
     await page.goto(`${BASE}/cadastros?aba=fornecedores`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
     const bf = page.locator(`button[aria-label="Excluir ${MARCA}Fornecedor Teste"]`);
     if (await bf.count()) {
       await bf.first().click();
