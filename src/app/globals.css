@@ -88,6 +88,20 @@
   /* --- barra lateral (68px fechada, 244px aberta no hover) --- */
   --nav-fechada: 68px;
   --nav-aberta: 244px;
+  /*
+   * Altura da barra de baixo do celular, SEM a faixa de gestos do iPhone
+   * (essa entra por fora, com env(safe-area-inset-bottom)).
+   *
+   * Mora aqui para a barra e o espaço reservado no conteúdo lerem o MESMO
+   * número. Quando eram dois valores escritos à mão, eles discordaram: o
+   * conteúdo reservava 80px, a barra ocupava mais, e o que sobrava por baixo
+   * ficava escondido.
+   */
+  --nav-inferior: 60px;
+  /* Altura do cabeçalho do celular, sem a faixa do relógio (essa entra por
+     fora, com env(safe-area-inset-top)). Agora que ele é fixo, o conteúdo
+     precisa reservar exatamente isto por cima. */
+  --cabecalho-celular: 52px;
   --ll-ease: cubic-bezier(.22, .72, .24, 1);
 
   /* --- ponte para os tokens do shadcn --- */
@@ -246,10 +260,21 @@
     touch-action: manipulation;
     overscroll-behavior: none;
   }
+  /*
+   * `clip`, NÃO `hidden` — e a diferença quebrou coisa de verdade.
+   *
+   * `overflow-x: hidden` transforma o elemento em CONTÊINER DE ROLAGEM. Com
+   * isso, todo `position: sticky` lá dentro passa a grudar em relação ao
+   * body (que não rola) em vez da página — e o cabeçalho "LaLolla" do celular
+   * parou de acompanhar a rolagem. O João viu na hora.
+   *
+   * `clip` corta o que passa da largura sem criar contêiner de rolagem: o
+   * sticky continua funcionando e a tela continua não deslizando de lado.
+   */
   html,
   body {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

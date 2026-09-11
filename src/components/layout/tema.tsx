@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CHAVE_TEMA, type Tema } from "./tema.constantes";
+import { CHAVE_TEMA, COR_BARRA_CLARA, COR_BARRA_ESCURA, type Tema } from "./tema.constantes";
 
 /*
  * Claro, escuro ou o que o aparelho estiver usando.
@@ -34,6 +34,17 @@ function aplicar(tema: Tema) {
   const escuro = tema === "escuro" || (tema === "sistema" && prefereEscuro());
   raiz.classList.toggle("dark", escuro);
   raiz.dataset.theme = escuro ? "dark" : "light";
+
+  /*
+   * A barra do sistema acompanha.
+   *
+   * Instalado como app, o iPhone pinta a faixa do relógio e da bateria com a
+   * cor deste meta. Deixá-la fixa faria o app no escuro abrir com uma tira
+   * clara em cima — a emenda apareceria justamente onde o João quer que não
+   * apareça nada.
+   */
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", escuro ? COR_BARRA_ESCURA : COR_BARRA_CLARA);
   try {
     if (tema === "sistema") localStorage.removeItem(CHAVE_TEMA);
     else localStorage.setItem(CHAVE_TEMA, tema);

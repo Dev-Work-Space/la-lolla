@@ -33,7 +33,9 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
       data-nav="inferior"
     >
       <div
-        className="mx-auto grid w-full max-w-3xl"
+        // A altura vem do mesmo token que o conteúdo usa para reservar o
+        // espaço, senão os dois discordam e a barra come o fim da página.
+        className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl items-center"
         // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr) e não encolhe
         // abaixo do conteúdo — foi assim que a barra estourou no app antigo.
         style={{ gridTemplateColumns: `repeat(${visiveis.length}, minmax(0, 1fr))` }}
@@ -50,8 +52,9 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
               prefetch
               aria-current={ativo(i.href) ? "page" : undefined}
               className={cn(
-                "flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-center",
-                ativo(i.href) ? "text-foreground" : "text-muted-foreground",
+                "flex h-full min-w-0 flex-col items-center justify-center gap-1 px-1 text-center",
+                "transition-colors duration-150",
+                ativo(i.href) ? "text-(--ll-accent)" : "text-muted-foreground",
               )}
             >
               <Icone className="size-5 shrink-0" aria-hidden />

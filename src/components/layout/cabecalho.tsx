@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/modules/auth/auth.actions";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { BotaoTema } from "./tema";
 import type { Sessao } from "@/lib/auth/sessao";
 
@@ -13,7 +14,21 @@ import type { Sessao } from "@/lib/auth/sessao";
  */
 export function Cabecalho({ sessao }: { sessao: Sessao }) {
   return (
-    <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur md:hidden">
+    /*
+     * FIXO no celular, não só "sticky" — pedido do João: "quando for pra
+     * baixo ou pra cima ela continua aparecendo".
+     *
+     * E `pt-[env(safe-area-inset-top)]`: instalado como app, não existe barra
+     * do Safari por cima, e o cabeçalho precisa ocupar também a faixa do
+     * relógio e da bateria. Sem isso sobra uma tira de fundo diferente no
+     * topo, que é justamente o "não completa até lá em cima".
+     */
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 border-b bg-card/95 backdrop-blur md:hidden",
+        "pt-[env(safe-area-inset-top)]",
+      )}
+    >
       {/*
         Alvo de dedo em tudo que se toca aqui.
         A sonda de celular pegou: a logo tinha 20px de altura clicável e o

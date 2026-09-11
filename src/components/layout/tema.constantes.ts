@@ -13,6 +13,15 @@
 
 export const CHAVE_TEMA = "lalolla-tema";
 
+/*
+ * A cor que o sistema pinta na faixa do relógio quando o app está instalado.
+ * São os mesmos valores de `--ll-canvas` (claro) e do fundo escuro — se um
+ * dia mudarem no globals.css, mudam aqui junto, senão aparece uma emenda de
+ * cor no topo.
+ */
+export const COR_BARRA_CLARA = "#F7F6F3";
+export const COR_BARRA_ESCURA = "#0D0D0D";
+
 export type Tema = "claro" | "escuro" | "sistema";
 
 /*
@@ -42,5 +51,7 @@ try {
   var r = document.documentElement;
   r.classList.toggle("dark", escuro);
   r.dataset.theme = escuro ? "dark" : "light";
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute("content", escuro ? ${JSON.stringify(COR_BARRA_ESCURA)} : ${JSON.stringify(COR_BARRA_CLARA)});
 } catch (e) {}
 `.trim();

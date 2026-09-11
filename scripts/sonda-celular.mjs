@@ -99,7 +99,105 @@ try {
       );
     }
 
+    /*
+     * NADA FICA ESCONDIDO ATRÁS DAS BARRAS FIXAS.
+     *
+     * É o defeito da foto que o João mandou: no Ajustes, o campo "Nova
+     * categoria" ficava pela metade atrás da barra de baixo. Rolar até o fim
+     * e conferir se o último pedaço de conteúdo ainda aparece é a única forma
+     * honesta de testar isso — parado no topo, tudo parece certo.
+     */
     if (largura === 390) {
+      console.log("\n=== NADA ESCONDIDO ATRÁS DAS BARRAS ===");
+      for (const [nome, rota] of TELAS) {
+        await page.goto(`${BASE}${rota}`, { waitUntil: "domcontentloaded" });
+        await esperarPronto(page);
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(350);
+
+        const r = await page.evaluate(() => {
+          const nav = document.querySelector('nav[data-nav="inferior"]');
+          const topoDaBarra = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+
+          const tapados = [];
+          for (const el of document.querySelectorAll("main input, main button, main a, main select")) {
+            const b = el.getBoundingClientRect();
+            if (b.width === 0 || b.height === 0) continue;
+
+            /*
+             * Só interessa o que está DENTRO da tela agora. O que rolou para
+             * fora por cima não está escondido atrás do cabeçalho — está
+             * simplesmente acima, e é assim que rolagem funciona. Sem este
+             * corte a medição acusava 60 elementos "tapados" numa tela longa.
+             */
+            const naTela = b.bottom > 0 && b.top < window.innerHeight;
+            if (!naTela) continue;
+
+            /*
+             * Só a barra DE BAIXO conta.
+             *
+             * Passar por baixo do cabeçalho fixo é o comportamento normal de
+             * rolagem — é só subir que o elemento reaparece. Já o que fica
+             * atrás da barra de baixo COM A PÁGINA NO FIM é inalcançável: não
+             * existe mais para onde rolar. Foi esse o defeito da foto do João.
+             *
+             * Minha primeira medição acusava os dois e enchia o resultado de
+             * falso positivo.
+             */
+            const escondidoPorBaixo = Math.max(0, b.bottom - topoDaBarra);
+            const aparece = b.height - escondidoPorBaixo;
+            if (aparece < b.height / 2) {
+              tapados.push(
+                `"${(el.textContent || el.placeholder || "").trim().slice(0, 20)}" (${Math.round(escondidoPorBaixo)}px atrás da barra)`,
+              );
+            }
+          }
+          return { tapados: tapados.slice(0, 3), quantos: tapados.length };
+        });
+        conferir(
+          `${nome}: nada tapado pelas barras`,
+          r.quantos === 0,
+          `${r.quantos} escondido(s): ${r.tapados.join(" · ")}`,
+        );
+      }
+
+      console.log("\n=== O CABEÇALHO FICA FIXO AO ROLAR ===");
+      await page.goto(`${BASE}/estoque`, { waitUntil: "domcontentloaded" });
+      await esperarPronto(page);
+      const antes = await page.evaluate(() => document.querySelector("header")?.getBoundingClientRect().top);
+      await page.evaluate(() => window.scrollTo(0, 900));
+      await page.waitForTimeout(350);
+      const depois = await page.evaluate(() => {
+        const h = document.querySelector("header");
+        return { topo: h?.getBoundingClientRect().top, rolou: window.scrollY };
+      });
+      conferir("a página rolou de verdade", depois.rolou > 200, `scrollY ${depois.rolou}`);
+      conferir(
+        "o cabeçalho continua no topo",
+        Math.abs((depois.topo ?? -999) - (antes ?? 0)) < 2,
+        `antes ${antes}, depois ${depois.topo}`,
+      );
+
+      console.log("\n=== INSTALÁVEL COMO APP ===");
+      const man = await page.evaluate(async () => {
+        const link = document.querySelector('link[rel="manifest"]');
+        if (!link) return null;
+        const r = await fetch(link.getAttribute("href"));
+        return r.ok ? r.json() : null;
+      });
+      conferir("tem manifesto", Boolean(man));
+      conferir("abre em tela cheia (standalone)", man?.display === "standalone", man?.display);
+      conferir("tem nome da loja", /LaLolla/.test(man?.name ?? ""), man?.name);
+      conferir("tem ícone 512", (man?.icons ?? []).some((i) => i.sizes === "512x512"));
+      conferir(
+        "tem ícone que aguenta o corte do Android",
+        (man?.icons ?? []).some((i) => i.purpose === "maskable"),
+      );
+      const apple = await page.evaluate(
+        () => document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href") ?? null,
+      );
+      conferir("tem ícone do iPhone", Boolean(apple), String(apple));
+
       console.log("\n=== TRAVADO COMO SISTEMA ===");
       const viewport = await page.getAttribute('meta[name="viewport"]', "content");
       conferir("zoom travado no viewport", /user-scalable=no|maximum-scale=1/.test(viewport ?? ""), viewport);
