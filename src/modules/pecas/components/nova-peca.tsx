@@ -56,7 +56,7 @@ export function NovaPeca({
     <Dialog open={aberto} onOpenChange={setAberto}>
       {/* Base UI compõe com `render`, não com `asChild` (que é do Radix).
           O shadcn novo ("base-nova") roda sobre Base UI. */}
-      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full" />}>
+      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full sm:w-auto" />}>
         {rotulo ?? "Nova peça"}
       </DialogTrigger>
 

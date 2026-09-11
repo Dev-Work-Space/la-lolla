@@ -60,7 +60,7 @@ export function NovoInsumo({
         }
       }}
     >
-      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full" />}>
+      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full sm:w-auto" />}>
         {rotulo ?? (insumo ? "Editar insumo" : "Novo insumo")}
       </DialogTrigger>
 

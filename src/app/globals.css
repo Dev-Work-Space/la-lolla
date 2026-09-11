@@ -97,8 +97,14 @@
   --card-foreground: var(--ll-ink);
   --popover: var(--ll-surface);
   --popover-foreground: var(--ll-ink);
-  --primary: var(--ll-ink);
-  --primary-foreground: var(--ll-canvas);
+  /*
+   * O botão principal era PRETO — o padrão que veio com a biblioteca. Num app
+   * de semijoias, com a logo em ouro velho, "Nova venda" em preto era a coisa
+   * mais genérica da tela. Agora o ouro da marca manda no botão de ação, e o
+   * preto continua sendo só a cor do texto.
+   */
+  --primary: var(--ll-accent);
+  --primary-foreground: var(--ll-accent-ink);
   --secondary: var(--ll-surface-2);
   --secondary-foreground: var(--ll-ink-2);
   --muted: var(--ll-surface-2);
@@ -134,8 +140,9 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  /* No escuro o ouro precisa clarear para continuar legível sobre o fundo. */
+  --primary: #C79A46;
+  --primary-foreground: #201A0E;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
