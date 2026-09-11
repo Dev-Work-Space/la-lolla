@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio, NaoEncontrado } from "@/lib/errors";
-import type { CriarPecaDados, PecaComCusto, PecaPublica, PecaVisivel } from "./peca.schema";
+import type { CriarPecaDados, InsumoDados, PecaComCusto, PecaPublica, PecaVisivel } from "./peca.schema";
 
 /*
  * Aqui mora a REGRA DE NEGÓCIO. Nem a página nem a action decidem nada:
@@ -223,4 +223,53 @@ export async function proximaSerie(pecaId: string, quantas: number): Promise<str
   const fim = p.ultimaSerie;
   const inicio = fim - quantas + 1;
   return Array.from({ length: quantas }, (_, i) => `${p.sku}-${String(inicio + i).padStart(2, "0")}`);
+}
+
+/* ══════════════════════════ INSUMOS ══════════════════════════ */
+
+/*
+ * Insumo é uma Peca com tipo = INSUMO. Mesma tabela de propósito: o insumo
+ * entra por compra, sai por movimento e tem custo — exatamente como a peça.
+ * Duas tabelas quase iguais só criariam dois caminhos para a mesma regra.
+ */
+export async function criarInsumo(dados: InsumoDados) {
+  return prisma.$transaction(async (tx) => {
+    const ultima = await tx.peca.findFirst({
+      where: { sku: { startsWith: "IN-" } },
+      orderBy: { sku: "desc" },
+      select: { sku: true },
+    });
+    const n = ultima ? Number(ultima.sku.slice(3)) + 1 : 1;
+    return tx.peca.create({
+      data: {
+        sku: `IN-${String(n).padStart(4, "0")}`,
+        tipo: "INSUMO",
+        nome: dados.nome,
+        categoria: "Insumo",
+        unidade: dados.unidade,
+        minimo: dados.minimo,
+        custo: dados.custo ?? null,
+      },
+      select: { id: true, sku: true },
+    });
+  });
+}
+
+export async function editarInsumo(id: string, dados: InsumoDados) {
+  const existe = await prisma.peca.findFirst({
+    where: { id, tipo: "INSUMO" },
+    select: { id: true },
+  });
+  if (!existe) throw new NaoEncontrado("Insumo");
+
+  return prisma.peca.update({
+    where: { id },
+    data: {
+      nome: dados.nome,
+      unidade: dados.unidade,
+      minimo: dados.minimo,
+      custo: dados.custo ?? null,
+    },
+    select: { id: true },
+  });
 }

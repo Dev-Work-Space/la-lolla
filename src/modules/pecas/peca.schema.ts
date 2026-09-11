@@ -57,6 +57,24 @@ export type CriarPecaDados = z.output<typeof criarPecaSchema>;
 export const editarPecaSchema = criarPecaSchema;
 
 /*
+ * Insumo (`formInsumo`). Mais simples que peça: sem fornecedor, sem tamanho,
+ * sem foto. O custo é DIGITADO — saquinho não tem código de fornecedor para
+ * multiplicar por fator.
+ */
+export const insumoSchema = z.object({
+  nome: z.string().trim().min(2, "Informe o nome do insumo").max(120),
+  unidade: z
+    .union([z.literal(""), z.string().trim().max(10)])
+    .transform((v) => (v === "" ? "un" : v)),
+  minimo: z
+    .union([z.literal(""), z.coerce.number().int().min(0, "Não pode ser negativo")])
+    .transform((v) => (v === "" ? 0 : (v as number))),
+  custo: opcionalDecimal,
+});
+
+export type InsumoDados = z.output<typeof insumoSchema>;
+
+/*
  * SAÍDA. Duas formas deliberadamente diferentes:
  * quem não vê financeiro recebe um objeto em que `custo` NÃO EXISTE — não é
  * `null`, não é `0`, não existe. Assim é impossível vazar por engano: se o

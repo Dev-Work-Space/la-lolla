@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type Result } from "@/lib/result";
-import { criarPecaSchema } from "./peca.schema";
-import { criarPeca, editarPeca } from "./peca.service";
+import { criarPecaSchema, insumoSchema } from "./peca.schema";
+import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
 
 /*
  * Toda action segue os MESMOS TRÊS PASSOS, nesta ordem:
@@ -59,6 +59,27 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
     return ok({ id: peca.id });
   } catch (e) {
     return tratarErro(e, "editarPecaAction");
+  }
+}
+
+export async function salvarInsumoAction(
+  id: string | null,
+  formData: FormData,
+): Promise<Result<{ id: string }>> {
+  const sessao = await exigirPermissao("pecas", id ? "editar" : "criar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = insumoSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return fail("DADOS_INVALIDOS", "Confira os campos destacados.", z4Fields(parsed.error));
+  }
+
+  try {
+    const i = id ? await editarInsumo(id, parsed.data) : await criarInsumo(parsed.data);
+    revalidatePath("/estoque");
+    return ok({ id: i.id });
+  } catch (e) {
+    return tratarErro(e, "salvarInsumoAction");
   }
 }
 

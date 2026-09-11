@@ -24,7 +24,7 @@ import {
  * aqui é só conveniência — quem manda é a action, que ignora custo e fator
  * quando a sessão não pode gravá-los.
  */
-export function NovaPeca({ veFinanceiro }: { veFinanceiro: boolean }) {
+export function NovaPeca({ veFinanceiro, rotulo }: { veFinanceiro: boolean; rotulo?: string }) {
   const [aberto, setAberto] = useState(false);
   const router = useRouter();
 
@@ -45,7 +45,9 @@ export function NovaPeca({ veFinanceiro }: { veFinanceiro: boolean }) {
     <Dialog open={aberto} onOpenChange={setAberto}>
       {/* Base UI compõe com `render`, não com `asChild` (que é do Radix).
           O shadcn novo ("base-nova") roda sobre Base UI. */}
-      <DialogTrigger render={<Button />}>Nova peça</DialogTrigger>
+      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full" />}>
+        {rotulo ?? "Nova peça"}
+      </DialogTrigger>
 
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>

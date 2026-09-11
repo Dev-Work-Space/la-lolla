@@ -113,6 +113,15 @@ model Peca {
   // recebem códigos diferentes para permitir rastreio individual).
   ultimaSerie Int @default(0)
 
+  // Abaixo deste saldo a peça entra no filtro "Acabando" e ganha pílula.
+  minimo Int @default(0)
+
+  // Insumo é medido em unidade própria: un, cx, m, par. Vazio = "un".
+  unidade String?
+
+  // Pílula "A pagar" no catálogo: peça que entrou sem a compra quitada.
+  pagoFornecedor Boolean @default(false)
+
   fornecedorId String?
   fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 

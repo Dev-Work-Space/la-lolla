@@ -1,54 +1,65 @@
 import { notFound } from "next/navigation";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
-import { listarPecas } from "@/modules/pecas/peca.service";
-import { PecaLista } from "@/modules/pecas/components/peca-lista";
-import { NovaPeca } from "@/modules/pecas/components/nova-peca";
-import { BuscaPecas } from "@/modules/pecas/components/busca-pecas";
+import { Segmentado } from "@/components/padrao/indicadores";
+import { PainelCatalogo } from "@/modules/pecas/components/painel-catalogo";
+import { PainelInsumos } from "@/modules/pecas/components/painel-insumos";
+import type { FiltroPeca } from "@/modules/pecas/catalogo.service";
 
-// Prisma e sharp exigem runtime Node — não rodam no Edge.
 export const runtime = "nodejs";
-
 export const metadata = { title: "Estoque · LaLolla" };
 
+/*
+ * Tela "Estoque" (`viewProdutos`): duas sub-abas, Peças e Insumos.
+ * Comprar saiu daqui e virou o Portal de compras — decisão do João. Aqui
+ * fica só o cadastro do modelo e o que já está na prateleira.
+ */
 export default async function EstoquePage({
   searchParams,
 }: {
-  searchParams: Promise<{ busca?: string; tipo?: string }>;
+  searchParams: Promise<{
+    aba?: string;
+    busca?: string;
+    filtro?: string;
+    fornecedor?: string;
+    categoria?: string;
+  }>;
 }) {
   const sessao = await exigirPermissao("pecas", "ver");
   if (!sessao.ok) notFound();
 
-  const { busca, tipo } = await searchParams;
-  const filtroTipo = tipo === "INSUMO" ? "INSUMO" : tipo === "PECA" ? "PECA" : undefined;
+  const { aba, busca, filtro, fornecedor, categoria } = await searchParams;
+  const qual = aba === "insumos" ? "insumos" : "catalogo";
 
-  // O service já devolve a peça SEM os campos de custo quando a sessão não
-  // pode vê-los — não existe caminho em que eles cheguem por engano.
-  const pecas = await listarPecas({
-    busca,
-    tipo: filtroTipo,
-    veFinanceiro: veFinanceiro(sessao.data),
-  });
-
-  const podeCriar =
-    sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.criar;
+  const admin = sessao.data.papel !== "VENDEDOR";
+  const pode = {
+    criar: admin || sessao.data.permissoes.pecas.criar,
+    editar: admin || sessao.data.permissoes.pecas.editar,
+  };
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Estoque</h1>
-          <p className="text-sm text-muted-foreground">
-            {pecas.length} {pecas.length === 1 ? "item" : "itens"}
-            {busca ? ` para “${busca}”` : ""}
-          </p>
-        </div>
-        {podeCriar && <NovaPeca veFinanceiro={veFinanceiro(sessao.data)} />}
-      </div>
-
-      <BuscaPecas busca={busca} tipo={filtroTipo} />
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
+      <Segmentado
+        opcoes={[
+          ["catalogo", "Peças"],
+          ["insumos", "Insumos"],
+        ]}
+        atual={qual}
+        href={(v) => `/estoque?aba=${v}`}
+      />
 
       <div className="mt-5">
-        <PecaLista pecas={pecas} />
+        {qual === "catalogo" ? (
+          <PainelCatalogo
+            busca={busca}
+            filtro={(filtro as FiltroPeca) ?? "todos"}
+            fornecedorId={fornecedor}
+            categoria={categoria}
+            veFinanceiro={veFinanceiro(sessao.data)}
+            pode={pode}
+          />
+        ) : (
+          <PainelInsumos busca={busca} pode={pode} />
+        )}
       </div>
     </main>
   );
