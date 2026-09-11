@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { recarregar } from "@/lib/recarregar";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type Result } from "@/lib/result";
@@ -37,7 +37,7 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
 
   try {
     const peca = await criarPeca(parsed.data, veFinanceiro(sessao.data));
-    revalidatePath("/estoque");
+    recarregar("estoque");
     return ok(peca);
   } catch (e) {
     return tratarErro(e, "criarPecaAction");
@@ -55,8 +55,7 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
 
   try {
     const peca = await editarPeca(id, parsed.data, veFinanceiro(sessao.data));
-    revalidatePath("/estoque");
-    revalidatePath(`/estoque/${id}`);
+    recarregar("estoque", `/estoque/${id}`);
     return ok({ id: peca.id });
   } catch (e) {
     return tratarErro(e, "editarPecaAction");
@@ -77,7 +76,7 @@ export async function salvarInsumoAction(
 
   try {
     const i = id ? await editarInsumo(id, parsed.data) : await criarInsumo(parsed.data);
-    revalidatePath("/estoque");
+    recarregar("estoque");
     return ok({ id: i.id });
   } catch (e) {
     return tratarErro(e, "salvarInsumoAction");
@@ -134,8 +133,7 @@ export async function movimentarAction(formData: FormData): Promise<Result<{ sal
       observacao: d.observacao || undefined,
     });
 
-    revalidatePath("/estoque");
-    revalidatePath(`/estoque/${d.pecaId}`);
+    recarregar("estoque", `/estoque/${d.pecaId}`);
     return ok({ saldo: atual + delta });
   } catch (e) {
     return tratarErro(e, "movimentarAction");
@@ -192,8 +190,7 @@ export async function excluirPecaAction(pecaId: string): Promise<Result<{ nome: 
   try {
     const { excluirPeca } = await import("./peca.service");
     const p = await excluirPeca(pecaId);
-    revalidatePath("/estoque");
-    revalidatePath(`/estoque/${pecaId}`);
+    recarregar("estoque", `/estoque/${pecaId}`);
     return ok({ nome: p.nome });
   } catch (e) {
     return tratarErro(e, "excluirPecaAction");

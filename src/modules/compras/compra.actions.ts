@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { recarregar as recarregarTelas } from "@/lib/recarregar";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
@@ -13,13 +13,7 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
   return out;
 }
 
-const recarregar = (id?: string) => {
-  revalidatePath("/compras");
-  revalidatePath("/estoque");
-  revalidatePath("/financeiro");
-  revalidatePath("/");
-  if (id) revalidatePath(`/compras/${id}`);
-};
+const recarregar = (id?: string) => recarregarTelas("compra", id && `/compras/${id}`);
 
 const compraSchema = z.object({
   fornecedorId: z.string().min(1, "Escolha o fornecedor"),

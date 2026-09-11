@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { recarregar as recarregarTelas } from "@/lib/recarregar";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -14,10 +14,7 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
   return out;
 }
 
-const recarregar = () => {
-  revalidatePath("/financeiro");
-  revalidatePath("/");
-};
+const recarregar = () => recarregarTelas("financeiro");
 
 const dinheiro = z
   .union([z.string(), z.number()])
@@ -134,6 +131,11 @@ const baixaSchema = z.object({
   contaId: z.string().min(1),
   carteiraId: z.string().min(1, "Escolha de qual carteira saiu (ou entrou) o dinheiro"),
   comprovanteId: z.string().optional(),
+  /*
+   * Só vale quando a conta é parcela de uma venda: aí a baixa vira pagamento
+   * da venda, e pagamento tem forma. Nas outras contas o campo é ignorado.
+   */
+  forma: z.enum(["DINHEIRO", "PIX", "DEBITO", "CREDITO"]).optional(),
 });
 
 /*
@@ -160,16 +162,62 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
   try {
     const conta = await prisma.conta.findUnique({
       where: { id: d.contaId },
-      select: { id: true, tipo: true, status: true, descricao: true, valor: true },
+      select: {
+        id: true,
+        tipo: true,
+        status: true,
+        descricao: true,
+        valor: true,
+        vendaId: true,
+      },
     });
     if (!conta) throw new ErroDominio("NAO_ENCONTRADO", "Essa conta não existe mais.");
     if (conta.status !== "ABERTA") {
       throw new ErroDominio("REGRA_NEGOCIO", "Essa conta já foi baixada ou cancelada.");
     }
 
+    /*
+     * Parcela de VENDA é caso à parte, e não era tratada — este é o defeito
+     * que o João descreveu como "as telas não se comunicam", na sua forma
+     * mais cara:
+     *
+     * A cliente pagava a parcela, a moça dava baixa aqui no Financeiro, o
+     * dinheiro entrava na carteira e a conta ficava PAGA — mas a VENDA
+     * continuava dizendo "a receber R$ 40", para sempre. O saldo da venda sai
+     * de `total − pagamentos`, e a baixa nunca criava o pagamento.
+     *
+     * Resultado: o Financeiro dizia que não havia nada a receber e o Portal de
+     * vendas dizia que havia. Duas telas, duas verdades.
+     *
+     * Aqui o dinheiro entra COMO PAGAMENTO DA VENDA, não como lançamento
+     * avulso — e é importante que seja um ou outro: o saldo da carteira soma
+     * os lançamentos E os pagamentos de venda, então gravar os dois contaria
+     * o mesmo dinheiro duas vezes.
+     */
+    const deVenda = conta.tipo === "RECEBER" && Boolean(conta.vendaId);
+
     await prisma.$transaction(async (tx) => {
-      // A baixa move dinheiro de verdade: vira lançamento na carteira.
       const valor = Number(conta.valor);
+
+      if (deVenda) {
+        await tx.pagamento.create({
+          data: {
+            vendaId: conta.vendaId!,
+            forma: d.forma ?? "DINHEIRO",
+            valor: dec(valor),
+            carteiraId: d.carteiraId,
+            comprovanteId: d.comprovanteId || null,
+          },
+          select: { id: true },
+        });
+        await tx.conta.update({
+          where: { id: conta.id },
+          data: { status: "PAGA", pagoEm: new Date() },
+        });
+        return;
+      }
+
+      // A baixa move dinheiro de verdade: vira lançamento na carteira.
       const lanc = await tx.lancamento.create({
         data: {
           carteiraId: d.carteiraId,

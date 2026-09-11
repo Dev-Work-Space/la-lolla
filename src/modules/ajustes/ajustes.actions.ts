@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { recarregar } from "@/lib/recarregar";
 import { z } from "zod";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
@@ -63,7 +63,7 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
     ]);
 
     // Os ajustes entram em quase toda conta do app.
-    revalidatePath("/", "layout");
+    recarregar("ajustes");
     return ok({ ok: true as const });
   } catch (e) {
     return tratarErro(e, "salvarAjustesAction");

@@ -33,12 +33,15 @@ export function BaixarConta({
   valor,
   tipo,
   carteiras,
+  deVenda = false,
 }: {
   contaId: string;
   descricao: string;
   valor: number;
   tipo: "PAGAR" | "RECEBER";
   carteiras: CarteiraSaldo[];
+  /** Parcela de uma venda a prazo: a baixa vira pagamento DA VENDA. */
+  deVenda?: boolean;
 }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -106,8 +109,38 @@ export function BaixarConta({
               </select>
             </div>
 
+            {/*
+              Parcela de venda pergunta COMO a cliente pagou. Não é detalhe: a
+              baixa aqui vira o pagamento da venda, e pagamento tem forma — é
+              ela que decide se o comprovante fica pendente (Pix, débito e
+              crédito pedem; dinheiro não).
+            */}
+            {deVenda && (
+              <div className="space-y-1.5">
+                <Label htmlFor={`forma-${contaId}`}>Como a cliente pagou</Label>
+                <select
+                  id={`forma-${contaId}`}
+                  name="forma"
+                  className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
+                  defaultValue="DINHEIRO"
+                >
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="PIX">Pix</option>
+                  <option value="DEBITO">Débito</option>
+                  <option value="CREDITO">Crédito</option>
+                </select>
+              </div>
+            )}
+
             <p className="rounded-lg border border-dashed px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-              A baixa vira um lançamento na carteira escolhida — o saldo muda de verdade.
+              {deVenda ? (
+                <>
+                  O dinheiro entra na carteira escolhida <strong>e a venda é baixada junto</strong> —
+                  ela deixa de aparecer como “a receber”.
+                </>
+              ) : (
+                <>A baixa vira um lançamento na carteira escolhida — o saldo muda de verdade.</>
+              )}
               <br />
               <strong className="text-foreground">Anexar comprovante</strong> ainda não está pronto
               no app novo; quando estiver, passa a ser obrigatório aqui.

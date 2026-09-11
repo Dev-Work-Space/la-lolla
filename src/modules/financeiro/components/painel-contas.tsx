@@ -85,6 +85,7 @@ export async function PainelContas({
                       valor={c.valor}
                       tipo={tipo}
                       carteiras={carteiras}
+                      deVenda={Boolean(c.vendaId)}
                     />
                   ) : undefined
                 }

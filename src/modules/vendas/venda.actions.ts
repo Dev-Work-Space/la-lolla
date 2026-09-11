@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { recarregar as recarregarTelas } from "@/lib/recarregar";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
@@ -14,12 +14,7 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
   return out;
 }
 
-const recarregar = (id?: string) => {
-  revalidatePath("/vendas");
-  revalidatePath("/estoque");
-  revalidatePath("/");
-  if (id) revalidatePath(`/vendas/${id}`);
-};
+const recarregar = (id?: string) => recarregarTelas("venda", id && `/vendas/${id}`);
 
 const FORMA = z.enum(["DINHEIRO", "PIX", "DEBITO", "CREDITO"]);
 

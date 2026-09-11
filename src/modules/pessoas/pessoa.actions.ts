@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { recarregar as recarregarTelas } from "@/lib/recarregar";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
@@ -14,7 +14,7 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
   return out;
 }
 
-const recarregar = () => revalidatePath("/cadastros");
+const recarregar = () => recarregarTelas("pessoas");
 
 /* ── Clientes ───────────────────────────────────────────────── */
 
