@@ -1,14 +1,32 @@
-# LaLolla · inventário de paridade
+# LaLolla · referência do app antigo
 
-> Levantamento do app antigo (Express + JS puro) para reconstrução **idêntica**
-> em Next.js. Ordem combinada com o João: **revisar → documentar → refazer**.
+> **Mudança de enquadramento (11/09/2026).** O João disse: *"o app antigo pode
+> esquecer, só quero que use para consulta, eu tô fazendo tudo novo aqui"*.
 >
-> Regra que vale para tudo aqui: **nada de "melhorar" no caminho.** Onde o app
-> antigo faz algo de um jeito, o novo faz igual — inclusive o que eu acharia
-> que dá para fazer melhor. Ideia de melhoria vira item na seção 9, não vira
-> código.
+> Este documento deixou de ser uma lista de paridade obrigatória e virou o que
+> o nome diz: **referência**. Serve para eu saber o que existe, o que o negócio
+> precisa e onde procurar quando a dúvida for "como é que isso funcionava?".
 >
-> Levantado em 2026-09-11, extraído do código com `grep`, não de memória.
+> ### O que continua obrigatório
+>
+> As **regras de negócio**. Elas não são design, são a loja:
+>
+> - custo da peça = código do fornecedor × fator
+> - o preço de venda congela no item; o catálogo pode mudar depois
+> - código interno (LL-0001) ≠ código do fornecedor
+> - estoque só muda por movimento, nunca por edição direta
+> - venda não se apaga: cancela-se
+> - comprovante é obrigatório na baixa de vencimento e pendência na venda
+> - quem não vê financeiro nunca recebe custo, fator nem margem
+>
+> Mudar qualquer uma delas é decisão do João, não minha.
+>
+> ### O que está livre
+>
+> Layout, navegação, textos, divisão de telas, componentes, fluxo. Onde eu
+> achar um jeito melhor, faço o jeito melhor — e aviso o que mudei e por quê.
+>
+> Levantado em 2026-09-11, extraído do código com `grep`.
 
 ---
 
@@ -203,9 +221,10 @@ Detalhes que **não podem** mudar (custaram acerto fino):
 
 ---
 
-## 9. Ideias de melhoria — CONGELADAS
+## 9. Ideias de melhoria
 
-Nada daqui entra antes da paridade estar fechada e o João aprovar uma a uma.
+Com o enquadramento novo, estas voltaram a ser possíveis. Continuo avisando
+antes de fazer qualquer uma.
 
 - lista + detalhe lado a lado no PC
 - bipar peça no orçamento

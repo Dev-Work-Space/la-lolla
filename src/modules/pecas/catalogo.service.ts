@@ -297,3 +297,117 @@ export async function indicadoresInsumos() {
 }
 
 export { calcularCusto };
+
+/* ══════════════════════════ FICHA DA PEÇA ══════════════════════════ */
+
+export type MovimentoLinha = {
+  id: string;
+  delta: number;
+  motivo: string;
+  observacao: string | null;
+  quando: Date;
+  /** saldo acumulado DEPOIS deste movimento */
+  saldoApos: number;
+};
+
+export const ROTULO_MOTIVO: Record<string, string> = {
+  COMPRA: "Compra",
+  VENDA: "Venda",
+  DEVOLUCAO: "Devolução",
+  AJUSTE: "Ajuste",
+  INVENTARIO: "Inventário",
+  PERDA: "Perda",
+};
+
+/**
+ * Ficha completa de uma peça ou insumo.
+ * Devolve `null` quando não existe — quem chama decide se é 404.
+ */
+export async function fichaPeca(id: string, veFinanceiro: boolean) {
+  const p = await prisma.peca.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      sku: true,
+      tipo: true,
+      nome: true,
+      categoria: true,
+      tamanho: true,
+      unidade: true,
+      minimo: true,
+      precoTabela: true,
+      codigoFornecedor: true,
+      fator: true,
+      custo: true,
+      pagoFornecedor: true,
+      ultimaSerie: true,
+      criadoEm: true,
+      fornecedor: { select: { id: true, nome: true } },
+      imagens: { orderBy: { criadoEm: "asc" }, select: { id: true, pathMedia: true, principal: true } },
+      movimentos: { orderBy: { criadoEm: "asc" }, select: { id: true, delta: true, motivo: true, observacao: true, criadoEm: true } },
+    },
+  });
+  if (!p) return null;
+
+  // Saldo acumulado: caminha do mais antigo para o mais novo somando.
+  let acumulado = 0;
+  const historico: MovimentoLinha[] = p.movimentos.map((m) => {
+    acumulado += m.delta;
+    return {
+      id: m.id,
+      delta: m.delta,
+      motivo: m.motivo,
+      observacao: m.observacao,
+      quando: m.criadoEm,
+      saldoApos: acumulado,
+    };
+  });
+  historico.reverse(); // na tela, o mais recente em cima
+
+  const [reservada, vendidas] = await Promise.all([
+    prisma.itemOrcamento.aggregate({
+      where: { pecaId: id, orcamento: { status: "ABERTO" } },
+      _sum: { quantidade: true },
+    }),
+    prisma.itemVenda.aggregate({
+      where: { pecaId: id, venda: { status: { not: "CANCELADA" } } },
+      _sum: { quantidade: true },
+    }),
+  ]);
+
+  const custo = dec(p.custo);
+  const preco = dec(p.precoTabela);
+
+  return {
+    id: p.id,
+    sku: p.sku,
+    tipo: p.tipo,
+    nome: p.nome,
+    categoria: p.categoria,
+    tamanho: p.tamanho,
+    unidade: unidadeDe(p.unidade),
+    minimo: p.minimo,
+    precoTabela: preco,
+    fornecedor: p.fornecedor,
+    imagens: p.imagens,
+    criadoEm: p.criadoEm,
+    ultimaSerie: p.ultimaSerie,
+    saldo: acumulado,
+    reservada: reservada._sum.quantidade ?? 0,
+    vendidas: vendidas._sum.quantidade ?? 0,
+    historico,
+    // Dinheiro só entra no objeto de quem pode ver.
+    ...(veFinanceiro
+      ? {
+          codigoFornecedor: dec(p.codigoFornecedor),
+          fator: dec(p.fator),
+          custo,
+          margem: calcularMargem(custo, preco),
+          aPagar: !p.pagoFornecedor,
+          valorEmEstoque: (custo ?? 0) * Math.max(0, acumulado),
+        }
+      : {}),
+  };
+}
+
+export type Ficha = NonNullable<Awaited<ReturnType<typeof fichaPeca>>>;

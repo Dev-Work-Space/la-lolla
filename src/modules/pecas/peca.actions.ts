@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type Result } from "@/lib/result";
+import { z } from "zod";
 import { criarPecaSchema, insumoSchema } from "./peca.schema";
 import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
 
@@ -80,6 +81,84 @@ export async function salvarInsumoAction(
     return ok({ id: i.id });
   } catch (e) {
     return tratarErro(e, "salvarInsumoAction");
+  }
+}
+
+/*
+ * Movimento de estoque. Regra 2.4: não existe "editar o saldo" — existe
+ * registrar entrada ou saída, e o saldo é consequência. Por isso o formulário
+ * pergunta QUANTAS unidades e POR QUÊ, nunca "qual é o novo saldo".
+ *
+ * A exceção é o inventário: aí a pessoa conta a prateleira e informa o total.
+ * Mesmo assim o que é gravado é a DIFERENÇA, com motivo INVENTARIO — o
+ * histórico continua explicando de onde veio cada unidade.
+ */
+const movimentoSchema = z.object({
+  pecaId: z.string().min(1),
+  tipo: z.enum(["entrada", "saida", "inventario"]),
+  quantidade: z.coerce.number().int().positive("Informe uma quantidade maior que zero"),
+  motivo: z.enum(["COMPRA", "VENDA", "DEVOLUCAO", "AJUSTE", "INVENTARIO", "PERDA"]),
+  observacao: z.union([z.literal(""), z.string().trim().max(200)]).optional(),
+});
+
+export async function movimentarAction(formData: FormData): Promise<Result<{ saldo: number }>> {
+  const sessao = await exigirPermissao("pecas", "editar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = movimentoSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return fail("DADOS_INVALIDOS", "Confira os campos destacados.", z4Fields(parsed.error));
+  }
+  const d = parsed.data;
+
+  try {
+    const { movimentarEstoque, saldoDe } = await import("./peca.service");
+    const atual = await saldoDe(d.pecaId);
+
+    // No inventário o número digitado é o TOTAL contado; gravamos a diferença.
+    const delta =
+      d.tipo === "inventario"
+        ? d.quantidade - atual
+        : d.tipo === "entrada"
+          ? d.quantidade
+          : -d.quantidade;
+
+    if (delta === 0) {
+      return fail("REGRA_NEGOCIO", "A contagem bate com o saldo atual. Nada a ajustar.");
+    }
+
+    await movimentarEstoque({
+      pecaId: d.pecaId,
+      delta,
+      motivo: d.tipo === "inventario" ? "INVENTARIO" : d.motivo,
+      observacao: d.observacao || undefined,
+    });
+
+    revalidatePath("/estoque");
+    revalidatePath(`/estoque/${d.pecaId}`);
+    return ok({ saldo: atual + delta });
+  } catch (e) {
+    return tratarErro(e, "movimentarAction");
+  }
+}
+
+/**
+ * Saldo de agora. O formulário chama isto ao ABRIR, em vez de confiar no
+ * número que veio na prop: se a página ainda não tinha recarregado, a prévia
+ * mostraria uma diferença calculada sobre um saldo velho — e no inventário
+ * isso engana de verdade.
+ *
+ * A gravação nunca dependeu disso (o servidor relê o saldo antes de gravar);
+ * o que estava errado era só o que a pessoa via antes de confirmar.
+ */
+export async function saldoAtualAction(pecaId: string): Promise<Result<{ saldo: number }>> {
+  const sessao = await exigirPermissao("pecas", "ver");
+  if (!sessao.ok) return sessao;
+  try {
+    const { saldoDe } = await import("./peca.service");
+    return ok({ saldo: await saldoDe(pecaId) });
+  } catch (e) {
+    return tratarErro(e, "saldoAtualAction");
   }
 }
 

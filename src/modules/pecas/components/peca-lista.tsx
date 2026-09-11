@@ -68,7 +68,7 @@ export function PecaLista({ pecas }: { pecas: PecaVisivel[] }) {
               {temCusto(p) && <td className="text-right tabular-nums">{brl(p.custo)}</td>}
               {temCusto(p) && (
                 <td className="text-right tabular-nums text-muted-foreground">
-                  {p.margem === null ? "—" : `${p.margem.toFixed(1)}%`}
+                  {p.margem === null ? "—" : `${p.margem.toFixed(1).replace(".", ",")}%`}
                 </td>
               )}
             </tr>

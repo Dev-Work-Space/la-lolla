@@ -196,6 +196,15 @@ export async function editarPeca(id: string, dados: CriarPecaDados, veFinanceiro
   });
 }
 
+/** Saldo atual = soma dos movimentos. Uma consulta, sem carregar a lista. */
+export async function saldoDe(pecaId: string): Promise<number> {
+  const r = await prisma.movimentoEstoque.aggregate({
+    where: { pecaId },
+    _sum: { delta: true },
+  });
+  return r._sum.delta ?? 0;
+}
+
 /**
  * Regra 2.4: estoque só muda por movimento. Não existe "editar o saldo" —
  * existe registrar entrada ou saída, e o saldo é consequência.
