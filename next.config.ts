@@ -14,8 +14,22 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "localhost",
     "127.0.0.1",
-    "10.20.40.200", // este PC na rede da loja — acesso pelo celular
+    "10.20.40.200", // PC antigo na rede da loja
+    "192.168.237.122", // este PC, cabo — acesso pelo celular
+    "192.168.237.121", // este PC, Wi-Fi — o celular costuma cair aqui
   ],
+
+  /*
+   * O selo do `next dev` nasce no canto INFERIOR ESQUERDO — exatamente em
+   * cima do botão Sair da barra lateral. Com a barra fechada ele cobria o
+   * ícone inteiro: dava para ver na foto, um círculo preto com um "N" no
+   * lugar da porta de saída.
+   *
+   * Passar para a direita mantém os avisos de erro de compilação, que são
+   * úteis, longe do único canto onde a barra tem botão. Some sozinho na build
+   * de produção.
+   */
+  devIndicators: { position: "bottom-right" },
 
   images: {
     // As fotos das peças vêm do Storage do Supabase.

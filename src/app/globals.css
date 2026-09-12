@@ -89,6 +89,25 @@
   --nav-fechada: 68px;
   --nav-aberta: 244px;
   /*
+   * Recuo lateral da barra. FIXO nos dois estados, e é isso que importa.
+   *
+   * Antes ele animava de 8px para 16px junto com a largura. Como o recuo
+   * empurra tudo o que está dentro, os sete ícones deslizavam 8px para a
+   * direita toda vez que a barra abria — o "tremor". Medido: centro do ícone
+   * saía de x=33,5 e parava em x=41,5.
+   *
+   * Com o recuo parado, o ícone fica onde está e só o rótulo cresce ao lado.
+   */
+  --nav-recuo: 8px;
+  /*
+   * Largura do trilho do ícone: exatamente o que sobra da barra fechada depois
+   * do recuo dos dois lados. Sai da mesma conta, então não tem como desalinhar
+   * quando alguém mexer em --nav-fechada.
+   */
+  --nav-trilho: calc(var(--nav-fechada) - 2 * var(--nav-recuo));
+  /* O que sobra para o rótulo com a barra aberta, menos uma folga à direita. */
+  --nav-rotulo: calc(var(--nav-aberta) - 2 * var(--nav-recuo) - var(--nav-trilho) - 12px);
+  /*
    * Altura da barra de baixo do celular, SEM a faixa de gestos do iPhone
    * (essa entra por fora, com env(safe-area-inset-bottom)).
    *

@@ -46,9 +46,14 @@ try {
   conferir("fechada tem 68px", Math.round(caixa.width) === 68, `w=${caixa.width}`);
 
   console.log("\n=== ABRE AO PASSAR O MOUSE ===");
+  /*
+   * `[data-rotulo]` e não `querySelector("span")`: o primeiro span do item
+   * hoje é o TRILHO do ícone, não o rótulo. A sonda lia o elemento errado e
+   * acusava falha com a barra funcionando — ponto de apoio explícito resolve.
+   */
   const rotulo = nav.locator("a", { hasText: "Portal de vendas" }).first();
   const antes = await rotulo.evaluate((el) => {
-    const s = el.querySelector("span");
+    const s = el.querySelector("[data-rotulo]");
     return { opacidade: getComputedStyle(s).opacity, largura: getComputedStyle(s).maxWidth };
   });
   conferir("rótulo invisível com a barra fechada", antes.opacidade === "0", antes.opacidade);
@@ -61,7 +66,7 @@ try {
   conferir("abre para 244px no hover", Math.round(depois.width) === 244, `w=${depois.width}`);
 
   const rotDepois = await rotulo.evaluate((el) => {
-    const s = el.querySelector("span");
+    const s = el.querySelector("[data-rotulo]");
     return { opacidade: getComputedStyle(s).opacity, texto: s.textContent };
   });
   conferir("rótulo aparece", rotDepois.opacidade === "1", rotDepois.opacidade);
@@ -72,16 +77,114 @@ try {
   await page.waitForTimeout(450);
   const fechada = await nav.boundingBox();
   conferir("volta para 68px", Math.round(fechada.width) === 68, `w=${fechada.width}`);
-  const display = await rotulo.evaluate((el) => getComputedStyle(el.querySelector("span")).display);
+  const display = await rotulo.evaluate((el) => getComputedStyle(el.querySelector("[data-rotulo]")).display);
   conferir("não usa display:none", display !== "none", display);
 
   console.log("\n=== ABRE TAMBÉM PELO TECLADO ===");
-  await rotulo.focus();
+  /*
+   * Tab DE VERDADE, não `.focus()` por código.
+   *
+   * A barra passou a abrir por `:focus-visible` em vez de `focus-within` (ver
+   * barra-lateral.tsx) para não ficar presa aberta depois de um clique de
+   * mouse. `:focus-visible` é justamente o foco que o navegador julga vindo do
+   * teclado, e um `.focus()` programático depois de mexer o mouse não conta.
+   * O teste antigo passava sem provar nada sobre teclado; este pressiona a
+   * tecla e olha o resultado.
+   */
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(300);
+  await page.keyboard.press("Tab");
   await page.waitForTimeout(450);
   const porFoco = await nav.boundingBox();
+  const focoNaBarra = await page.evaluate(
+    () => !!document.activeElement?.closest('nav[data-nav="lateral"]'),
+  );
+  conferir("o Tab leva o foco para a barra", focoNaBarra);
   conferir("abre com foco do teclado", Math.round(porFoco.width) === 244, `w=${porFoco.width}`);
   await page.mouse.move(900, 500);
   await page.locator("main").first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+  await page.waitForTimeout(400);
+
+  /*
+   * As três conferências abaixo nasceram de defeitos que o João viu na tela e
+   * que esta sonda NÃO pegava: ela testava que a barra abre e fecha, nunca
+   * como ela abre.
+   */
+  console.log("\n=== OS ÍCONES NÃO SE MEXEM AO ABRIR ===");
+  const centroDoIcone = async () => {
+    const b = await nav.locator("a svg").first().boundingBox();
+    return +(b.x + b.width / 2).toFixed(1);
+  };
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(400);
+  const xFechada = await centroDoIcone();
+  await nav.hover();
+  const percurso = [xFechada];
+  for (let i = 0; i < 20; i++) {
+    percurso.push(await centroDoIcone());
+    await page.waitForTimeout(16);
+  }
+  await page.waitForTimeout(400);
+  const xAberta = await centroDoIcone();
+  percurso.push(xAberta);
+  const viagem = Math.max(...percurso) - Math.min(...percurso);
+  conferir("o ícone fica parado durante a abertura", viagem <= 1, `andou ${viagem.toFixed(1)}px`);
+  conferir("mesma coluna fechada e aberta", Math.abs(xAberta - xFechada) <= 1, `${xFechada} -> ${xAberta}`);
+
+  console.log("\n=== TODOS OS ÍCONES NA MESMA COLUNA ===");
+  const espalhamento = async () => {
+    const cxs = await nav.evaluate((n) =>
+      [...n.querySelectorAll("a, button")]
+        .map((el) => el.querySelector("svg") || el.querySelector("img"))
+        .filter(Boolean)
+        .map((s) => {
+          const r = s.getBoundingClientRect();
+          return r.x + r.width / 2;
+        }),
+    );
+    return +(Math.max(...cxs) - Math.min(...cxs)).toFixed(1);
+  };
+  conferir("alinhados com a barra aberta", (await espalhamento()) <= 1, `${await espalhamento()}px`);
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(400);
+  conferir("alinhados com a barra fechada", (await espalhamento()) <= 1, `${await espalhamento()}px`);
+
+  console.log("\n=== FECHA SOZINHA DEPOIS DO CLIQUE ===");
+  await nav.hover();
+  await page.waitForTimeout(350);
+  await nav.locator('a[href="/estoque"]').click();
+  await page.waitForTimeout(600);
+  await page.mouse.move(900, 500);
+  await page.waitForTimeout(700);
+  const depoisDoClique = Math.round((await nav.boundingBox()).width);
+  conferir(
+    "não fica presa aberta pelo foco do clique",
+    depoisDoClique === 68,
+    `w=${depoisDoClique} (o mouse já saiu de cima)`,
+  );
+
+  console.log("\n=== BOTÃO DE CLARO/ESCURO ===");
+  const botaoTema = nav.locator('button[aria-label="Alternar entre tema claro e escuro"]').first();
+  conferir("existe na barra", (await botaoTema.count()) === 1);
+  const escuroAntes = await page.evaluate(() => document.documentElement.classList.contains("dark"));
+  await botaoTema.click();
+  await page.waitForTimeout(350);
+  const escuroDepois = await page.evaluate(() => document.documentElement.classList.contains("dark"));
+  conferir("o clique troca o tema", escuroAntes !== escuroDepois, `${escuroAntes} -> ${escuroDepois}`);
+  /* sol e lua ficam os dois no documento; quem escolhe é o CSS, sem piscada */
+  const icones = await botaoTema.evaluate((b) => {
+    const svgs = [...b.querySelectorAll("svg")];
+    return svgs.map((s) => +getComputedStyle(s).opacity);
+  });
+  conferir("os dois ícones existem", icones.length === 2, `${icones.length}`);
+  conferir(
+    "só um aparece de cada vez",
+    icones.filter((o) => o > 0.5).length === 1,
+    `opacidades: ${icones.join(", ")}`,
+  );
+  await botaoTema.click();
+  await page.waitForTimeout(350);
+  await page.mouse.move(900, 500);
   await page.waitForTimeout(400);
 
   console.log("\n=== A BARRA COBRE O CONTEÚDO, NÃO EMPURRA ===");

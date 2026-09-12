@@ -27,9 +27,19 @@ const SONDAS = [
   "celular",
 ];
 
+/*
+ * `--env-file=.env` é obrigatório para as sondas que conversam com o banco
+ * (compras, comunicacao, ficha, financeiro, painel, regras, vendas): elas leem
+ * `process.env.DATABASE_URL` direto, e `node` puro não carrega o .env sozinho
+ * — quem carrega é o Next.
+ *
+ * Sem isso a URL vem vazia, o Prisma tenta um banco local que não existe e a
+ * sonda morre com ECONNREFUSED antes de conferir coisa alguma. A convenção
+ * antiga era `npx dotenvx run --`, um pacote a mais; o Node 20+ já faz nativo.
+ */
 function rodar(nome) {
   return new Promise((resolve) => {
-    const p = spawn(process.execPath, [`scripts/sonda-${nome}.mjs`, BASE], {
+    const p = spawn(process.execPath, ["--env-file=.env", `scripts/sonda-${nome}.mjs`, BASE], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let saida = "";

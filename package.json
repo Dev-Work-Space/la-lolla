@@ -10,10 +10,10 @@
     "db:migrate": "prisma migrate dev && prisma generate && node scripts/avisar-reinicio.mjs",
     "db:deploy": "prisma migrate deploy && prisma generate && node scripts/avisar-reinicio.mjs",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts",
-    "testar:banco": "tsx scripts/testar-prisma.ts",
+    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "testar:banco": "node --env-file=.env --import tsx scripts/testar-prisma.ts",
     "typecheck": "tsc --noEmit",
-    "verificar": "tsx scripts/verificar-vertical.ts",
+    "verificar": "node --env-file=.env --import tsx scripts/verificar-vertical.ts",
     "dev:rede": "next dev -H 0.0.0.0 -p 3000",
     "sondas": "node scripts/rodar-sondas.mjs",
     "icones": "node scripts/gerar-icones.mjs"
@@ -57,5 +57,11 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
   }
 }

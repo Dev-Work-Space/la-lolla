@@ -137,8 +137,20 @@ em outro terminal):
 
 ```bash
 node scripts/sonda-celular.mjs
-node scripts/sonda-comunicacao.mjs
+node --env-file=.env scripts/sonda-comunicacao.mjs
 ```
+
+> **O `--env-file=.env` não é enfeite.** Sete sondas conversam com o banco
+> (`compras`, `comunicacao`, `ficha`, `financeiro`, `painel`, `regras`,
+> `vendas`) e leem a `DATABASE_URL` direto. Quem carrega o `.env` é o Next;
+> o `node` puro não. Sem a bandeira elas morrem com `ECONNREFUSED` antes de
+> conferir qualquer coisa. As que só olham a tela (`celular`, `lateral`,
+> `estoque`, `cadastros`, `lateral`) rodam sem ela.
+>
+> `npm run sondas` já passa a bandeira sozinho.
+>
+> **Atenção:** as sondas do banco GRAVAM dados de teste (marcados com `ZZQA`)
+> e apagam no fim. Não rode em cima de dados que importam sem backup.
 
 São 369 conferências no total, todas passando hoje. A lista completa está no
 `HISTORICO.md`, seção 9.
