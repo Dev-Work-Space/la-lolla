@@ -13,7 +13,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "testar:banco": "tsx scripts/testar-prisma.ts",
     "typecheck": "tsc --noEmit",
-    "verificar": "tsx scripts/verificar-vertical.ts"
+    "verificar": "tsx scripts/verificar-vertical.ts",
+    "dev:rede": "next dev -H 0.0.0.0 -p 3000",
+    "sondas": "node scripts/rodar-sondas.mjs",
+    "icones": "node scripts/gerar-icones.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
