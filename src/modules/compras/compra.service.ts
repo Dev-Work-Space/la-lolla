@@ -193,7 +193,7 @@ const SELECAO = {
   aPrazo: true,
   vencimento: true,
   observacao: true,
-  criadoEm: true,
+  data: true,
   fornecedor: { select: { id: true, nome: true } },
   itens: {
     select: {
@@ -225,7 +225,7 @@ function montar(c: Prisma.CompraGetPayload<{ select: typeof SELECAO }>) {
     aPrazo: c.aPrazo,
     vencimento: c.vencimento,
     observacao: c.observacao,
-    criadoEm: c.criadoEm,
+    data: c.data,
     itens: c.itens.map((i) => ({
       id: i.id,
       pecaId: i.peca.id,
@@ -257,7 +257,7 @@ export async function listarCompras(opcoes: { busca?: string; filtro?: FiltroCom
   const mes0 = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
   const where: Prisma.CompraWhereInput = {
-    ...(filtro === "mes" ? { criadoEm: { gte: mes0 } } : {}),
+    ...(filtro === "mes" ? { data: { gte: mes0 } } : {}),
     ...(q
       ? {
           OR: [
@@ -272,7 +272,7 @@ export async function listarCompras(opcoes: { busca?: string; filtro?: FiltroCom
   const cruas = await prisma.compra.findMany({
     where,
     select: SELECAO,
-    orderBy: { criadoEm: "desc" },
+    orderBy: { data: "desc" },
     take: 200,
   });
 
@@ -294,9 +294,9 @@ export async function indicadoresCompras() {
   const mesAnt0 = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
 
   const [mes, anterior, aPagar, todas] = await Promise.all([
-    prisma.compra.aggregate({ where: { criadoEm: { gte: mes0 } }, _sum: { total: true }, _count: true }),
+    prisma.compra.aggregate({ where: { data: { gte: mes0 } }, _sum: { total: true }, _count: true }),
     prisma.compra.aggregate({
-      where: { criadoEm: { gte: mesAnt0, lt: mes0 } },
+      where: { data: { gte: mesAnt0, lt: mes0 } },
       _sum: { total: true },
     }),
     prisma.conta.aggregate({
@@ -308,7 +308,7 @@ export async function indicadoresCompras() {
   ]);
 
   const unidades = await prisma.itemCompra.aggregate({
-    where: { compra: { criadoEm: { gte: mes0 } } },
+    where: { compra: { data: { gte: mes0 } } },
     _sum: { quantidade: true },
   });
 

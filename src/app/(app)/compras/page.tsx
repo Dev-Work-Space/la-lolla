@@ -183,7 +183,7 @@ async function ListaDasCompras({
         {compras.length > 0 ? (
           compras.map((c) => {
             const sub = [
-              c.criadoEm.toLocaleDateString("pt-BR"),
+              c.data.toLocaleDateString("pt-BR"),
               `${c.unidades} un.`,
               plural(c.itens.length, "item", "itens"),
             ];

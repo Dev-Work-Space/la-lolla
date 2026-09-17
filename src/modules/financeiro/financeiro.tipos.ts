@@ -40,10 +40,27 @@ export const FILTROS_CONTA = [
 
 export type FiltroConta = (typeof FILTROS_CONTA)[number][0];
 
+/* Onde o dinheiro está. Espelha o enum do banco; fica aqui repetido porque
+   este módulo é neutro e o formulário é Client Component — importar o enum
+   gerado do Prisma arrastaria o driver do Postgres para o navegador. */
+export const TIPOS_CARTEIRA = [
+  ["ESPECIE", "Espécie"],
+  ["CONTA", "Conta do banco"],
+  ["RESERVA", "Reserva guardada"],
+  ["CARTAO", "Cartão de crédito"],
+  ["OUTRA", "Outra"],
+] as const;
+
+export type TipoCarteira = (typeof TIPOS_CARTEIRA)[number][0];
+
+export function nomeTipoCarteira(t: TipoCarteira): string {
+  return TIPOS_CARTEIRA.find(([id]) => id === t)?.[1] ?? "Outra";
+}
+
 export type CarteiraSaldo = {
   id: string;
   nome: string;
-  cofrinho: boolean;
+  tipo: TipoCarteira;
   ordem: number;
   saldoInicial: number;
   entradas: number;

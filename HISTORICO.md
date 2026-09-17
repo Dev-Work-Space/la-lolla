@@ -76,6 +76,14 @@ Regras de negócio que saíram de lá e estão implementadas:
 - **excluir peça é ARQUIVAR** — a documentação diz que "as vendas ficam, com o
   nome gravado" e "as movimentações são preservadas". Apagar a linha levaria o
   histórico junto.
+- **orçamento reserva, não baixa**: enquanto estiver aberto E dentro da
+  validade, as peças aparecem como reservadas. Vencido, recusado, aprovado ou
+  substituído deixa de reservar — sozinho, sem ninguém liberar
+- **orçamento não se edita depois de enviado**: mudou o combinado, nasce uma
+  REVISÃO com número novo e o anterior fica substituído. O PDF que a cliente
+  tem na mão precisa continuar existindo como foi enviado
+- **converter orçamento é operação única**: a segunda tentativa é recusada, e
+  a marcação do orçamento acontece na MESMA transação da venda
 
 ---
 
@@ -215,6 +223,50 @@ Manifesto com `display: standalone`, ícones gerados da logo
 (`scripts/gerar-icones.mjs`), `theme-color` que acompanha o tema, e
 `env(safe-area-inset-*)` para as barras irem até a borda.
 
+### 16/09 — Data do fato, cartão, devolução, insumo e **Orçamentos**
+
+O João mandou ler o app antigo inteiro e trazer o que faltava, sem mexer na
+linguagem. Primeiro veio o banco, porque as telas nasceriam tortas sem ele.
+
+**O buraco que ninguém tinha visto:** nenhuma tabela tinha data própria. Venda,
+pagamento, lançamento, compra, movimento e orçamento usavam `criadoEm` — a data
+em que alguém DIGITOU. Não dava para lançar o frete de ontem, nem datar a venda
+de sábado na segunda, e o app antigo tem campo de data em todas essas telas.
+Cada uma ganhou `data`, e ~30 consultas que somavam dinheiro pela data errada
+foram corrigidas.
+
+Na mesma migração: cartão de crédito (que não existia no modelo novo), tipo de
+carteira no lugar do "cofrinho" sim-ou-não, tabela de devolução com data,
+motivo e resolução, insumo consumido na venda, e o orçamento com validade,
+revisão e condição de pagamento.
+
+A migração foi escrita **à mão**. A gerada pelo Prisma faria dois estragos
+calados: apagaria a marca da carteira de reserva, e carimbaria *hoje* como data
+dos 26 movimentos antigos — estragando o relatório de qualquer mês passado para
+sempre. Antes de aplicar, ela rodou inteira contra o banco de verdade dentro de
+uma transação desfeita no fim.
+
+**Orçamentos**, o maior módulo que faltava, saiu completo: lista com filtros
+(incluindo *Substituídos*, que a documentação aponta como defeito do app
+antigo), editor em tela única no mesmo padrão da venda, ficha, revisão,
+recusar/reabrir, excluir e conversão em venda.
+
+Três decisões que valem registro:
+
+- **A conversão é parte da transação da venda.** Marcar o orçamento depois
+  deixaria, numa queda de rede, a venda feita e a proposta ainda "em aberto" —
+  reservando peça que já saiu da loja e podendo ser convertida de novo.
+- **Revisar não edita no lugar.** Nasce um número novo e o anterior fica
+  substituído, porque a cliente está com o PDF antigo na mão: se o Nº 0007
+  mudasse de conteúdo, os dois discutiriam papéis diferentes com o mesmo número.
+- **A reserva só vale dentro da validade.** O código já contava reserva, mas
+  olhava só o status: um orçamento vencido havia meses continuava segurando
+  peça no catálogo para sempre.
+
+Dois defeitos de regra corrigidos de passagem: a reserva ignorava a validade
+(acima), e o aviso de "orçamentos expirando" no Início contava 7 dias e incluía
+os já vencidos — a documentação diz 2 dias, e vencido não é "expirando".
+
 ---
 
 ## 8. Armadilhas que já custaram tempo
@@ -241,12 +293,36 @@ Manifesto com `display: standalone`, ícones gerados da logo
 9. **Sonda que assume banco vazio quebra sozinha.** Várias conferências
    exigiam zero vendas ou zero meta e acusavam falha num app certo. Confira a
    REGRA contra o estado real, não um valor fixo.
+10. **Regra de firewall com `-Profile Domain,Private` não vale numa rede que
+    o Windows marcou como Pública** — e ele marca sozinho, sem avisar. A regra
+    fica criada, aparece na lista, e o celular continua sem abrir. Use
+    `-Profile Any`; quem limita o acesso é o `-RemoteAddress LocalSubnet`.
+11. **`.bat` com quebra de linha LF quebra em silêncio.** O `cmd` come o
+    primeiro caractere de cada linha: `set` vira `et`, `for` vira `or`. O
+    `INICIAR.bat` passou a mostrar `http://%IP%:3000` no lugar do endereço, e
+    quem digitava aquilo no celular não chegava a lugar nenhum. O
+    `.gitattributes` agora força CRLF. **Cuidado:** o `sed` do Git Bash
+    apaga os CR ao reescrever o arquivo — confira com
+    `head -2 arquivo.bat | xxd` (tem de aparecer `0d 0a`).
+12. **`waitForURL` com padrão frouxo faz a sonda correr na frente.** Esperar
+    por `/orcamentos/[^/]+$` casa com a PRÓPRIA `/orcamentos/novo`, e a sonda
+    seguia antes de a gravação terminar: lia o banco, não achava nada e
+    acusava falha num app que estava certo. Aconteceu duas vezes no mesmo dia
+    (orçamento e venda). Espere por uma URL que EXCLUA a tela de origem —
+    `!u.pathname.endsWith("/novo")`.
+13. **Data do registro não é data do fato.** Até 16/09 nenhuma tabela tinha
+    data própria: venda, pagamento, lançamento, compra e movimento usavam
+    `criadoEm`. Não dava para lançar um frete de ontem nem datar no futuro, e
+    o app antigo tem campo de data em todas essas telas. Hoje cada uma tem
+    `data`, e `criadoEm` ficou só para auditoria. Ao escrever consulta de
+    dinheiro ou de estoque, use `data` — `criadoEm` só quando a pergunta for
+    mesmo "quando isso foi digitado".
 
 ---
 
 ## 9. As sondas
 
-`scripts/sonda-*.mjs` — 369 conferências, todas passando. Rodam contra o app
+`scripts/sonda-*.mjs` — 406 conferências, todas passando. Rodam contra o app
 de verdade, com navegador de verdade.
 
 | Sonda | O que cobre |
@@ -257,6 +333,7 @@ de verdade, com navegador de verdade.
 | `sonda-estoque` | catálogo, insumos, e o que a vendedora NÃO vê |
 | `sonda-ficha` | ficha da peça e movimentos |
 | `sonda-vendas` | carrinho, fechamento, devolução, cancelamento |
+| `sonda-orcamentos` | reserva, revisão, conversão em venda e a trava da 2ª conversão |
 | `sonda-financeiro` | caixa, contas, carteiras |
 | `sonda-compras` | portal de compras |
 | `sonda-regras` | as regras da documentação funcional |
@@ -266,8 +343,8 @@ de verdade, com navegador de verdade.
 Rodar todas:
 
 ```bash
-for s in lateral painel cadastros estoque ficha vendas financeiro compras regras comunicacao celular; do
-  node scripts/sonda-$s.mjs
+for s in lateral painel cadastros estoque ficha vendas orcamentos financeiro compras regras comunicacao celular; do
+  node --env-file=.env scripts/sonda-$s.mjs
 done
 ```
 
@@ -287,8 +364,6 @@ done
 
 **Não construído ainda, pela documentação funcional:**
 
-- **Orçamentos** (seção 07 inteira): assistente de 3 passos, reserva de peças,
-  PDF, revisões numeradas, conversão em venda. É o maior módulo que falta.
 - Insumos de embalagem na venda; "repetir da última venda"
 - Editar venda; recebimento parcial que divide a parcela
 - Cartão de crédito com fatura e limite

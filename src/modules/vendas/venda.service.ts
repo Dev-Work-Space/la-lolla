@@ -97,7 +97,7 @@ const SELECAO_VENDA = {
   status: true,
   desconto: true,
   observacao: true,
-  criadoEm: true,
+  data: true,
   canceladaEm: true,
   motivoCancelada: true,
   cliente: { select: { id: true, nome: true } },
@@ -114,7 +114,7 @@ const SELECAO_VENDA = {
     },
   },
   pagamentos: {
-    select: { id: true, forma: true, valor: true, parcelas: true, comprovanteId: true, criadoEm: true },
+    select: { id: true, forma: true, valor: true, parcelas: true, comprovanteId: true, data: true },
   },
   parcelas: {
     select: { id: true, valor: true, vencimento: true, status: true, parcela: true, deParcelas: true },
@@ -155,7 +155,7 @@ export type VendaPublica = {
   cliente: { id: string; nome: string } | null;
   vendedor: { id: string; nome: string } | null;
   observacao: string | null;
-  criadoEm: Date;
+  data: Date;
   canceladaEm: Date | null;
   motivoCancelada: string | null;
   itens: ItemVendaVisivel[];
@@ -166,7 +166,7 @@ export type VendaPublica = {
     parcelas: number;
     temComprovante: boolean;
     precisaComprovante: boolean;
-    criadoEm: Date;
+    data: Date;
   }>;
   parcelas: Array<{
     id: string;
@@ -227,7 +227,7 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
     cliente: v.cliente,
     vendedor: v.vendedor,
     observacao: v.observacao,
-    criadoEm: v.criadoEm,
+    data: v.data,
     canceladaEm: v.canceladaEm,
     motivoCancelada: v.motivoCancelada,
     itens,
@@ -238,7 +238,7 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
       parcelas: p.parcelas,
       temComprovante: !!p.comprovanteId,
       precisaComprovante: PEDE_COMPROVANTE.includes(p.forma),
-      criadoEm: p.criadoEm,
+      data: p.data,
     })),
     parcelas: v.parcelas.map((c) => ({
       id: c.id,
@@ -290,7 +290,7 @@ export async function listarVendas(opcoes: {
   const where: Prisma.VendaWhereInput = {
     // Canceladas só aparecem quando explicitamente pedidas.
     ...(filtro === "canceladas" ? { status: "CANCELADA" } : VIVA),
-    ...(filtro === "hoje" ? { criadoEm: { gte: hoje0 } } : {}),
+    ...(filtro === "hoje" ? { data: { gte: hoje0 } } : {}),
     ...(q
       ? {
           OR: [
@@ -306,7 +306,7 @@ export async function listarVendas(opcoes: {
   const cruas = await prisma.venda.findMany({
     where,
     select: SELECAO_VENDA,
-    orderBy: { criadoEm: "desc" },
+    orderBy: { data: "desc" },
     take: 200,
   });
 
@@ -332,12 +332,12 @@ export async function indicadoresVendas(veFinanceiro: boolean) {
   const mes0 = new Date(hoje0.getFullYear(), hoje0.getMonth(), 1);
 
   const cruas = await prisma.venda.findMany({
-    where: { ...VIVA, criadoEm: { gte: mes0 } },
+    where: { ...VIVA, data: { gte: mes0 } },
     select: SELECAO_VENDA,
   });
   const vendas = cruas.map((v) => montar(v, true));
 
-  const doDia = vendas.filter((v) => v.criadoEm >= hoje0);
+  const doDia = vendas.filter((v) => v.data >= hoje0);
 
   // "A receber" olha todas as vendas vivas, não só as do mês.
   const todas = await prisma.venda.findMany({ where: VIVA, select: SELECAO_VENDA });

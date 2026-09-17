@@ -20,6 +20,7 @@ const SONDAS = [
   "estoque",
   "ficha",
   "vendas",
+  "orcamentos",
   "financeiro",
   "compras",
   "regras",

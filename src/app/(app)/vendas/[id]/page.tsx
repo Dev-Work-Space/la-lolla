@@ -65,7 +65,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {dataHora(v.criadoEm)}
+            {dataHora(v.data)}
             {v.cliente ? ` · ${v.cliente.nome}` : " · sem cliente"}
             {v.vendedor ? ` · atendeu ${v.vendedor.nome}` : ""}
           </p>
@@ -190,7 +190,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium">{rotuloForma(p.forma)}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {fData(p.criadoEm)}
+                        {fData(p.data)}
                       </span>
                     </span>
                     {p.precisaComprovante && !p.temComprovante && (

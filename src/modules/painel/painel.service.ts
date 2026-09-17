@@ -48,13 +48,18 @@ export async function dadosDoInicio(nome: string) {
   const seis0 = new Date(agora.getFullYear(), agora.getMonth() - 5, 1);
   const desde = new Date(Math.min(+ano0, +seis0, +mesAnt0));
   const em7 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 7);
+  /* O orçamento avisa com 2 dias, a conta com 7: são urgências diferentes.
+     Dois dias é o que sobra para ligar para a cliente antes de o preço
+     deixar de valer; conta a pagar precisa de mais fôlego para juntar o
+     dinheiro. Documentação, seção 05. */
+  const em2 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 2, 23, 59, 59, 999);
 
   const [vendas, caixa, config, pendencias] = await Promise.all([
     // 1) as vendas do período, com o que basta para TODOS os números da tela
     prisma.venda.findMany({
-      where: { status: { not: "CANCELADA" }, criadoEm: { gte: desde } },
+      where: { status: { not: "CANCELADA" }, data: { gte: desde } },
       select: {
-        criadoEm: true,
+        data: true,
         total: true,
         itens: {
           select: {
@@ -78,7 +83,17 @@ export async function dadosDoInicio(nome: string) {
     prisma.$transaction([
       prisma.conta.count({ where: { status: "ABERTA", vencimento: { lt: dia0 } } }),
       prisma.conta.count({ where: { status: "ABERTA", vencimento: { gte: dia0, lte: em7 } } }),
-      prisma.orcamento.count({ where: { status: "ABERTO", validoAte: { lt: em7 } } }),
+      /*
+       * "Validade acabando em até 2 dias" — documentação, seção 05.
+       *
+       * Estava `validoAte < em7`, o que errava dos dois lados: avisava com uma
+       * semana de antecedência (todo orçamento novo já nascia no aviso) e
+       * contava junto os que JÁ venceram, que não são "expirando" — para
+       * esses não há mais o que correr atrás dentro do prazo.
+       */
+      prisma.orcamento.count({
+        where: { status: "ABERTO", validoAte: { gte: dia0, lte: em2 } },
+      }),
       /*
        * Peças zeradas em SQL: contar saldo por peça no banco evita trazer o
        * catálogo inteiro com todos os movimentos só para somar.
@@ -104,7 +119,7 @@ export async function dadosDoInicio(nome: string) {
   /* ── daqui para baixo é tudo soma em memória ── */
 
   const noPeriodo = (de: Date, ate?: Date) =>
-    vendas.filter((v) => v.criadoEm >= de && (!ate || v.criadoEm < ate));
+    vendas.filter((v) => v.data >= de && (!ate || v.data < ate));
 
   const doAno = noPeriodo(ano0);
   const doMes = noPeriodo(mes0);
@@ -203,11 +218,13 @@ export async function dadosDoInicio(nome: string) {
   if (orcamentos > 0)
     pend.push({
       p: 2,
-      nome: "Orçamentos expirando",
-      sub: "ainda em aberto",
+      nome: orcamentos === 1 ? "Orçamento vencendo" : "Orçamentos vencendo",
+      sub: "a validade acaba em até 2 dias",
       valor: String(orcamentos),
       cor: "var(--ll-warn)",
-      href: "/vendas?filtro=aberto",
+      /* Leva para a sub-aba de Orçamentos já filtrada — o aviso tem de
+         abrir exatamente a lista que ele prometeu. */
+      href: "/vendas?aba=orcamentos&filtro=aberto",
     });
 
   const metaValor = Number(config?.valor);

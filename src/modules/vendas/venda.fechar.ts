@@ -31,6 +31,13 @@ export type VendaEntrada = {
   pagamentos: PagamentoEntrada[];
   /** Quando sobra saldo: em quantas vezes e de quanto em quanto tempo. */
   aPrazo?: { parcelas: number; intervalo: Intervalo; primeiroVencimento: Date } | null;
+  /*
+   * A venda veio de um orçamento aprovado. Entra na MESMA transação de
+   * propósito: se o orçamento fosse marcado depois, uma queda de rede no meio
+   * deixaria a venda feita e a proposta ainda "em aberto" — reservando peça
+   * que já saiu da loja, e passível de ser convertida uma segunda vez.
+   */
+  orcamentoId?: string | null;
 };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -41,6 +48,32 @@ export async function fecharVenda(entrada: VendaEntrada) {
   }
 
   return prisma.$transaction(async (tx) => {
+    /*
+     * O orçamento é conferido ANTES de qualquer gravação. Converter duas vezes
+     * geraria duas vendas para a mesma proposta — o estoque baixaria em dobro
+     * e a cliente apareceria devendo o dobro. Acontece mais do que parece: dois
+     * toques no botão, ou a mesma página aberta em dois aparelhos.
+     */
+    if (entrada.orcamentoId) {
+      const orc = await tx.orcamento.findUnique({
+        where: { id: entrada.orcamentoId },
+        select: { id: true, numero: true, status: true },
+      });
+      if (!orc) throw new ErroDominio("NAO_ENCONTRADO", "Esse orçamento não existe mais.");
+      if (orc.status === "CONVERTIDO") {
+        throw new ErroDominio(
+          "REGRA_NEGOCIO",
+          `O orçamento Nº ${String(orc.numero).padStart(4, "0")} já virou venda. Abra a venda dele em vez de converter de novo.`,
+        );
+      }
+      if (orc.status === "SUBSTITUIDO") {
+        throw new ErroDominio(
+          "REGRA_NEGOCIO",
+          "Esse orçamento foi substituído por uma revisão. Converta a revisão, que é a que vale.",
+        );
+      }
+    }
+
     // Lê as peças DENTRO da transação: preço e custo do instante do fechamento.
     const ids = [...new Set(entrada.itens.map((i) => i.pecaId))];
     const pecas = await tx.peca.findMany({
@@ -182,6 +215,15 @@ export async function fecharVenda(entrada: VendaEntrada) {
           },
         });
       }
+    }
+
+    /* 6 — o orçamento vira Aprovado e passa a apontar para a venda. Daqui em
+       diante ele deixa de reservar peça, porque só reserva quem está ABERTO. */
+    if (entrada.orcamentoId) {
+      await tx.orcamento.update({
+        where: { id: entrada.orcamentoId },
+        data: { status: "CONVERTIDO", vendaId: venda.id },
+      });
     }
 
     return venda;

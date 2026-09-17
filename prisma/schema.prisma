@@ -140,6 +140,7 @@ model Peca {
   itensVenda ItemVenda[]
   itensOrcamento ItemOrcamento[]
   itensCompra    ItemCompra[]
+  insumosVenda   InsumoVenda[]
 
   arquivada Boolean @default(false)
 
@@ -193,6 +194,12 @@ model Venda {
   numero Int         @unique @default(autoincrement())
   status StatusVenda @default(ABERTA)
 
+  // A data do FATO, separada de criadoEm (a data do registro). A venda de
+  // sábado lançada na segunda fatura no sábado — sem este campo o relatório
+  // do mês, o caixa e a agenda usam "quando foi digitado", que é outra coisa.
+  // O assistente pede esta data na etapa do cliente.
+  data DateTime @default(now())
+
   clienteId String?
   cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
@@ -205,6 +212,8 @@ model Venda {
 
   itens      ItemVenda[]
   pagamentos Pagamento[]
+  insumos    InsumoVenda[]
+  devolucoes Devolucao[]
 
   observacao String?
 
@@ -249,6 +258,8 @@ model ItemVenda {
   // Série da peça vendida (SKU-01), quando houver etiqueta individual.
   serie String?
 
+  devolucoes ItemDevolucao[]
+
   @@index([vendaId])
   @@map("itens_venda")
 }
@@ -260,6 +271,10 @@ model Pagamento {
   forma   FormaPagamento
   valor   Decimal        @db.Decimal(10, 2)
   parcelas Int           @default(1)
+
+  // Quando o dinheiro entrou. A tela de receber parcela tem campo de data, e
+  // é por ela que o caixa agrupa o dia — não por quando alguém digitou.
+  data DateTime @default(now())
 
   // Onde o dinheiro entrou. Sem isso o saldo da carteira ignoraria as vendas,
   // que são a maior entrada da loja.
@@ -276,6 +291,70 @@ model Pagamento {
 
   @@index([vendaId])
   @@map("pagamentos")
+}
+
+// O que a loja gastou para entregar a venda: saquinho, caixinha, laço. Fica
+// FORA de ItemVenda porque não é o que o cliente comprou — não tem preço, não
+// sai no recibo e não entra no faturamento. Entra só no custo, reduzindo a
+// margem. O custo congela aqui pelo mesmo motivo do item da venda.
+model InsumoVenda {
+  id      String @id @default(cuid())
+  vendaId String
+  venda   Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  pecaId  String
+  peca    Peca   @relation(fields: [pecaId], references: [id])
+
+  quantidade Int
+  custoUnit  Decimal @db.Decimal(10, 2)
+
+  @@index([vendaId])
+  @@map("insumos_venda")
+}
+
+// Abater do saldo ou devolver o dinheiro — são caminhos diferentes no caixa.
+enum ResolucaoDevolucao {
+  ABATER // reduz o saldo que o cliente ainda deve
+  DEVOLVER // sai dinheiro do caixa, categoria Devolução
+}
+
+// A devolução não apaga o item da venda: abate do total, devolve a peça ao
+// estoque e deixa o rastro de que a venda existiu. Precisa de cabeçalho
+// próprio porque a data, o motivo e a forma de resolver são da devolução,
+// não da venda.
+model Devolucao {
+  id      String @id @default(cuid())
+  vendaId String
+  venda   Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  data      DateTime
+  motivo    String?
+  resolucao ResolucaoDevolucao
+  total     Decimal            @db.Decimal(10, 2)
+
+  // Só quando o valor volta para o cliente: a saída de caixa que isso gerou.
+  lancamentoId String? @unique
+
+  itens ItemDevolucao[]
+
+  criadoEm DateTime @default(now())
+
+  @@index([vendaId])
+  @@map("devolucoes")
+}
+
+model ItemDevolucao {
+  id          String    @id @default(cuid())
+  devolucaoId String
+  devolucao   Devolucao @relation(fields: [devolucaoId], references: [id], onDelete: Cascade)
+
+  itemVendaId String
+  itemVenda   ItemVenda @relation(fields: [itemVendaId], references: [id], onDelete: Cascade)
+
+  quantidade Int
+  precoUnit  Decimal @db.Decimal(10, 2)
+
+  @@index([devolucaoId])
+  @@map("itens_devolucao")
 }
 
 model Comprovante {
@@ -296,7 +375,16 @@ model Comprovante {
 enum StatusOrcamento {
   ABERTO
   CONVERTIDO // virou venda (regra 2.5: trava depois disso)
-  PERDIDO
+  RECUSADO // o cliente disse não — dá para reabrir
+  SUBSTITUIDO // uma revisão tomou o lugar dele
+}
+
+// Como o cliente vai pagar, quando isso já foi combinado. "A combinar" é o
+// padrão e faz o PDF sair só com os valores, para negociar.
+enum ModoPagamentoOrcamento {
+  A_COMBINAR
+  A_VISTA
+  PARCELADO
 }
 
 model Orcamento {
@@ -311,15 +399,37 @@ model Orcamento {
   desconto Decimal @default(0) @db.Decimal(10, 2)
   total    Decimal @db.Decimal(10, 2)
 
-  validoAte DateTime?
-  vendaId   String?   @unique // preenchido quando converte
+  data DateTime @default(now())
+
+  // Guardamos os DIAS, não só a data final: é o que a tela pergunta (3, 7, 15
+  // ou 30) e o que permite recalcular a validade se a data do orçamento mudar.
+  // validoAte continua gravado para a consulta não ter que fazer conta.
+  validadeDias Int       @default(7)
+  validoAte    DateTime?
+
+  vendaId String? @unique // preenchido quando converte
+
+  // Revisão: nasce um orçamento NOVO, com número novo e os mesmos itens, e o
+  // anterior fica SUBSTITUIDO. Nada é editado no lugar — o PDF que o cliente
+  // já recebeu precisa continuar existindo do jeito que foi enviado.
+  revisaoDeId     String?     @unique
+  revisaoDe       Orcamento?  @relation("revisao", fields: [revisaoDeId], references: [id], onDelete: SetNull)
+  substituidoPor  Orcamento?  @relation("revisao")
+
+  modoPagamento ModoPagamentoOrcamento @default(A_COMBINAR)
+  formaPagamento FormaPagamento?
+  parcelas       Int?
+  primeiroVencimento DateTime?
+
+  // Texto livre que SAI no PDF: condições, prazo de entrega, forma de envio.
+  observacao String?
 
   itens ItemOrcamento[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  @@index([status, criadoEm])
+  @@index([status, data])
   @@map("orcamentos")
 }
 
@@ -359,10 +469,14 @@ model MovimentoEstoque {
   motivo MotivoMovimento
   origem String? // id da venda/compra que gerou
 
+  // A entrada de mercadoria e o ajuste de inventário pedem a data em que a
+  // coisa aconteceu: a nota é de terça, o app foi aberto na quinta.
+  data DateTime @default(now())
+
   observacao String?
   criadoEm   DateTime @default(now())
 
-  @@index([pecaId, criadoEm])
+  @@index([pecaId, data])
   @@map("movimentos_estoque")
 }
 
@@ -379,6 +493,10 @@ model Compra {
   aPrazo     Boolean   @default(false)
   vencimento DateTime?
   observacao String?
+
+  // "Data do pedido", a primeira pergunta do assistente de compra. É por ela
+  // que o Portal de compras agrupa os meses.
+  data DateTime @default(now())
 
   itens   ItemCompra[]
   // Regra 2.12: dar entrada em peça É saída de caixa. À vista vira lançamento,
@@ -442,6 +560,13 @@ model Conta {
   parcela Int?    // 1 de 3, 2 de 3...
   deParcelas Int?
 
+  // Compra no crédito: a parcela vira conta na fatura do cartão e consome
+  // limite. Todas as contas do MESMO cartão que vencem no MESMO dia são uma
+  // fatura só — ninguém paga uma compra do cartão, paga a fatura.
+  cartaoId   String?
+  cartao     Carteira? @relation("cartao", fields: [cartaoId], references: [id], onDelete: SetNull)
+  dataCompra DateTime? // quando a compra foi feita, não quando a fatura vence
+
   pagoEm    DateTime?
   // Na baixa de vencimento o comprovante é OBRIGATÓRIO (diferente da venda,
   // onde ele é pendência). A regra vive no service, não no banco.
@@ -455,11 +580,33 @@ model Conta {
   @@map("contas")
 }
 
+// Onde o dinheiro está. CARTAO é a exceção que confirma a regra: ele não
+// guarda dinheiro nenhum — guarda quanto ainda dá para gastar. Por isso fica
+// fora do saldo do caixa e fora de todo lugar onde se escolhe de onde o
+// dinheiro saiu; no crédito o dinheiro só sai no dia em que a fatura é paga.
+enum TipoCarteira {
+  ESPECIE // a gaveta
+  CONTA // conta do banco
+  RESERVA // o antigo "cofrinho"
+  CARTAO // cartão de crédito da loja
+  OUTRA
+}
+
 model Carteira {
-  id       String  @id @default(cuid())
-  nome     String  @unique
-  cofrinho Boolean @default(false)
-  ordem    Int     @default(0)
+  id    String       @id @default(cuid())
+  nome  String       @unique
+  tipo  TipoCarteira @default(CONTA)
+  ordem Int          @default(0)
+
+  // ---- só para tipo CARTAO ----
+  limite        Decimal? @db.Decimal(10, 2)
+  // Quanto do limite já estava comprometido antes de a loja usar o app.
+  usadoInicial  Decimal  @default(0) @db.Decimal(10, 2)
+  diaFechamento Int? // opcional: sem ele, vale o próximo vencimento
+  diaVencimento Int? // padrão 10 na tela
+  validade      String? // "AAAA-MM", como vem do <input type="month">
+
+  contasCartao Conta[] @relation("cartao")
 
   // Quanto já havia na carteira quando ela foi criada. Sem isso, o saldo
   // começaria em zero e só bateria com a realidade depois de meses.
@@ -493,6 +640,11 @@ model Lancamento {
   valor     Decimal @db.Decimal(10, 2) // + entrada, − saída
   categoria String?
 
+  // O dia em que o dinheiro se moveu. Duas regras dependem dele e nenhuma
+  // funciona com criadoEm: lançar um frete de ontem, e "valor com data no
+  // futuro só entra no saldo naquele dia" (o app avisa e deixa gravar).
+  data DateTime @default(now())
+
   comprovanteId String?
   comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
 
@@ -500,7 +652,7 @@ model Lancamento {
 
   criadoEm DateTime @default(now())
 
-  @@index([carteiraId, criadoEm])
+  @@index([carteiraId, data])
   @@map("lancamentos")
 }
 
@@ -511,7 +663,14 @@ model Transferencia {
   destinoId String
   destino   Carteira @relation("destino", fields: [destinoId], references: [id])
 
-  valor    Decimal  @db.Decimal(10, 2)
+  valor Decimal @db.Decimal(10, 2)
+
+  // Mesma razão das outras datas: o saldo de cada carteira conta só o que já
+  // aconteceu até hoje, e uma transferência datada para amanhã não pode
+  // aparecer no saldo de agora.
+  data       DateTime @default(now())
+  observacao String?
+
   criadoEm DateTime @default(now())
 
   @@map("transferencias")

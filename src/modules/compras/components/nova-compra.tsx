@@ -86,11 +86,16 @@ export function NovaCompra() {
     });
   }, []);
 
+  /* Limpar a lista é consequência do que a pessoa DIGITOU, então acontece no
+     próprio manipulador. Dentro do efeito, dispara um render extra a cada
+     tecla — é o que o lint acusa em `set-state-in-effect`. */
+  function mudarTermo(v: string) {
+    setTermo(v);
+    if (v.trim().length < 2) setAchados([]);
+  }
+
   useEffect(() => {
-    if (termo.trim().length < 2) {
-      setAchados([]);
-      return;
-    }
+    if (termo.trim().length < 2) return;
     const t = setTimeout(() => {
       buscar(async () => {
         const r = await buscarItensAction(termo);
@@ -189,7 +194,7 @@ export function NovaCompra() {
               <Input
                 id="busca-item"
                 value={termo}
-                onChange={(e) => setTermo(e.target.value)}
+                onChange={(e) => mudarTermo(e.target.value)}
                 placeholder="Nome, código ou LL-…"
                 className="pl-9 text-base"
                 autoComplete="off"
@@ -197,7 +202,7 @@ export function NovaCompra() {
               {termo && (
                 <button
                   type="button"
-                  onClick={() => setTermo("")}
+                  onClick={() => mudarTermo("")}
                   aria-label="Limpar busca"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                 >

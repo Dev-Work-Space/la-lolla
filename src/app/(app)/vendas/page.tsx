@@ -11,6 +11,7 @@ import {
   Linha,
   Lista,
   Pilula,
+  Segmentado,
   Vazio,
 } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
@@ -22,6 +23,8 @@ import {
   type FiltroVenda,
 } from "@/modules/vendas/venda.service";
 import { BuscaVendas } from "@/modules/vendas/components/busca-vendas";
+import { PainelOrcamentos } from "@/modules/orcamentos/components/painel-orcamentos";
+import type { FiltroOrcamento } from "@/modules/orcamentos/orcamento.service";
 
 export const runtime = "nodejs";
 
@@ -47,14 +50,68 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 export default async function VendasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filtro?: string; busca?: string }>;
+  searchParams: Promise<{ aba?: string; filtro?: string; busca?: string }>;
 }) {
   const sessao = await exigirPermissao("vendas", "ver");
   if (!sessao.ok) notFound();
 
-  const { filtro, busca } = await searchParams;
+  const { aba, filtro, busca } = await searchParams;
+  /* Venda e orçamento são o mesmo fluxo em dois estágios, e por isso dividem
+     a tela — do mesmo jeito que Estoque divide Peças e Insumos. */
+  const qual = aba === "orcamentos" ? "orcamentos" : "vendas";
   const atual = (filtro as FiltroVenda) ?? "todas";
   const fin = veFinanceiro(sessao.data);
+
+  if (qual === "orcamentos") {
+    const podeCriarOrc = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.vendas.criar;
+    return (
+      <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Portal de vendas</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A proposta que vai para a cliente antes de fechar.
+            </p>
+          </div>
+          {podeCriarOrc && (
+            <Button nativeButton={false} render={<Link href="/orcamentos/novo" />}>
+              Novo orçamento
+            </Button>
+          )}
+        </div>
+
+        <Segmentado
+          opcoes={[
+            ["vendas", "Vendas"],
+            ["orcamentos", "Orçamentos"],
+          ]}
+          atual="orcamentos"
+          href={(v) => (v === "vendas" ? "/vendas" : "/vendas?aba=orcamentos")}
+        />
+
+        <div className="mt-5">
+          <Suspense
+            key={`orc:${filtro ?? ""}:${busca ?? ""}`}
+            fallback={
+              <>
+                <EsqueletoIndicadores quantos={4} />
+                <div className="mt-4">
+                  <EsqueletoLista linhas={6} />
+                </div>
+              </>
+            }
+          >
+            <PainelOrcamentos
+              busca={busca}
+              filtro={(filtro as FiltroOrcamento) ?? "todos"}
+              veFinanceiro={fin}
+              podeCriar={podeCriarOrc}
+            />
+          </Suspense>
+        </div>
+      </main>
+    );
+  }
 
   // Sem `await`: a consulta começa agora e a página continua sendo montada.
   const pVendas = listarVendas({ filtro: atual, busca, veFinanceiro: fin });
@@ -90,9 +147,20 @@ export default async function VendasPage({
         )}
       </div>
 
-      <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
-        <IndicadoresDeVendas veFinanceiro={fin} />
-      </Suspense>
+      <Segmentado
+        opcoes={[
+          ["vendas", "Vendas"],
+          ["orcamentos", "Orçamentos"],
+        ]}
+        atual="vendas"
+        href={(v) => (v === "vendas" ? "/vendas" : "/vendas?aba=orcamentos")}
+      />
+
+      <div className="mt-5">
+        <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
+          <IndicadoresDeVendas veFinanceiro={fin} />
+        </Suspense>
+      </div>
 
       <div className="mt-4 space-y-4">
         <BuscaVendas valor={busca} filtro={atual} />
@@ -184,7 +252,7 @@ async function ListaDasVendas({
         {vendas.length > 0 ? (
           vendas.map((v) => {
             const sub = [
-              v.criadoEm.toLocaleDateString("pt-BR"),
+              v.data.toLocaleDateString("pt-BR"),
               plural(v.itens.length, "peça", "peças"),
             ];
             if (v.desconto > 0) sub.push(`desconto ${brl(v.desconto)}`);

@@ -23,7 +23,7 @@ import { revalidatePath } from "next/cache";
  * fluxo APARECE, mesmo que só como número, em outra tela.
  */
 
-type Fluxo = "venda" | "compra" | "estoque" | "financeiro" | "pessoas" | "ajustes";
+type Fluxo = "venda" | "orcamento" | "compra" | "estoque" | "financeiro" | "pessoas" | "ajustes";
 
 const AFETA: Record<Fluxo, string[]> = {
   /*
@@ -35,6 +35,18 @@ const AFETA: Record<Fluxo, string[]> = {
    *   /            — vendido hoje, faturamento, ritmo, mais vendidas
    */
   venda: ["/vendas", "/estoque", "/financeiro", "/"],
+
+  /*
+   * Criar, revisar, recusar ou excluir orçamento mexe em:
+   *   /vendas      — Orçamentos é sub-aba do Portal de vendas
+   *   /estoque     — a peça mostra "N reservadas" na linha, e reserva nasce e
+   *                  morre com o orçamento
+   *   /            — "orçamentos vencendo" no bloco "Precisa de você"
+   *
+   * NÃO avisa o /financeiro: orçamento não move dinheiro nenhum. Quando ele
+   * vira venda, quem avisa é o fluxo "venda".
+   */
+  orcamento: ["/vendas", "/estoque", "/"],
 
   /*
    * Registrar ou excluir uma compra mexe em:

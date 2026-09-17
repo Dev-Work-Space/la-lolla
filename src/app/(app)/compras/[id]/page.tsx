@@ -52,7 +52,7 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
           {!c.aPrazo && <Pilula>à vista</Pilula>}
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {dataHora(c.criadoEm)} · {c.fornecedor.nome}
+          {dataHora(c.data)} · {c.fornecedor.nome}
         </p>
       </div>
 

@@ -42,6 +42,8 @@ const fecharSchema = z.object({
     })
     .optional()
     .nullable(),
+  /** Veio de um orçamento aprovado; ele é marcado na mesma transação. */
+  orcamentoId: z.string().optional().nullable(),
 });
 
 export type FecharVendaInput = z.input<typeof fecharSchema>;
@@ -65,6 +67,11 @@ export async function fecharVendaAction(
       vendedorId: sessao.data.usuarioId,
     });
     recarregar(v.id);
+    /* Veio de orçamento: a proposta mudou de status e parou de reservar peça,
+       então as telas dela também envelheceram. */
+    if (parsed.data.orcamentoId) {
+      recarregarTelas("orcamento", `/orcamentos/${parsed.data.orcamentoId}`);
+    }
     return ok(v);
   } catch (e) {
     return tratarErro(e, "fecharVendaAction");

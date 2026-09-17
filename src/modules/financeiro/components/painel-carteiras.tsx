@@ -2,7 +2,7 @@ import { PiggyBank, Wallet } from "lucide-react";
 import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { BlocoVazio } from "@/components/padrao/indicadores";
-import type { CarteiraSaldo } from "../financeiro.service";
+import { nomeTipoCarteira, type CarteiraSaldo } from "../financeiro.tipos";
 import { FormCarteira } from "./form-carteira";
 
 /*
@@ -10,8 +10,9 @@ import { FormCarteira } from "./form-carteira";
  * explicava num aviso: carteira é ONDE o dinheiro está (espécie, banco,
  * reserva), não COMO o cliente pagou (Pix, débito).
  *
- * "Cofrinho" é a carteira que não é caixa operacional — a reserva. Ela conta
- * no total, mas o João sabe que não deve gastar de lá.
+ * A RESERVA (o antigo "cofrinho") conta no total, mas o João sabe que não
+ * deve gastar de lá. O CARTÃO não aparece aqui: ele não guarda dinheiro, e
+ * tem bloco próprio com limite e fatura.
  */
 export function PainelCarteiras({
   carteiras,
@@ -44,12 +45,12 @@ export function PainelCarteiras({
                     <span
                       className={cn(
                         "grid size-8 shrink-0 place-items-center rounded-full",
-                        c.cofrinho
+                        c.tipo === "RESERVA"
                           ? "bg-(--ll-accent-soft) text-(--ll-accent)"
                           : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {c.cofrinho ? (
+                      {c.tipo === "RESERVA" ? (
                         <PiggyBank className="size-4" aria-hidden />
                       ) : (
                         <Wallet className="size-4" aria-hidden />
@@ -57,9 +58,9 @@ export function PainelCarteiras({
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{c.nome}</span>
-                      {c.cofrinho && (
-                        <span className="block text-[11px] text-muted-foreground">reserva</span>
-                      )}
+                      <span className="block text-[11px] text-muted-foreground">
+                        {nomeTipoCarteira(c.tipo)}
+                      </span>
                     </span>
                   </div>
                   {pode.editar && (
@@ -68,7 +69,7 @@ export function PainelCarteiras({
                         id: c.id,
                         nome: c.nome,
                         saldoInicial: c.saldoInicial,
-                        cofrinho: c.cofrinho,
+                        tipo: c.tipo,
                       }}
                     />
                   )}

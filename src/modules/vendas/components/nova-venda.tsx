@@ -51,36 +51,90 @@ const paraNumero = (s: string) => Number(String(s).replace(/\./g, "").replace(",
 /* Atalhos de desconto. O 5% é o padrão à vista dos Ajustes. */
 const ATALHOS_DESCONTO = [0, 5, 10, 15];
 
-export function NovaVenda() {
+/*
+ * Quando a venda nasce de um orçamento aprovado.
+ *
+ * Peças, preços, desconto e cliente vêm TRAVADOS: eles têm de bater com o PDF
+ * que a cliente aprovou. Mudar qualquer um aqui faria a loja cobrar uma coisa
+ * e o papel dizer outra — e o caminho certo para mudar é gerar uma revisão do
+ * orçamento, não editar no fechamento.
+ *
+ * A condição de pagamento vem preenchida, mas continua editável: ela foi
+ * COMBINADA na proposta, e no balcão a cliente pode pagar de outro jeito.
+ */
+export type VendaDeOrcamento = {
+  id: string;
+  rotulo: string;
+  clienteId: string | null;
+  clienteNome: string | null;
+  desconto: number;
+  subtotal: number;
+  parcelas: number | null;
+  primeiroVencimento: string | null;
+  itens: Array<{
+    pecaId: string;
+    sku: string;
+    nome: string;
+    tamanho: string | null;
+    quantidade: number;
+    precoUnit: number;
+    saldo: number;
+  }>;
+};
+
+export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
   const router = useRouter();
+  const travado = !!orcamento;
 
   const [termo, setTermo] = useState("");
   const [achadas, setAchadas] = useState<Peca[]>([]);
   const [buscando, buscar] = useTransition();
 
-  const [itens, setItens] = useState<ItemCarrinho[]>([]);
+  const [itens, setItens] = useState<ItemCarrinho[]>(
+    orcamento
+      ? orcamento.itens.map((i) => ({
+          id: i.pecaId,
+          sku: i.sku,
+          nome: i.nome,
+          tamanho: i.tamanho,
+          insumo: false,
+          preco: i.precoUnit,
+          saldo: i.saldo,
+          quantidade: i.quantidade,
+          precoUnit: i.precoUnit,
+        }))
+      : [],
+  );
   /*
    * Desconto é PERCENTUAL sobre o subtotal (documentação, seção 15). Guardo o
    * percentual aqui e mando o valor em reais já calculado para o servidor —
    * quem manda no dinheiro é o número, mas quem a pessoa digita é o "%".
    */
-  const [descontoPct, setDescontoPct] = useState("0");
-  const [observacao, setObservacao] = useState("");
+  const [descontoPct, setDescontoPct] = useState(() => {
+    if (!orcamento || orcamento.subtotal <= 0) return "0";
+    return String(r2((orcamento.desconto / orcamento.subtotal) * 100)).replace(".", ",");
+  });
+  const [observacao, setObservacao] = useState(
+    orcamento ? `Do orçamento ${orcamento.rotulo}` : "",
+  );
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome: string }>>([]);
-  const [clienteId, setClienteId] = useState("");
+  const [clienteId, setClienteId] = useState(orcamento?.clienteId ?? "");
 
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [formaNova, setFormaNova] = useState<Forma>("DINHEIRO");
   const [valorNovo, setValorNovo] = useState("");
 
-  const [parcelas, setParcelas] = useState("1");
+  const [parcelas, setParcelas] = useState(String(orcamento?.parcelas ?? 1));
   const [intervalo, setIntervalo] = useState<"mes" | "quinzena" | "semana">("mes");
-  const [primeiro, setPrimeiro] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 10);
-  });
+  const [primeiro, setPrimeiro] = useState(
+    orcamento?.primeiroVencimento ??
+      (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 1);
+        return d.toISOString().slice(0, 10);
+      })(),
+  );
 
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
@@ -91,12 +145,17 @@ export function NovaVenda() {
     });
   }, []);
 
+  /* Limpar a lista é consequência do que a pessoa DIGITOU, então acontece no
+     próprio manipulador. Dentro do efeito, dispara um render extra a cada
+     tecla — é o que o lint acusa em `set-state-in-effect`. */
+  function mudarTermo(v: string) {
+    setTermo(v);
+    if (v.trim().length < 2) setAchadas([]);
+  }
+
   // Busca com espera: não dispara a cada tecla.
   useEffect(() => {
-    if (termo.trim().length < 2) {
-      setAchadas([]);
-      return;
-    }
+    if (termo.trim().length < 2) return;
     const t = setTimeout(() => {
       buscar(async () => {
         const r = await buscarPecasAction(termo);
@@ -162,6 +221,8 @@ export function NovaVenda() {
                 primeiroVencimento: new Date(primeiro + "T12:00:00"),
               }
             : null,
+        // O orçamento vira Aprovado na MESMA transação da venda.
+        orcamentoId: orcamento?.id ?? null,
       });
 
       if (r.ok) {
@@ -177,6 +238,16 @@ export function NovaVenda() {
     <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       {/* ─────────── carrinho ─────────── */}
       <div className="space-y-4">
+        {orcamento && (
+          <p className="rounded-xl border border-(--ll-accent-line) bg-(--ll-accent-soft) px-4 py-3 text-sm">
+            Venda do orçamento <strong>{orcamento.rotulo}</strong>
+            {orcamento.clienteNome ? ` · ${orcamento.clienteNome}` : ""}. As peças, os preços, o
+            desconto e a cliente vêm travados para bater com o PDF aprovado. Precisa mudar algo?
+            Volte e crie uma <strong>revisão</strong> do orçamento.
+          </p>
+        )}
+
+        {!travado && (
         <section className="rounded-xl border bg-card p-4">
           <Label htmlFor="busca-peca">Adicionar peça</Label>
           <div className="relative mt-1.5">
@@ -187,7 +258,7 @@ export function NovaVenda() {
             <Input
               id="busca-peca"
               value={termo}
-              onChange={(e) => setTermo(e.target.value)}
+              onChange={(e) => mudarTermo(e.target.value)}
               placeholder="Nome, código ou LL-…"
               className="pl-9 text-base"
               autoComplete="off"
@@ -195,7 +266,7 @@ export function NovaVenda() {
             {termo && (
               <button
                 type="button"
-                onClick={() => setTermo("")}
+                onClick={() => mudarTermo("")}
                 aria-label="Limpar busca"
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
               >
@@ -239,10 +310,11 @@ export function NovaVenda() {
             <p className="mt-2 text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
           )}
         </section>
+        )}
 
         <section className="rounded-xl border bg-card">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            No carrinho
+            {travado ? "Peças do orçamento" : "No carrinho"}
           </h2>
           {itens.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
@@ -262,6 +334,17 @@ export function NovaVenda() {
                     </span>
                   </span>
 
+                  {travado ? (
+                    <>
+                      <span className="text-sm tabular-nums text-muted-foreground">
+                        {i.quantidade} × {brl(i.precoUnit)}
+                      </span>
+                      <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                        {brl(i.precoUnit * i.quantidade)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
                   <span className="flex items-center gap-1">
                     <Button
                       type="button"
@@ -328,6 +411,8 @@ export function NovaVenda() {
                   >
                     <Trash2 className="size-4 text-muted-foreground" />
                   </Button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -342,8 +427,9 @@ export function NovaVenda() {
             <Label htmlFor="cliente">Cliente</Label>
             <select
               id="cliente"
-              className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
+              className="h-10 w-full rounded-lg border bg-card px-3 text-sm disabled:opacity-70"
               value={clienteId}
+              disabled={travado}
               onChange={(e) => setClienteId(e.target.value)}
             >
               <option value="">Sem cliente</option>
@@ -357,6 +443,14 @@ export function NovaVenda() {
 
           <div className="space-y-1.5">
             <Label htmlFor="desconto">Desconto</Label>
+            {travado ? (
+              <p className="text-sm text-muted-foreground">
+                {contas.desc > 0
+                  ? `${descontoPct}% · ${brl(contas.desc)} — como no orçamento aprovado`
+                  : "Sem desconto, como no orçamento aprovado"}
+              </p>
+            ) : (
+              <>
             <div className="flex flex-wrap gap-1">
               {ATALHOS_DESCONTO.map((p) => (
                 <button
@@ -390,6 +484,8 @@ export function NovaVenda() {
                 {contas.desc > 0 ? ` · ${brl(contas.desc)}` : ""}
               </span>
             </div>
+              </>
+            )}
           </div>
 
           <dl className="space-y-1.5 border-t pt-3 text-sm">

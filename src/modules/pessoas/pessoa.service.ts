@@ -95,7 +95,7 @@ export async function listarClientes(opcoes: {
     prisma.venda.groupBy({
       by: ["clienteId"],
       where: { clienteId: { in: ids }, status: { not: "CANCELADA" } },
-      _max: { criadoEm: true },
+      _max: { data: true },
     }),
     // "Devendo": venda fechada cujos pagamentos não cobrem o total.
     prisma.venda.findMany({
@@ -105,7 +105,7 @@ export async function listarClientes(opcoes: {
   ]);
 
   const porGasto = new Map(gastos.map((g) => [g.clienteId, Number(g._sum.total ?? 0)]));
-  const porUltima = new Map(ultimas.map((u) => [u.clienteId, u._max.criadoEm]));
+  const porUltima = new Map(ultimas.map((u) => [u.clienteId, u._max.data]));
 
   const devedores = new Set<string>();
   for (const v of emAberto) {
@@ -157,13 +157,13 @@ export async function indicadoresClientes() {
     where: { status: "FECHADA" },
     select: {
       id: true,
-      criadoEm: true,
+      data: true,
       total: true,
       clienteId: true,
       cliente: { select: { nome: true } },
       pagamentos: { select: { valor: true } },
     },
-    orderBy: { criadoEm: "asc" },
+    orderBy: { data: "asc" },
   });
 
   const aberto = vendas
@@ -185,7 +185,7 @@ export async function indicadoresClientes() {
         nome: v.cliente?.nome ?? "Sem cliente",
         qtd: 1,
         total: v.saldo,
-        maisAntiga: v.criadoEm,
+        maisAntiga: v.data,
       });
     }
   }

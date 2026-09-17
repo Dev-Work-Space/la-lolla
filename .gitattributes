@@ -1,0 +1,6 @@
+# Os .bat PRECISAM de quebra de linha do Windows (CRLF). Com LF o cmd come o
+# primeiro caractere de cada linha: "set" vira "et", "for" vira "or", e o
+# INICIAR.bat passa a mostrar "http://%IP%:3000" no lugar do endereço de
+# verdade. Ninguém consegue adivinhar isso olhando o arquivo.
+*.bat text eol=crlf
+*.cmd text eol=crlf

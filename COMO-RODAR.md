@@ -105,11 +105,17 @@ Duas coisas que vão morder:
    estiver, o app abre mas **nenhum botão funciona** — sem erro nenhum na
    tela. Adicione o IP novo lá.
 2. O Windows bloqueia a porta por padrão. Abra o PowerShell **como
-   administrador** e rode:
+   administrador** e rode (ou use o `LIBERAR-REDE.bat`, que faz o mesmo):
 
 ```powershell
-New-NetFirewallRule -DisplayName "LaLolla 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow -Profile Domain,Private -RemoteAddress LocalSubnet
+New-NetFirewallRule -DisplayName "LaLolla 3000" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow -Profile Any -RemoteAddress LocalSubnet
 ```
+
+> O `-Profile Any` não é descuido. Antes estava `Domain,Private`, e o Windows
+> classifica a rede da loja como **Pública** — a regra ficava criada, aparecia
+> no firewall, e o celular continuava sem abrir. Quem limita o acesso é o
+> `-RemoteAddress LocalSubnet`: só quem está na mesma rede alcança a porta,
+> em qualquer perfil. Nada vai para a internet.
 
 **Para ver a velocidade de verdade (build de produção):**
 
@@ -175,6 +181,7 @@ endereço.
 | App abre mas nenhum botão funciona | IP fora do `allowedDevOrigins` |
 | Login dá certo e volta para a tela de entrar | build de produção acessada por IP (use `npm run dev`) |
 | Celular não conecta | firewall (passo 6) ou celular noutra rede wi-fi |
+| Firewall liberado e o celular ainda não conecta | regra criada só para `Domain,Private` numa rede que o Windows marcou como Pública — refaça com `-Profile Any` |
 | `PrismaClient was instantiated without any options` | faltou o `npx prisma generate` |
 
 Usuário de teste: **teste** / senha **Teste@2026!**

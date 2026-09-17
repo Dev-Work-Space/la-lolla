@@ -15,13 +15,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { salvarCarteiraAction } from "../financeiro.actions";
+import { TIPOS_CARTEIRA, type TipoCarteira } from "../financeiro.tipos";
 import type { ErrosDeCampo } from "@/lib/result";
 
 export function FormCarteira({
   carteira,
   rotulo,
 }: {
-  carteira?: { id: string; nome: string; saldoInicial: number; cofrinho: boolean };
+  carteira?: { id: string; nome: string; saldoInicial: number; tipo: TipoCarteira };
   rotulo?: string;
 }) {
   const router = useRouter();
@@ -114,20 +115,28 @@ export function FormCarteira({
             </p>
           </div>
 
-          <label className="flex items-start gap-2.5">
-            <input
-              type="checkbox"
-              name="cofrinho"
-              defaultChecked={carteira?.cofrinho}
-              className="mt-0.5 size-4 accent-foreground"
-            />
-            <span>
-              <span className="block text-sm font-medium">É reserva (cofrinho)</span>
-              <span className="block text-xs text-muted-foreground">
-                Conta no total, mas não é caixa do dia a dia.
-              </span>
-            </span>
-          </label>
+          {/* Cartão de crédito NÃO entra nesta lista: ele pede limite,
+              fechamento e vencimento, e tem formulário próprio. Aqui só o que
+              de fato guarda dinheiro. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="carteira-tipo">Tipo</Label>
+            <select
+              id="carteira-tipo"
+              name="tipo"
+              defaultValue={carteira?.tipo ?? "CONTA"}
+              className="h-10 w-full rounded-md border bg-transparent px-3 text-base"
+            >
+              {TIPOS_CARTEIRA.filter(([id]) => id !== "CARTAO").map(([id, nome]) => (
+                <option key={id} value={id}>
+                  {nome}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Carteira é onde o dinheiro está, não como o cliente pagou. A reserva conta no total,
+              mas não é caixa do dia a dia.
+            </p>
+          </div>
 
           {aviso && (
             <p role="alert" className="text-sm font-medium text-destructive">

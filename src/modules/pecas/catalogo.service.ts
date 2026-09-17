@@ -111,10 +111,17 @@ export async function listarCatalogo(opcoes: {
   const [pecas, totalCatalogo, reservas, comVenda] = await Promise.all([
     prisma.peca.findMany({ where, select: SELECAO, orderBy: { nome: "asc" } }),
     prisma.peca.count({ where: { tipo: "PECA", arquivada: false } }),
-    // Reservadas: em orçamento ainda aberto.
+    /*
+     * Reservadas: em orçamento aberto E DENTRO DA VALIDADE.
+     *
+     * O `validoAte` faltava aqui, e o efeito era acumulativo: um orçamento de
+     * três meses atrás, vencido havia muito, continuava segurando peça no
+     * catálogo para sempre. A documentação é explícita — "orçamento vencido,
+     * recusado, aprovado ou substituído deixa de reservar".
+     */
     prisma.itemOrcamento.groupBy({
       by: ["pecaId"],
-      where: { orcamento: { status: "ABERTO" } },
+      where: { orcamento: { status: "ABERTO", validoAte: { gte: new Date() } } },
       _sum: { quantidade: true },
     }),
     // Quem já vendeu alguma vez — alimenta o filtro "Sem venda".
@@ -175,6 +182,24 @@ export async function listarCatalogo(opcoes: {
 }
 
 /** Os 4 (ou 3) indicadores do topo, conforme a permissão. */
+/**
+ * O saldo de um punhado de peças, em uma viagem só.
+ *
+ * Existe para a conversão do orçamento em venda: a tela precisa mostrar o
+ * estoque de cada peça da proposta, e o orçamento não guarda isso — de
+ * propósito, porque entre orçar e fechar pode ter entrado ou saído mercadoria.
+ * O saldo mostrado tem de ser o de AGORA, não o de quando se orçou.
+ */
+export async function saldoDasPecas(ids: string[]): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  const linhas = await prisma.movimentoEstoque.groupBy({
+    by: ["pecaId"],
+    where: { pecaId: { in: ids } },
+    _sum: { delta: true },
+  });
+  return new Map(linhas.map((l) => [l.pecaId, l._sum.delta ?? 0]));
+}
+
 export async function indicadoresCatalogo(veFinanceiro: boolean) {
   const pecas = await prisma.peca.findMany({
     where: { tipo: "PECA", arquivada: false },
@@ -203,7 +228,7 @@ export async function indicadoresCatalogo(veFinanceiro: boolean) {
       _sum: { valor: true },
       _count: true,
     }),
-    prisma.compra.aggregate({ where: { criadoEm: { gte: mes0 } }, _sum: { total: true } }),
+    prisma.compra.aggregate({ where: { data: { gte: mes0 } }, _sum: { total: true } }),
   ]);
 
   const aCusto = saldos.reduce((s, p) => s + p.custo * Math.max(0, p.saldo), 0);
@@ -357,7 +382,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       criadoEm: true,
       fornecedor: { select: { id: true, nome: true } },
       imagens: { orderBy: { criadoEm: "asc" }, select: { id: true, pathMedia: true, principal: true } },
-      movimentos: { orderBy: { criadoEm: "asc" }, select: { id: true, delta: true, motivo: true, observacao: true, criadoEm: true } },
+      movimentos: { orderBy: { data: "asc" }, select: { id: true, delta: true, motivo: true, observacao: true, data: true } },
     },
   });
   if (!p) return null;
@@ -371,15 +396,16 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       delta: m.delta,
       motivo: m.motivo,
       observacao: m.observacao,
-      quando: m.criadoEm,
+      quando: m.data,
       saldoApos: acumulado,
     };
   });
   historico.reverse(); // na tela, o mais recente em cima
 
   const [reservada, vendidas] = await Promise.all([
+    // Mesma regra da lista: aberto E dentro da validade.
     prisma.itemOrcamento.aggregate({
-      where: { pecaId: id, orcamento: { status: "ABERTO" } },
+      where: { pecaId: id, orcamento: { status: "ABERTO", validoAte: { gte: new Date() } } },
       _sum: { quantidade: true },
     }),
     prisma.itemVenda.aggregate({

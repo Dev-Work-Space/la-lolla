@@ -4,6 +4,7 @@ import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NaoEncontrado } from "@/lib/errors";
+import { fimDoDia } from "@/lib/dia";
 import {
   CATEGORIAS_FORA_DA_DESPESA,
   type CarteiraSaldo,
@@ -45,22 +46,30 @@ const num = (v: Prisma.Decimal | null | undefined) => (v == null ? 0 : Number(v)
 
 
 export async function carteirasComSaldo(): Promise<CarteiraSaldo[]> {
+  /* Saldo é o que existe HOJE. Um valor datado para amanhã já está gravado,
+     mas ainda não aconteceu — somá-lo faria a carteira mostrar dinheiro que
+     ninguém tem. É a mesma linha de corte em todos os quatro somatórios. */
+  const ate = fimDoDia(new Date());
+
   const carteiras = await prisma.carteira.findMany({
-    where: { arquivada: false },
+    /* Cartão de crédito não entra: ele não guarda dinheiro, guarda quanto
+       ainda dá para gastar. Some do total do caixa e de todo lugar onde se
+       escolhe de onde o dinheiro saiu. */
+    where: { arquivada: false, tipo: { not: "CARTAO" } },
     orderBy: [{ ordem: "asc" }, { nome: "asc" }],
     select: {
       id: true,
       nome: true,
-      cofrinho: true,
+      tipo: true,
       ordem: true,
       saldoInicial: true,
-      lancamentos: { select: { valor: true } },
+      lancamentos: { where: { data: { lte: ate } }, select: { valor: true } },
       pagamentos: {
-        where: { venda: { status: { not: "CANCELADA" } } },
+        where: { venda: { status: { not: "CANCELADA" } }, data: { lte: ate } },
         select: { valor: true },
       },
-      transferenciasSai: { select: { valor: true } },
-      transferenciasEnt: { select: { valor: true } },
+      transferenciasSai: { where: { data: { lte: ate } }, select: { valor: true } },
+      transferenciasEnt: { where: { data: { lte: ate } }, select: { valor: true } },
     },
   });
 
@@ -76,7 +85,7 @@ export async function carteirasComSaldo(): Promise<CarteiraSaldo[]> {
     return {
       id: c.id,
       nome: c.nome,
-      cofrinho: c.cofrinho,
+      tipo: c.tipo,
       ordem: c.ordem,
       saldoInicial: num(c.saldoInicial),
       entradas,
@@ -111,35 +120,35 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
 
   const [lancs, pagos, transfs] = await Promise.all([
     prisma.lancamento.findMany({
-      where: { criadoEm: janela },
+      where: { data: janela },
       select: {
         id: true,
         descricao: true,
         categoria: true,
         valor: true,
-        criadoEm: true,
+        data: true,
         comprovanteId: true,
         carteira: { select: { nome: true } },
       },
     }),
     prisma.pagamento.findMany({
-      where: { criadoEm: janela, venda: { status: { not: "CANCELADA" } } },
+      where: { data: janela, venda: { status: { not: "CANCELADA" } } },
       select: {
         id: true,
         forma: true,
         valor: true,
-        criadoEm: true,
+        data: true,
         comprovanteId: true,
         carteira: { select: { nome: true } },
         venda: { select: { id: true, numero: true, cliente: { select: { nome: true } } } },
       },
     }),
     prisma.transferencia.findMany({
-      where: { criadoEm: janela },
+      where: { data: janela },
       select: {
         id: true,
         valor: true,
-        criadoEm: true,
+        data: true,
         origem: { select: { nome: true } },
         destino: { select: { nome: true } },
       },
@@ -154,7 +163,7 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
       categoria: l.categoria,
       valor: Math.abs(num(l.valor)),
       carteira: l.carteira?.nome ?? null,
-      quando: l.criadoEm,
+      quando: l.data,
       origem: "lancamento",
       temComprovante: !!l.comprovanteId,
     })),
@@ -165,7 +174,7 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
       categoria: p.forma,
       valor: num(p.valor),
       carteira: p.carteira?.nome ?? null,
-      quando: p.criadoEm,
+      quando: p.data,
       origem: "venda",
       href: `/vendas/${p.venda.id}`,
       temComprovante: !!p.comprovanteId,
@@ -177,7 +186,7 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
       categoria: "Transferência",
       valor: num(t.valor),
       carteira: t.origem.nome,
-      quando: t.criadoEm,
+      quando: t.data,
       origem: "transferencia",
       temComprovante: true,
     })),
@@ -271,7 +280,7 @@ export const indicadoresFinanceiro = cache(async () => {
       where: { status: "ABERTA", vencimento: { gte: hoje, lte: em7 } },
     }),
     prisma.lancamento.findMany({
-      where: { criadoEm: { gte: mes0 } },
+      where: { data: { gte: mes0 } },
       select: { valor: true, categoria: true },
     }),
   ]);

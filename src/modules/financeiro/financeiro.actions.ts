@@ -263,7 +263,10 @@ export async function cancelarContaAction(id: string): Promise<Result<{ id: stri
 const carteiraSchema = z.object({
   nome: z.string().trim().min(2, "Dê um nome à carteira").max(40),
   saldoInicial: z.union([z.literal(""), dinheiro]).transform((v) => (v === "" ? 0 : (v as number))),
-  cofrinho: z.union([z.literal("on"), z.literal("")]).optional(),
+  /* CARTAO fica de fora: cartão não guarda dinheiro e pede limite,
+     fechamento e vencimento — tem formulário próprio. Recusar aqui impede
+     que alguém crie um cartão sem limite mexendo no HTML da página. */
+  tipo: z.enum(["ESPECIE", "CONTA", "RESERVA", "OUTRA"]).default("CONTA"),
 });
 
 export async function salvarCarteiraAction(
@@ -281,7 +284,7 @@ export async function salvarCarteiraAction(
   const dados = {
     nome: d.nome,
     saldoInicial: dec(d.saldoInicial),
-    cofrinho: d.cofrinho === "on",
+    tipo: d.tipo,
   };
 
   try {
