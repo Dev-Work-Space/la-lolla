@@ -6,7 +6,8 @@ import { buscarVenda, FORMAS } from "@/modules/vendas/venda.service";
 import { brl, data as fData, dataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
-import { AcoesVenda } from "@/modules/vendas/components/acoes-venda";
+import { AcoesVenda, RemoverRecebimento } from "@/modules/vendas/components/acoes-venda";
+import { EmitirRecibo } from "@/modules/vendas/components/emitir-recibo";
 
 export const runtime = "nodejs";
 
@@ -72,7 +73,47 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {!v.cancelada && (
-          <AcoesVenda
+          <div className="flex flex-wrap items-start gap-2">
+            <EmitirRecibo
+              venda={{
+                numero: v.numero,
+                data: v.data,
+                cliente: v.cliente
+                  ? {
+                      nome: v.cliente.nome,
+                      tipo: v.cliente.tipo,
+                      doc: v.cliente.doc,
+                      telefone: v.cliente.telefone,
+                      cidade: v.cliente.cidade,
+                      uf: v.cliente.uf,
+                    }
+                  : null,
+                itens: v.itens.map((i) => ({
+                  nome: i.nome,
+                  sku: i.sku,
+                  tamanho: i.tamanho,
+                  /* O que voltou não está mais na compra: o recibo mostra o que
+                     a cliente levou de fato. */
+                  quantidade: i.quantidade - i.devolvido,
+                  precoUnit: i.precoUnit,
+                })),
+                subtotal: v.subtotal,
+                desconto: v.desconto,
+                devolvido: v.devolvido,
+                total: v.total,
+                pago: v.pago,
+                saldo: v.saldo,
+                pagamentos: v.pagamentos.map((p) => ({
+                  data: p.data,
+                  forma: p.forma,
+                  valor: p.valor,
+                })),
+                parcelas: v.parcelas
+                  .filter((c) => !c.paga)
+                  .map((c) => ({ numero: c.numero, vencimento: c.vencimento, valor: c.valor })),
+              }}
+            />
+            <AcoesVenda
             vendaId={v.id}
             numero={v.numero}
             saldo={v.saldo}
@@ -81,8 +122,11 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
               id: i.id,
               nome: i.nome,
               podeVoltar: i.quantidade - i.devolvido,
+              precoUnit: i.precoUnit,
             }))}
-          />
+              temDevolucao={v.devolucoes.length > 0}
+            />
+          </div>
         )}
       </div>
 
@@ -173,6 +217,35 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
             </div>
           </dl>
 
+          {/*
+            A embalagem fica embaixo das peças, e só para quem vê financeiro:
+            é custo. Aparece aqui porque a margem lá em cima já a desconta —
+            sem a lista, o número em cima pareceria errado.
+          */}
+          {fin && "insumos" in v && v.insumos.length > 0 && (
+            <div className="border-t px-4 py-3">
+              <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Embalagem e insumos
+              </h3>
+              <ul className="mt-2 space-y-1">
+                {v.insumos.map((i) => (
+                  <li key={i.id} className="flex justify-between text-sm">
+                    <span className="min-w-0 truncate text-muted-foreground">
+                      {i.nome} · {i.quantidade} × {brl(i.custoUnit)}
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {brl(i.custoUnit * i.quantidade)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex justify-between border-t pt-2 text-sm">
+                <span className="font-medium">Custo de embalagem</span>
+                <span className="font-semibold tabular-nums">{brl(v.custoInsumos)}</span>
+              </div>
+            </div>
+          )}
+
           {v.observacao && (
             <p className="border-t px-4 py-3 text-sm text-muted-foreground">{v.observacao}</p>
           )}
@@ -199,6 +272,13 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                     <span className="shrink-0 text-sm font-medium tabular-nums">
                       {brl(p.valor)}
                     </span>
+                    {pode.cancelar && !v.cancelada && (
+                      <RemoverRecebimento
+                        pagamentoId={p.id}
+                        valor={p.valor}
+                        forma={rotuloForma(p.forma)}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -208,6 +288,29 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
               </p>
             )}
           </section>
+
+          {v.devolucoes.length > 0 && (
+            <section className="rounded-xl border bg-card">
+              <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Devoluções
+              </h2>
+              <ul className="divide-y">
+                {v.devolucoes.map((d) => (
+                  <li key={d.id} className="flex items-center gap-2 px-4 py-2.5">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{brl(d.total)}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fData(d.data)} ·{" "}
+                        {d.resolucao === "DEVOLVER" ? "valor devolvido" : "abatido do saldo"}
+                        {d.motivo ? ` · ${d.motivo}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{d.pecas} pç</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {v.parcelas.length > 0 && (
             <section className="rounded-xl border bg-card">

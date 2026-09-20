@@ -1,6 +1,7 @@
 # LaLolla semijoias
 
-Sistema de gestão da loja: catálogo, vendas, compras, estoque e financeiro.
+Sistema de gestão da loja: catálogo, vendas, orçamentos, compras, estoque e
+financeiro.
 
 ## Comece por aqui
 
@@ -11,15 +12,25 @@ Sistema de gestão da loja: catálogo, vendas, compras, estoque e financeiro.
 | **[CLAUDE.md](CLAUDE.md)** | as regras do projeto — lido automaticamente por quem for programar |
 | [PARIDADE.md](PARIDADE.md) | o que o app antigo fazia, tela por tela (consulta) |
 
+**A documentação completa** — visão geral, telas, regras de negócio,
+arquitetura, banco, manutenção e glossário — está em
+`..\..\Documentacao\` (na pasta `LaLolla`, ao lado de `lalolla-app`).
+Comece pelo `00-LEIA-ME.md` de lá.
+
 ## Atalhos
 
 ```bash
-npm run dev          # sobe para desenvolver
+npm run dev          # sobe para desenvolver (localhost)
+npm run dev:rede     # sobe aberto para o celular na rede da loja
 npm run build        # build de produção
 npm start            # roda a build (só em localhost — ver COMO-RODAR)
 npm run typecheck    # confere os tipos
+npm run sondas       # os 576 testes automáticos (app tem de estar no ar)
 npm run db:migrate   # aplica mudança de schema (e avisa para reiniciar)
 ```
+
+Quem não usa terminal: **`INICIAR.bat`** (liga o app), **`LIBERAR-REDE.bat`**
+(libera o celular, uma vez só, como administrador) e **`ATUALIZAR-BANCO.bat`**.
 
 Usuário de teste: **teste** / senha **Teste@2026!**
 
@@ -30,5 +41,9 @@ shadcn/ui (Base UI) · Supabase PostgreSQL em São Paulo.
 
 ## Testes
 
-`scripts/sonda-*.mjs` — 369 conferências num navegador de verdade, contra o
+`scripts/sonda-*.mjs` — **576 conferências** num navegador de verdade, contra o
 app rodando. A lista está no [HISTORICO.md](HISTORICO.md), seção 9.
+
+```bash
+npm run sondas
+```

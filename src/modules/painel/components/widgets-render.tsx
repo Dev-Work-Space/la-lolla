@@ -42,9 +42,16 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
   const maior = Math.max(...serie.map((s) => s.valor), 1);
 
   return (
+    /*
+     * Largura toda, em três colunas no monitor: quem é você · quanto faturou ·
+     * como vem indo. Antes o bloco tinha 8 de 12 colunas e empilhava tudo numa
+     * coluna só, deixando metade da faixa vazia — o João pediu que ele
+     * completasse a linha, e completar não é esticar: é usar o espaço.
+     */
     <section className="rounded-xl border bg-card p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+      <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
+        {/* ── quem é você ── */}
+        <div className="min-w-0 lg:col-span-4">
           <p className="text-lg font-bold tracking-tight">
             {saudacao(ctx.agora)}
             {ctx.nome && (
@@ -54,77 +61,96 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
             )}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground first-letter:uppercase">{dataLonga}</p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {/* nativeButton={false}: o Base UI avisa (com razão) que trocar o
+                <button> por <a> tira a semântica nativa. Aqui é intencional —
+                são links de navegação com aparência de botão. */}
+            <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
+              Nova venda
+            </Button>
+            <Button nativeButton={false} variant="secondary" render={<Link href="/estoque" />}>
+              Nova peça
+            </Button>
+            <Button nativeButton={false} variant="ghost" render={<Link href="/financeiro" />}>
+              Faturamento
+            </Button>
+          </div>
         </div>
-        {temVendas && veFinanceiro && (
-          <div className="shrink-0 text-right">
-            <p className="text-2xl font-bold tabular-nums">{ctx.margemPct}%</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">margem</p>
+
+        {/* ── quanto faturou ── */}
+        <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
+          {temVendas ? (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Faturado em {ctx.ano}
+              </p>
+              <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-bold tabular-nums">
+                {brl(ctx.fatAno)}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {veFinanceiro && <Chip>{brl(ctx.margemAno)} de margem bruta</Chip>}
+                <Chip>
+                  {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
+                </Chip>
+                <Chip>ticket {brl(ctx.ticketAno)}</Chip>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Primeiro passo
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
+                preenche sozinho.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* ── como vem indo ── */}
+        {temVendas && (
+          <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Últimos 6 meses
+              </p>
+              {veFinanceiro && (
+                <p className="text-right">
+                  <span className="text-2xl font-bold tabular-nums">{ctx.margemPct}%</span>{" "}
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    margem
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {/* Mini-gráfico dos 6 meses, em CSS puro — sem biblioteca. */}
+            <div className="mt-3">
+              <div className="flex h-16 items-end gap-1.5">
+                {serie.map((mes, i) => (
+                  <div
+                    key={i}
+                    title={`${mes.rotulo}: ${brl(mes.valor)}`}
+                    className="flex-1 rounded-sm bg-foreground/15"
+                    style={{ height: `${Math.max(4, (mes.valor / maior) * 100)}%` }}
+                  />
+                ))}
+              </div>
+              {/* Um rótulo por barra: com só o primeiro e o último, ninguém
+                  sabia de que mês era a barra do meio. */}
+              <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
+                {serie.map((mes, i) => (
+                  <span key={i} className="flex-1 truncate text-center first-letter:uppercase">
+                    {mes.rotulo}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         )}
-      </div>
-
-      {temVendas ? (
-        <div className="mt-5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Faturado em {ctx.ano}
-          </p>
-          <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-bold tabular-nums">
-            {brl(ctx.fatAno)}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {veFinanceiro && (
-              <Chip>{brl(ctx.margemAno)} de margem bruta</Chip>
-            )}
-            <Chip>
-              {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
-            </Chip>
-            <Chip>ticket {brl(ctx.ticketAno)}</Chip>
-          </div>
-
-          {/* Mini-gráfico dos 6 meses, em CSS puro — sem biblioteca. */}
-          <div className="mt-4">
-            <div className="flex h-12 items-end gap-1">
-              {serie.map((s, i) => (
-                <div
-                  key={i}
-                  title={`${s.rotulo}: ${brl(s.valor)}`}
-                  className="flex-1 rounded-sm bg-foreground/15"
-                  style={{ height: `${Math.max(4, (s.valor / maior) * 100)}%` }}
-                />
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground [&>span]:first-letter:uppercase">
-              <span>{serie[0]?.rotulo}</span>
-              <span>{serie[serie.length - 1]?.rotulo}</span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Primeiro passo
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
-            preenche sozinho.
-          </p>
-        </div>
-      )}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {/* nativeButton={false}: o Base UI avisa (com razão) que trocar o
-            <button> por <a> tira a semântica nativa. Aqui é intencional —
-            são links de navegação com aparência de botão. */}
-        <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
-          Nova venda
-        </Button>
-        <Button nativeButton={false} variant="secondary" render={<Link href="/estoque" />}>
-          Nova peça
-        </Button>
-        <Button nativeButton={false} variant="ghost" render={<Link href="/financeiro" />}>
-          Faturamento
-        </Button>
       </div>
     </section>
   );
@@ -162,9 +188,15 @@ function Pendencias({ pend }: DadosPainel) {
       </div>
 
       {pend.length > 0 ? (
-        <div className="mt-3 divide-y">
+        /* Lado a lado no monitor: a faixa agora atravessa a tela, e uma lista
+           empilhada dentro dela deixaria três quartos do espaço vazios. */
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {pend.map((x) => (
-            <Link key={x.nome} href={x.href} className="flex items-center gap-2.5 py-2">
+            <Link
+              key={x.nome}
+              href={x.href}
+              className="flex items-center gap-2.5 rounded-lg border px-3 py-2 hover:bg-accent/40"
+            >
               <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: x.cor }} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{x.nome}</span>
@@ -320,19 +352,34 @@ function Ritmo14({ ritmo }: DadosPainel) {
         </p>
       </div>
 
+{/*
+        A barra mede em PORCENTAGEM da altura do pai — então o pai precisa ter
+        altura. Antes a coluna de cada dia era um `flex-col` sem altura
+        definida dentro do `h-24`, e `height: 100%` não resolvia para nada:
+        o gráfico aparecia vazio mesmo com venda no dia. O rótulo saiu para
+        fora da área da barra pelo mesmo motivo — dentro, ele comia a altura.
+      */}
       <div className="mt-4 flex h-24 items-end gap-1">
         {ritmo.map((r) => (
-          <div key={r.data} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <div
-              title={`${r.data}: ${brl(r.valor)} · ${r.vendas} ${r.vendas === 1 ? "venda" : "vendas"}`}
-              className={cn(
-                "w-full rounded-sm",
-                r.valor > 0 ? "bg-foreground/70" : "bg-muted",
-              )}
-              style={{ height: `${Math.max(3, (r.valor / maior) * 100)}%` }}
-            />
-            <span className="text-[9px] tabular-nums text-muted-foreground">{r.dia}</span>
-          </div>
+          <div
+            key={r.data}
+            title={`${r.data}: ${brl(r.valor)} · ${r.vendas} ${r.vendas === 1 ? "venda" : "vendas"}`}
+            className={cn(
+              "min-w-0 flex-1 rounded-sm",
+              r.valor > 0 ? "bg-foreground/70" : "bg-muted",
+            )}
+            style={{ height: `${Math.max(3, (r.valor / maior) * 100)}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex gap-1">
+        {ritmo.map((r) => (
+          <span
+            key={r.data}
+            className="min-w-0 flex-1 truncate text-center text-[9px] tabular-nums text-muted-foreground"
+          >
+            {r.dia}
+          </span>
         ))}
       </div>
     </section>

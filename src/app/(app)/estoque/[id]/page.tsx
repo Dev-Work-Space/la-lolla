@@ -69,16 +69,29 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">{p.nome}</h1>
-            {insumo && <Pilula>insumo</Pilula>}
-            {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
+        <div className="flex min-w-0 items-start gap-3">
+          {/* A foto ao lado do nome, não acima: na ficha a pessoa está
+              conferindo dados, e a imagem serve para confirmar que é a peça
+              certa — não para ocupar a tela. */}
+          {p.imagens[0]?.url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={p.imagens[0].url}
+              alt={`Foto de ${p.nome}`}
+              className="size-16 shrink-0 rounded-xl border object-cover sm:size-20"
+            />
+          )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight">{p.nome}</h1>
+              {insumo && <Pilula>insumo</Pilula>}
+              {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {p.sku} · {p.categoria}
+              {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
+            </p>
           </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {p.sku} · {p.categoria}
-            {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {podeExcluir && (

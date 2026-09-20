@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calcularCusto, calcularMargem } from "./peca.service";
+import { urlAssinada, urlsAssinadas } from "@/lib/storage";
 
 /*
  * Catálogo e insumos, portados de `viewCatalogo` e `viewInsumos`.
@@ -178,10 +179,22 @@ export async function listarCatalogo(opcoes: {
   else if (filtro === "devendo") linhas = linhas.filter((p) => p.aPagar === true);
   else if (filtro === "semfoto") linhas = linhas.filter((p) => !p.foto);
 
+  /*
+   * As URLs são assinadas por ÚLTIMO, depois dos filtros.
+   *
+   * Assinar antes gastaria assinatura para peça que vai ser descartada — e o
+   * catálogo filtrado costuma mostrar 5 de 200. Uma chamada em lote, para o
+   * que sobrou, no fim.
+   *
+   * O banco guarda o CAMINHO e a tela recebe a URL: guardar a URL seria
+   * guardar algo que vence em uma hora.
+   */
+  const assinadas = await urlsAssinadas(linhas.map((l) => l.foto));
+  linhas = linhas.map((l) => ({ ...l, foto: l.foto ? (assinadas.get(l.foto) ?? null) : null }));
+
   return { linhas, totalCatalogo };
 }
 
-/** Os 4 (ou 3) indicadores do topo, conforme a permissão. */
 /**
  * O saldo de um punhado de peças, em uma viagem só.
  *
@@ -200,6 +213,7 @@ export async function saldoDasPecas(ids: string[]): Promise<Map<string, number>>
   return new Map(linhas.map((l) => [l.pecaId, l._sum.delta ?? 0]));
 }
 
+/** Os 4 (ou 3) indicadores do topo, conforme a permissão. */
 export async function indicadoresCatalogo(veFinanceiro: boolean) {
   const pecas = await prisma.peca.findMany({
     where: { tipo: "PECA", arquivada: false },
@@ -428,7 +442,11 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
     minimo: p.minimo,
     precoTabela: preco,
     fornecedor: p.fornecedor,
-    imagens: p.imagens,
+    /* Assinadas aqui: a ficha mostra a imagem média, e o caminho cru do
+       bucket não é endereço que o navegador saiba abrir. */
+    imagens: await Promise.all(
+      p.imagens.map(async (i) => ({ ...i, url: await urlAssinada(i.pathMedia) })),
+    ),
     criadoEm: p.criadoEm,
     ultimaSerie: p.ultimaSerie,
     saldo: acumulado,

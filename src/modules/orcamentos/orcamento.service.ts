@@ -134,7 +134,19 @@ const SELECAO = {
   parcelas: true,
   primeiroVencimento: true,
   vendaId: true,
-  cliente: { select: { id: true, nome: true, telefone: true } },
+  /* Documento, cidade e UF entram porque saem no PDF, no bloco do cliente —
+     é o que faz a proposta parecer documento da loja e não recado. */
+  cliente: {
+    select: {
+      id: true,
+      nome: true,
+      telefone: true,
+      tipo: true,
+      doc: true,
+      cidade: true,
+      uf: true,
+    },
+  },
   revisaoDe: { select: { id: true, numero: true } },
   substituidoPor: { select: { id: true, numero: true } },
   itens: {
@@ -176,7 +188,15 @@ export type OrcamentoPublico = {
   validoAte: Date | null;
   vencido: boolean;
   diasParaVencer: number | null;
-  cliente: { id: string; nome: string; telefone: string | null } | null;
+  cliente: {
+    id: string;
+    nome: string;
+    telefone: string | null;
+    tipo: "PF" | "PJ";
+    doc: string | null;
+    cidade: string | null;
+    uf: string | null;
+  } | null;
   observacao: string | null;
   modoPagamento: ModoPagamentoOrcamento;
   formaPagamento: FormaPagamento | null;

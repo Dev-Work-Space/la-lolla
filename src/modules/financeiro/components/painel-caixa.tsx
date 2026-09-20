@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, ArrowLeftRight } from "lucide-react";
-import { brl, dataHora } from "@/lib/formato";
+import { brl, data as fData, hora } from "@/lib/formato";
+import { campoDaData } from "@/lib/dia";
 import { cn } from "@/lib/utils";
 import { Lista, Vazio } from "@/components/padrao/indicadores";
-import { movimentoDoPeriodo, type CarteiraSaldo } from "../financeiro.service";
+import {
+  movimentoDoPeriodo,
+  resumoMensal,
+  saidasPorCategoria,
+  type CarteiraSaldo,
+} from "../financeiro.service";
 import { FormLancamento } from "./form-lancamento";
 import { FormTransferencia } from "./form-transferencia";
 import { PeriodoCaixa } from "./periodo-caixa";
@@ -33,7 +39,31 @@ export async function PainelCaixa({
   const dtDe = de ? new Date(de + "T00:00:00") : inicioPadrao;
   const dtAte = ate ? new Date(ate + "T23:59:59") : new Date(hoje.setHours(23, 59, 59, 999));
 
-  const linhas = await movimentoDoPeriodo(dtDe, dtAte);
+  const [linhas, serie, categorias] = await Promise.all([
+    movimentoDoPeriodo(dtDe, dtAte),
+    resumoMensal(6),
+    saidasPorCategoria(dtDe, dtAte),
+  ]);
+  const maiorMes = Math.max(1, ...serie.map((m) => Math.max(m.entradas, m.saidas)));
+
+  /*
+   * Agrupado por DIA, com o resultado do dia ao lado — como no app antigo.
+   * Uma lista corrida de trinta linhas responde "o que aconteceu"; agrupada
+   * por dia ela também responde "como foi terça", que é a pergunta que se faz
+   * ao conferir o caixa.
+   */
+  const dias: Array<{ dia: string; quando: Date; itens: typeof linhas; saldo: number }> = [];
+  for (const l of linhas) {
+    const chave = fData(l.quando);
+    const ja = dias.find((d) => d.dia === chave);
+    const sinal = l.origem === "transferencia" ? 0 : l.tipo === "entrada" ? l.valor : -l.valor;
+    if (ja) {
+      ja.itens.push(l);
+      ja.saldo = Math.round((ja.saldo + sinal) * 100) / 100;
+    } else {
+      dias.push({ dia: chave, quando: l.quando, itens: [l], saldo: sinal });
+    }
+  }
 
   const entrou = linhas.filter((l) => l.tipo === "entrada" && l.origem !== "transferencia");
   const saiu = linhas.filter((l) => l.tipo === "saida" && l.origem !== "transferencia");
@@ -50,10 +80,9 @@ export async function PainelCaixa({
         </div>
       )}
 
-      <PeriodoCaixa
-        de={dtDe.toISOString().slice(0, 10)}
-        ate={dtAte.toISOString().slice(0, 10)}
-      />
+      {/* campoDaData, não toISOString: o "até" é o fim do dia LOCAL, e em UTC
+          isso já é o dia seguinte — o campo mostrava amanhã. */}
+      <PeriodoCaixa de={campoDaData(dtDe)} ate={campoDaData(dtAte)} />
 
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg border bg-card p-3">
@@ -87,9 +116,98 @@ export async function PainelCaixa({
         </div>
       </div>
 
-      <Lista>
-        {linhas.length > 0 ? (
-          linhas.map((l) => {
+      {/*
+        Entradas × saídas dos últimos seis meses.
+        É a figura que o João olhava primeiro no app antigo: uma coisa é saber
+        que o mês fechou positivo, outra é ver que ele vem caindo há três.
+      */}
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Entradas e saídas
+        </h2>
+        {serie.some((m) => m.entradas > 0 || m.saidas > 0) ? (
+          <>
+            <div className="mt-3 flex h-28 items-end gap-3">
+              {serie.map((m) => (
+                <span key={m.mes} className="flex flex-1 flex-col items-center gap-1">
+                  <span className="flex h-24 w-full items-end justify-center gap-1">
+                    <i
+                      aria-hidden
+                      title={`Entradas ${brl(m.entradas)}`}
+                      className="block w-1/3 rounded-t bg-emerald-600"
+                      style={{ height: `${(m.entradas / maiorMes) * 100}%` }}
+                    />
+                    <i
+                      aria-hidden
+                      title={`Saídas ${brl(m.saidas)}`}
+                      className="block w-1/3 rounded-t bg-(--ll-danger)"
+                      style={{ height: `${(m.saidas / maiorMes) * 100}%` }}
+                    />
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{m.rotulo}</span>
+                </span>
+              ))}
+            </div>
+            <p className="mt-2 flex items-center gap-4 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <i aria-hidden className="size-2 rounded-sm bg-emerald-600" /> Entradas
+              </span>
+              <span className="flex items-center gap-1.5">
+                <i aria-hidden className="size-2 rounded-sm bg-(--ll-danger)" /> Saídas
+              </span>
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">Sem movimentação no período.</p>
+        )}
+      </section>
+
+      {/* Para onde o dinheiro foi. Só saída, e só do período escolhido. */}
+      {categorias.length > 0 && (
+        <section className="rounded-xl border bg-card p-4">
+          <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Saídas por categoria
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {categorias.map((c) => (
+              <li key={c.categoria}>
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="truncate">{c.categoria}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {brl(c.valor)}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-(--ll-danger)"
+                    style={{ width: `${Math.max(2, c.pct)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {dias.length === 0 && <Lista>{<Vazio texto="Nenhum movimento neste período." />}</Lista>}
+
+      {dias.map((d) => (
+        <section key={d.dia}>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {d.dia}
+            </h2>
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                d.saldo < 0 ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {d.saldo >= 0 ? "+" : "−"} {brl(Math.abs(d.saldo))}
+            </span>
+          </div>
+          <Lista>
+            {d.itens.map((l) => {
             const Icone =
               l.origem === "transferencia"
                 ? ArrowLeftRight
@@ -114,7 +232,7 @@ export async function PainelCaixa({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{l.descricao}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {dataHora(l.quando)}
+                    {hora(l.quando)}
                     {l.categoria ? ` · ${l.categoria}` : ""}
                     {l.carteira ? ` · ${l.carteira}` : " · sem carteira"}
                   </span>
@@ -148,11 +266,10 @@ export async function PainelCaixa({
                 {corpo}
               </div>
             );
-          })
-        ) : (
-          <Vazio texto="Nenhum movimento neste período." />
-        )}
-      </Lista>
+            })}
+          </Lista>
+        </section>
+      ))}
     </div>
   );
 }

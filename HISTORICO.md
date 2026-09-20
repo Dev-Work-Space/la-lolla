@@ -267,6 +267,335 @@ Dois defeitos de regra corrigidos de passagem: a reserva ignorava a validade
 (acima), e o aviso de "orçamentos expirando" no Início contava 7 dias e incluía
 os já vencidos — a documentação diz 2 dias, e vencido não é "expirando".
 
+### 17/09 — Foto da peça e emissão do orçamento
+
+**Foto obrigatória no cadastro da peça**, como o João confirmou e como o app
+antigo faz. A cadeia inteira nasceu junto: recorte quadrado com arrastar e
+zoom (e a opção de recorte livre, para peça comprida), compressão no
+navegador, três tamanhos gerados no servidor com `sharp` e bucket PRIVADO no
+Supabase Storage.
+
+Duas decisões que valem registro:
+
+- **O banco guarda o CAMINHO, nunca a URL.** A tela recebe uma URL assinada que
+  vence em uma hora; guardar a URL seria guardar algo que expira. As assinaturas
+  do catálogo saem em lote e só depois dos filtros — o catálogo filtrado mostra
+  5 de 200, e assinar antes gastaria 195 assinaturas à toa.
+- **Se a subida falhar, a peça é APAGADA.** Ela precisa do id para nomear o
+  arquivo, então nasce antes; mas peça de catálogo sem foto é o que a
+  documentação proíbe. Apagar é seguro nesse ponto e só nesse: a peça acabou de
+  nascer, sem venda, movimento ou orçamento apontando para ela.
+
+**Dois defeitos achados testando pela tela**, os dois pré-existentes:
+
+1. **O formulário apagava tudo quando o salvamento falhava.** O React 19 limpa
+   o formulário sozinho depois de um envio por `<form action={...}>` — inclusive
+   quando ele dá errado. A pessoa preenchia nome, preço e código, era recusada
+   por qualquer motivo, e encontrava os campos em branco. Com a foto obrigatória
+   isso deixou de ser raro e virou o caminho comum. Trocado por `onSubmit`.
+2. **O erro "adicione a foto" continuava na tela depois de a foto ser
+   adicionada.** Erro que não some quando a pessoa conserta ensina a ignorar
+   erro.
+
+**Emissão do orçamento** (seção 07): PDF com o mesmo desenho do app antigo —
+faixa dourada, logo, número à direita com emissão e validade, bloco do cliente
+com documento e cidade, tabela com o código interno sob o nome, totais,
+condições de pagamento e quadro de vencimentos.
+
+Gerado no NAVEGADOR de propósito: a folha de compartilhar do aparelho — a
+única coisa que anexa o PDF de verdade no WhatsApp — precisa do arquivo na mão
+do navegador. Depois de gerar, abre um painel de escolha (compartilhar, abrir
+a conversa da cliente, salvar, visualizar) em vez do "pdfzão" em tela cheia que
+o João reclamou no app antigo.
+
+A sonda `sonda-pdf-orcamento` confere o arquivo de verdade: baixa o PDF, olha
+os bytes e **lê o texto de dentro** com o `pdfjs` — número, cliente, CPF com
+máscara, código da peça, totais, parcelamento e rodapé.
+
+---
+
+### A venda inteira: carteira, data, embalagem e devolução
+
+Quatro buracos achados olhando o banco antes de escrever qualquer coisa. Os
+quatro eram dinheiro.
+
+**1. Nenhum pagamento de venda caía em carteira.** A consulta era simples e o
+resultado não deixava dúvida: `pagamentos de venda: 1 | sem carteira: 1`. O
+saldo da carteira soma lançamento, transferência **e pagamento de venda** — mas
+o pagamento nunca tinha carteira, então a loja vendia e o "Em caixa" não se
+mexia. Agora o fechamento e o recebimento perguntam onde o dinheiro entrou. Quem
+não vê financeiro não recebe a lista e o pagamento cai em "sem carteira", que é
+o grupo que existe para isso — o João atribui depois.
+
+**2. A venda não tinha data própria.** Venda de sábado lançada na segunda
+faturava na segunda. Agora a data do FATO é escolhida na tela e vale para a
+venda, para cada pagamento e para o movimento de estoque — o histórico da peça
+conta a mesma história que o relatório do mês.
+
+**3. Receber pela tela da venda não baixava parcela nenhuma.** O pagamento
+entrava, o saldo da venda zerava e as duas parcelas continuavam em aberto no
+Financeiro. Era o mesmo "duas telas, duas verdades" que o João já tinha
+reclamado, pelo outro lado. Agora o valor abate as parcelas da mais antiga para
+a mais nova, e a parcela paga pela metade é baixada pelo valor recebido — o
+resto vira outra parcela com o mesmo vencimento (documentação, seção 06).
+
+**4. A embalagem não existia.** O saquinho e a caixinha saíam com a venda e
+sumiam da conta: o app dizia margem de 57,9% quando era 55,8%. Voltou o bloco
+**Embalagem e insumos** do app antigo, com o botão *Repetir da última venda* —
+que existe por um motivo prático: redigitar a embalagem a cada venda é o que faz
+qualquer controle de insumo ser abandonado na segunda semana. O insumo baixa do
+estoque por movimento, o custo é congelado no instante do fechamento e volta
+inteiro se a venda for cancelada. A vendedora registra sem ver o custo.
+
+**A devolução virou registro de verdade.** Antes era só `devolvido++` no item.
+Agora existe `Devolucao` com data, motivo, resolução e itens — e o acerto do
+dinheiro acontece junto, não num lançamento manual que a pessoa fazia depois (e
+esquecia). A ordem é o que evita devolver dinheiro que a cliente nem pagou:
+
+> o valor devolvido abate **primeiro** o que ela ainda devia; só o que sobrar
+> disso é dinheiro que já entrou, e esse volta pelo caixa, na categoria
+> Devolução.
+
+O app antigo perguntava "abater do saldo ou devolver o valor?" e avisava quando
+a resposta estava errada. Aqui a conta é feita na hora e a tela mostra as duas
+linhas. Não é preferência, é aritmética — perguntar era dar chance de a pessoa
+errar e o caixa ficar com dinheiro que não tem.
+
+Junto veio um defeito de tela: **parcela cancelada continuava aparecendo como em
+aberto na ficha da venda**. Depois de uma devolução que apagava a parcela, a
+venda seguia dizendo que a cliente devia.
+
+**Remover recebimento**, que existia no app antigo e não existia no novo. Sem
+ele, um valor digitado errado só saía cancelando a venda inteira. Remover
+desfaz as duas coisas: o dinheiro sai da carteira e as parcelas que aquele
+recebimento quitou reabrem — senão a venda ficaria devendo sem nenhuma parcela
+cobrando.
+
+**Recibo em PDF.** É o papel que resolve a conversa quando a cliente volta
+dizendo "essa parcela eu já paguei": traz o que ela levou, o que já pagou, o
+que falta e a data de cada vencimento. Venda cancelada não emite — regra do app
+antigo.
+
+**Editar a venda**, que também existia no app antigo. A moça lança com a
+cliente no balcão e descobre depois que era outro anel, outro preço, outra
+cliente; sem edição, a única saída era cancelar e lançar de novo — e aí a venda
+muda de número e some do histórico da cliente.
+
+O caminho é **estornar e refazer**, nunca corrigir por cima: o estoque só muda
+por movimento, então a venda antiga devolve o que tinha tirado e a nova tira de
+novo. Quem olhar o histórico da peça vê a edição, com o número da venda do
+lado. Duas coisas a edição não faz, de propósito:
+
+- **não mexe nos recebimentos** — dinheiro que entrou é fato; para desfazer,
+  existe o botão de remover;
+- **não edita venda com devolução** — a devolução já mexeu no item, no estoque
+  e no caixa, e refazer os itens por cima apagaria esse rastro. A ficha nem
+  mostra o botão.
+
+Um defeito pequeno apareceu no caminho: o **primeiro vencimento saltava um dia
+depois das 21h**. A data saía de `toISOString`, que é UTC — e em Brasília o dia
+vira em UTC três horas antes de virar aqui. Agora usa o `campoDaData` do
+`src/lib/dia.ts`, que é local de propósito.
+
+A arrumação do papel: o timbrado (faixa dourada, logo, bloco do
+cliente, tabela de itens, rodapé numerado) saiu do arquivo do orçamento para
+`src/lib/pdf-lalolla.ts`, e o painel de envio — compartilhar, abrir a conversa
+da cliente, salvar, visualizar — para `src/components/padrao/enviar-pdf.tsx`.
+Papel timbrado que muda num documento e não muda no outro deixa a loja mandando
+dois papéis que não parecem da mesma casa. A sonda do orçamento passou igual
+depois da mudança, lendo o texto de dentro do arquivo.
+
+---
+
+### O Financeiro inteiro, como no app antigo
+
+O novo tinha quatro sub-abas (Caixa, A pagar, A receber, Carteiras) e o antigo
+tinha cinco telas, com coisas que não existiam aqui. Agora são seis abas e
+nenhuma pergunta ficou sem resposta.
+
+**Cartão de crédito.** O buraco maior: o schema tinha os campos, a tela não
+tinha nada. A regra que faz o resto funcionar sozinho é uma só —
+
+> cada compra no crédito vira uma CONTA A PAGAR com vencimento na fatura certa
+
+— e daí saem todas as outras respostas sem nenhum contador paralelo: o limite
+usado é a soma do que ainda não foi pago; a fatura é o conjunto de contas que
+vence no mesmo dia; pagar a fatura baixa essas contas e libera o limite.
+
+- **Cartão não é carteira.** Carteira é onde o dinheiro está; cartão é quanto
+  dá para gastar antes de ter o dinheiro. Ele fica fora do "Em caixa" e fora
+  de todo lugar onde se escolhe de onde o dinheiro saiu — no crédito o dinheiro
+  só sai no dia em que a fatura é paga.
+- **O dia do fechamento decide a fatura.** A compra de hoje cai na primeira
+  fatura que ainda não fechou. Sem o dia de fechamento cadastrado, vale o
+  próximo vencimento — era assim no app antigo, para quem não sabe o
+  fechamento de cor.
+- **Parcela de cartão anda de fatura em fatura**, uma por mês, sempre no dia do
+  vencimento. Não é "30 dias depois".
+- **Em "A pagar", a fatura é UMA linha.** Três compras no mesmo cartão com o
+  mesmo vencimento apareciam como três contas: a tela parecia três vezes maior
+  que a dívida real e o botão "Pagar" ficava em cima da coisa errada — ninguém
+  paga uma compra do cartão, paga a fatura.
+- **Pagou menos que a fatura?** O que faltou continua ocupando limite e vira
+  conta do próprio cartão na fatura seguinte, em vez de sumir com a baixa.
+- **"Já comprometido"** é o que se devia no cartão antes de o app existir. Sem
+  esse campo o limite apareceria inteiro no primeiro dia e a loja gastaria o
+  que não tinha.
+
+A conta de "em que fatura isto cai" mora em `cartao.regras.ts`, que é um módulo
+neutro: o formulário mostra o vencimento antes de salvar e o servidor grava com
+a MESMA conta. Duplicar a regra em JSX seria garantir que um dia as duas
+discordem — e a que a pessoa lê na tela é a que ela acredita.
+
+**Agenda.** O mês inteiro numa grade de sete colunas, com barrinhas
+proporcionais em cada dia. O app antigo tinha uma tira rolável de 21 dias que
+era cortada na borda e não deixava voltar para janeiro. A lista embaixo é
+agrupada por URGÊNCIA, não por data: "vencido" e "hoje" são categorias
+diferentes de "daqui a três semanas", mesmo caindo no mesmo mês. E vencido de
+mês passado sobe junto quando se olha o mês corrente — esconder uma conta
+vencida porque "ela é de agosto" seria o pior serviço que este app poderia
+prestar.
+
+**Previsão de 12 semanas.** Parte do saldo de hoje e vai somando o que já está
+combinado, semana a semana, com o aviso de caixa negativo aparecendo semanas
+antes de o dinheiro faltar — que é quando ainda dá para antecipar um
+recebimento. Vendas futuras NÃO entram, e a tela diz isso: prever venda é
+chute, e chute no meio de um número de caixa contamina a decisão que ele
+deveria ajudar a tomar. Vencido também fica fora da projeção e aparece à parte.
+
+**Caixa.** Voltaram a figura de entradas × saídas dos últimos seis meses e o
+"para onde o dinheiro foi" por categoria. O extrato passou a ser agrupado por
+DIA, com o resultado do dia ao lado: uma lista corrida responde "o que
+aconteceu", agrupada por dia ela também responde "como foi terça", que é a
+pergunta de quem confere o caixa.
+
+**A data do fato, em todo lugar.** Lançamento, transferência e baixa de conta
+gravavam sempre "agora". O frete de ontem lançado hoje entrava no caixa de
+hoje, e o fechamento do dia nunca batia. Agora os três perguntam o dia — os
+campos já existiam no banco desde a migration de setembro, faltava a tela.
+
+---
+
+### 19/09 · O Início mentia, e três melhorias que o João pediu usando
+
+Ele mandou a foto do Início e disse que "tava zuado". Estava mesmo — três
+defeitos, todos no mesmo lugar e todos do tipo que só aparece com dado de
+verdade dentro.
+
+**1. Venda devolvida continuava faturando.** O painel somava o campo `total`
+da venda, que é o que foi combinado no fechamento e **não muda** quando a peça
+volta (de propósito: o histórico da venda conta o que aconteceu). Quem desconta
+o devolvido é o cálculo — a ficha da venda já fazia isso com `totalDe`, o
+painel não. Uma venda com TODAS as peças devolvidas aparecia inteira no ano:
+R$ 412,70 onde o certo era R$ 132,90. A margem saía inflada junto, porque o
+custo já descontava o devolvido e a receita não.
+
+**2. "Em caixa R$ 0,00" com a venda paga em Pix.** O painel fazia
+`sum(lancamentos)` — e pagamento de venda não é lançamento. Faltavam também o
+saldo inicial das carteiras e as transferências. Agora o Início chama a MESMA
+função do Financeiro (`carteirasComSaldo` + `naoAtribuido`): duas telas, um
+número só. Era exatamente o "as telas não se falam" de sempre, na única tela
+que ainda tinha a sua própria conta.
+
+**3. O gráfico de 14 dias não desenhava barra nenhuma.** A barra media em
+PORCENTAGEM da altura do pai, e o pai era um `flex-col` sem altura dentro do
+`h-24`: `height: 100%` não resolvia para nada. O total certo aparecia em cima e
+o gráfico ficava vazio embaixo. A armadilha é genérica — barra em `%` exige
+pai com altura declarada.
+
+Junto: a **margem do painel passou a incluir a embalagem** (a ficha da venda já
+incluía, e as duas discordavam), e **"N vendas" conta as que faturaram** — com
+a devolvida e a de valor zero no meio, a tela dizia "3 vendas · ticket
+R$ 132,90", e as duas coisas não podiam estar certas ao mesmo tempo.
+
+**O painel, como ele desenhou.** A saudação passou a ocupar a linha inteira,
+com o conteúdo em três colunas — quem é você · quanto faturou · como vem indo.
+Completar a linha não é esticar: é usar o espaço. "Precisa de você" virou a
+faixa logo abaixo, com os avisos lado a lado.
+
+**Vencimento parcela a parcela.** O parcelamento só sabia repetir um intervalo
+fixo. Agora cada parcela tem a sua data, editável, com o valor ao lado — e os
+campos de cima (quantas vezes · a cada · primeiro vencimento) viraram o atalho
+de quem só quer "3x, todo dia 10". A cliente que combina "uma em novembro e a
+outra só em março" existe, e o app tem de conseguir escrever isso sem inventar
+um intervalo que ninguém combinou. O teto subiu de 36 para 60 parcelas.
+
+**Botão "Pagou tudo".** O caminho mais comum da loja é receber o total na hora,
+e digitar o valor que a própria tela mostra logo acima é trabalho à toa — e é
+onde nasce o centavo errado.
+
+**Entrada e saída de dinheiro agora mostram o destino.** O rótulo diz o sentido
+("em qual carteira entra" / "de qual carteira sai") e, escolhida a carteira, a
+tela mostra **o saldo depois do lançamento**: `Caixa: R$ 1.000,00 → R$ 750,00`.
+Se o saldo ficar negativo, o aviso aparece em vermelho — quase sempre é a
+carteira errada, o dinheiro saiu de outro bolso. Era o que o app antigo fazia.
+
+**Cartão de crédito também no Caixa.** A ficha completa continua na aba
+Carteiras; no Caixa ficou a linha curta com limite livre, a próxima fatura e os
+dois botões do dia a dia (lançar compra, pagar fatura). É onde o app antigo
+tinha, e é onde se olha dinheiro.
+
+E um defeito pequeno de fuso: o campo "Até" do período do caixa mostrava
+**amanhã**. `toISOString` em cima do fim do dia local já é o dia seguinte em
+UTC — o mesmo tropeço do primeiro vencimento, agora resolvido com `campoDaData`.
+
+---
+
+### 20/09 · Banco limpo, foto com teto e a branch `dev`
+
+**Os mocks saíram.** O João mandou limpar tudo que era demonstração antes de a
+loja começar a usar de verdade. Saíram 44 peças (12 `DEMO-` e 32 `ZZQA`
+arquivadas), 3 clientes, 1 fornecedor, 3 vendas e 2 orçamentos, com os
+movimentos, pagamentos, parcelas e imagens ligados. Ficaram **usuários,
+carteiras (inclusive o cartão dele) e ajustes** — conta de acesso e estrutura
+não são mock.
+
+O script é `scripts/limpar-mocks.mjs`: sem bandeira ele só MOSTRA o que sairia;
+com `--apagar` executa, e tudo dentro de uma transação. Quem é mock se decide
+pelo prefixo (`DEMO-` ou `ZZQA `), e venda entra quando qualquer parte dela é
+mock — vender peça de demonstração não é venda de verdade.
+
+**Onze conferências quebraram junto, e isso era certo.** A sonda do estoque
+conferia contra "Anel Solitário" e "Caixinha de veludo", que eram dados
+semeados; a de vendas escolhia "o primeiro cliente da lista". Sem os mocks, as
+duas acusavam falha num app correto. Agora **cada sonda monta o cenário que
+confere** — cria fornecedor, peças de cada categoria, insumo e cliente
+marcados com `ZZQA`, e apaga por id no fim. É a mesma armadilha de sempre, ao
+contrário: antes elas assumiam banco vazio; estas assumiam banco cheio.
+
+**O teto da foto.** A foto vai para o Supabase Storage, que é cobrado por
+espaço, e cada peça guarda TRÊS arquivos — o peso de uma imagem se multiplica
+por três. Agora:
+
+- entrada: **1.200 × 1.200 px**, alvo de **250 KB**, reduzido no navegador;
+- servidor: miniatura 200 px (q72), média 720 px (q80) e grande 1.200 px (q78),
+  esta última com `withoutEnlargement` — foto pequena não é esticada só para
+  ocupar espaço;
+- total por peça: **~220 KB**, ou cerca de 4.500 peças em 1 GB.
+
+O "grande" não ter teto era o furo: bastava o compressor do navegador falhar
+para um arquivo de 4 MB entrar no bucket e ficar lá para sempre.
+
+A tela passou a **mostrar a medida certa antes** ("Ideal: quadrada, 1200 × 1200
+px") e **o que de fato vai subir depois** ("1200 × 1200 px · 180 KB"), com
+aviso em vermelho se passar de 600 KB.
+
+**A miniatura no catálogo.** Ela já existia, mas ninguém tinha visto: peça sem
+foto não desenhava nada, e nenhuma peça tinha foto. Agora ela é maior (56 px) e
+**o lugar dela existe mesmo sem foto**, com o quadro pontilhado escrito "sem
+foto" — a lista fica alinhada e a falta salta aos olhos.
+
+**E o aviso que faltava.** Com o banco limpo e as chaves do Supabase ainda em
+`PREENCHER`, cadastrar peça é recusado — a foto é obrigatória e não há onde
+guardá-la. Descobrir isso depois de preencher o formulário inteiro é o pior
+jeito de descobrir, então o catálogo avisa em cima, com os três passos:
+criar o bucket `pecas` (privado), copiar as duas chaves, reiniciar.
+
+> Foi tentado, e descartado na hora: guardar a foto no disco do próprio
+> computador quando não houvesse chave. O João cortou — **o banco é o
+> Supabase**, e a solução para "não estourar" é teto de tamanho, não outro
+> lugar de guardar.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo
@@ -317,12 +646,23 @@ os já vencidos — a documentação diz 2 dias, e vencido não é "expirando".
     `data`, e `criadoEm` ficou só para auditoria. Ao escrever consulta de
     dinheiro ou de estoque, use `data` — `criadoEm` só quando a pergunta for
     mesmo "quando isso foi digitado".
+14. **Barra de gráfico com altura em PORCENTAGEM exige pai com altura.**
+    O ritmo de 14 dias no Início não desenhava barra nenhuma: cada coluna era
+    um `flex-col` sem altura dentro do `h-24`, e `height: 100%` não resolvia
+    para nada. O total certo aparecia em cima e o gráfico ficava vazio.
+15. **Faturamento tem de descontar a devolução.** O campo `total` da venda é
+    o que foi combinado no fechamento e NÃO muda quando a peça volta — quem
+    desconta é o cálculo (`totalDe`). O Início somava `total` direto e
+    mostrava como faturada uma venda cuja mercadoria toda tinha voltado.
+    Consulta de faturamento desconta `precoUnit × devolvido`; consulta de
+    custo já descontava, e a margem saía inflada pela diferença.
+
 
 ---
 
 ## 9. As sondas
 
-`scripts/sonda-*.mjs` — 406 conferências, todas passando. Rodam contra o app
+`scripts/sonda-*.mjs` — 576 conferências, todas passando. Rodam contra o app
 de verdade, com navegador de verdade.
 
 | Sonda | O que cobre |
@@ -332,9 +672,13 @@ de verdade, com navegador de verdade.
 | `sonda-cadastros` | clientes e fornecedores |
 | `sonda-estoque` | catálogo, insumos, e o que a vendedora NÃO vê |
 | `sonda-ficha` | ficha da peça e movimentos |
-| `sonda-vendas` | carrinho, fechamento, devolução, cancelamento |
+| `sonda-vendas` | carrinho, embalagem, carteira, recebimento, estorno, edição, devolução, cancelamento |
 | `sonda-orcamentos` | reserva, revisão, conversão em venda e a trava da 2ª conversão |
-| `sonda-financeiro` | caixa, contas, carteiras |
+| `sonda-pdf-orcamento` | a emissão: painel de envio e o PDF conferido byte a byte |
+| `sonda-recibo` | o recibo da venda, também lido por dentro |
+| `sonda-financeiro` | caixa, contas, carteiras, gráficos, data do fato |
+| `sonda-cartao` | limite, fatura, parcela no crédito, pagamento parcial |
+| `sonda-agenda` | o calendário do mês e a previsão de 12 semanas |
 | `sonda-compras` | portal de compras |
 | `sonda-regras` | as regras da documentação funcional |
 | `sonda-comunicacao` | **as telas conversam entre si** (navega por clique) |
@@ -343,7 +687,7 @@ de verdade, com navegador de verdade.
 Rodar todas:
 
 ```bash
-for s in lateral painel cadastros estoque ficha vendas orcamentos financeiro compras regras comunicacao celular; do
+for s in lateral painel cadastros estoque ficha vendas orcamentos pdf-orcamento recibo financeiro cartao agenda compras regras comunicacao celular; do
   node --env-file=.env scripts/sonda-$s.mjs
 done
 ```
@@ -352,29 +696,57 @@ done
 
 ## 10. O que falta
 
+> Situação em **17/09/2026**. A versão explicada, com o que JÁ existe, está em
+> `..\..\Documentacao\12-O-QUE-FALTA.md`.
+
 **Bloqueado, esperando o João:**
 
-- **Fotos das peças.** As chaves do Supabase Storage no `.env` estão com o
-  texto `PREENCHER`. Sem elas o upload falha. O João já escolheu como quer:
-  quadro quadrado por padrão (arrasta e dá zoom) com opção de recorte livre,
-  e compressão antes de subir.
+- **Fotos das peças — CONSTRUÍDO, falta só a chave.** Recorte, compressão,
+  upload, três tamanhos e exibição estão prontos e testados. As duas chaves do
+  Supabase Storage no `.env` continuam com o texto `PREENCHER`, e falta criar o
+  bucket **privado** chamado `pecas` em Storage › New bucket. Enquanto isso,
+  cadastrar peça é recusado com a mensagem que explica exatamente esses dois
+  passos — a peça não fica pela metade.
 - **Casca antes do banco** — ver seção 6, exige decisão sobre a barra lateral.
-- Duas vendas de teste (#12 e #19, de R$ 0) no banco. Venda não se apaga,
-  cancela — não foram tocadas.
+- **Comprovantes (upload)** — a baixa hoje exige a carteira e a tela avisa, por
+  escrito, que o anexo ainda vai ser obrigatório.
+
+**Feito depois da última revisão desta lista** (estava aqui como pendente):
+
+- insumos de embalagem na venda, com "repetir da última venda"
+- editar venda; recebimento parcial que divide a parcela; remover recebimento
+- devolução com registro próprio e acerto do dinheiro
+- cartão de crédito com fatura e limite
+- recibo da venda em PDF
+- Financeiro: agenda e previsão de 12 semanas, gráficos do caixa, data do fato
 
 **Não construído ainda, pela documentação funcional:**
 
-- Insumos de embalagem na venda; "repetir da última venda"
-- Editar venda; recebimento parcial que divide a parcela
-- Cartão de crédito com fatura e limite
-- Comprovantes (upload), recibo em PDF, etiquetas NIIMBOT com QR
-- Financeiro: agenda e previsão de 12 semanas
-- Estoque: acerto de peças antigas, devolução ao fornecedor
-- Faturamento, relatórios, exportação CSV, 13 tutoriais
-- Busca global (Ctrl+K), atualização automática, auditoria, backup
+- Estoque: acerto de peças antigas, devolução ao fornecedor, inventário
+- Etiquetas NIIMBOT com QR
+- Faturamento em cascata, relatórios, exportação CSV
+- Busca global (Ctrl+K), 13 tutoriais, auditoria, backup e restauração
+- Atualização automática quando outra pessoa mexe
 
 **Segurança, pendente:**
 
 - A senha do Supabase passou pelo chat e **deveria ser trocada**.
 - O projeto antigo do Canadá pode ser apagado (`.env.canada-backup` guarda as
   credenciais dele e está fora do git).
+
+**Dado de teste no banco:**
+
+- 28 insumos `ZZQA Laço de cetim`, todos **arquivados** — não aparecem em tela
+  nem entram em cálculo. Apagar de vez exige ordem do João.
+- Duas vendas de teste (#12 e #19, de R$ 0). Venda não se apaga, cancela-se —
+  não foram tocadas.
+
+16. **Sonda que não tem certeza de onde está escrevendo NÃO escreve.** A
+    sonda do cartão leu o banco antes de a gravação terminar, ficou com
+    `cartaoId = null` e seguiu em frente: o seletor do diálogo caiu no
+    primeiro cartão da lista — o Nubank DE VERDADE — e ela lançou quatro
+    compras e pagou duas faturas no cartão do João, tirando R$ 400 do caixa
+    dele. Foi limpo por id exato. Hoje ela ESPERA o registro de teste existir,
+    aborta se ele não existir, e mira os botões por `aria-label` com o nome do
+    cartão — botão repetido na tela não é alvo seguro.
+

@@ -9,10 +9,15 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
 import {
+  buscarCarteirasDaVendaAction,
   buscarClientesAction,
+  buscarInsumosDaVendaAction,
   buscarPecasAction,
+  editarVendaAction,
   fecharVendaAction,
+  ultimosInsumosAction,
 } from "../venda.actions";
+import { campoDaData, somaDias, somaMeses } from "@/lib/dia";
 
 /*
  * O carrinho. Tela nova — no app antigo a venda era um formulário em etapas
@@ -35,6 +40,16 @@ type Peca = {
 };
 
 type ItemCarrinho = Peca & { quantidade: number; precoUnit: number };
+
+/*
+ * O insumo é a embalagem que sai com a venda — o saquinho, a caixinha, o laço.
+ * Não tem preço aqui: ninguém cobra pela caixinha. Tem CUSTO, e é o custo que
+ * some quando não se registra.
+ *
+ * `custo` vem nulo para quem não vê financeiro: ela registra o que saiu sem
+ * ver quanto vale, igual ao resto do app.
+ */
+type Insumo = { id: string; nome: string; unidade: string; custo: number | null; saldo: number };
 type Forma = "DINHEIRO" | "PIX" | "DEBITO" | "CREDITO";
 type Pago = { forma: Forma; valor: number };
 
@@ -82,16 +97,65 @@ export type VendaDeOrcamento = {
   }>;
 };
 
-export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
+/*
+ * A venda que está sendo EDITADA.
+ *
+ * Os recebimentos não vêm: dinheiro que entrou não se edita aqui. Vem só
+ * quanto já foi recebido (`pago`), porque é ele que decide se ainda sobra
+ * saldo a parcelar depois da mudança.
+ */
+export type VendaParaEditar = {
+  id: string;
+  numero: number;
+  clienteId: string | null;
+  /** "AAAA-MM-DD", do jeito que o campo de data usa. */
+  data: string;
+  desconto: number;
+  subtotal: number;
+  observacao: string | null;
+  pago: number;
+  itens: Array<{
+    pecaId: string;
+    sku: string;
+    nome: string;
+    tamanho: string | null;
+    quantidade: number;
+    precoUnit: number;
+    /** Saldo em estoque JÁ somando o que esta venda tirou. */
+    saldo: number;
+  }>;
+  insumos: Array<{ pecaId: string; quantidade: number }>;
+};
+
+export function NovaVenda({
+  orcamento,
+  edicao,
+}: {
+  orcamento?: VendaDeOrcamento;
+  edicao?: VendaParaEditar;
+}) {
   const router = useRouter();
   const travado = !!orcamento;
+  const editando = !!edicao;
 
   const [termo, setTermo] = useState("");
   const [achadas, setAchadas] = useState<Peca[]>([]);
   const [buscando, buscar] = useTransition();
 
   const [itens, setItens] = useState<ItemCarrinho[]>(
-    orcamento
+    edicao
+      ? edicao.itens.map((i) => ({
+          id: i.pecaId,
+          sku: i.sku,
+          nome: i.nome,
+          tamanho: i.tamanho,
+          insumo: false,
+          preco: i.precoUnit,
+          saldo: i.saldo,
+          quantidade: i.quantidade,
+          precoUnit: i.precoUnit,
+        }))
+      : orcamento
       ? orcamento.itens.map((i) => ({
           id: i.pecaId,
           sku: i.sku,
@@ -111,15 +175,34 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
    * quem manda no dinheiro é o número, mas quem a pessoa digita é o "%".
    */
   const [descontoPct, setDescontoPct] = useState(() => {
-    if (!orcamento || orcamento.subtotal <= 0) return "0";
-    return String(r2((orcamento.desconto / orcamento.subtotal) * 100)).replace(".", ",");
+    const base = edicao ?? orcamento;
+    if (!base || base.subtotal <= 0) return "0";
+    return String(r2((base.desconto / base.subtotal) * 100)).replace(".", ",");
   });
   const [observacao, setObservacao] = useState(
-    orcamento ? `Do orçamento ${orcamento.rotulo}` : "",
+    edicao?.observacao ?? (orcamento ? `Do orçamento ${orcamento.rotulo}` : ""),
   );
 
   const [clientes, setClientes] = useState<Array<{ id: string; nome: string }>>([]);
-  const [clienteId, setClienteId] = useState(orcamento?.clienteId ?? "");
+  const [clienteId, setClienteId] = useState(edicao?.clienteId ?? orcamento?.clienteId ?? "");
+
+  /* A data da venda. A de sábado lançada na segunda tem de faturar no sábado. */
+  const [dataVenda, setDataVenda] = useState(() => edicao?.data ?? campoDaData());
+
+  /*
+   * As carteiras vêm vazias para quem não vê financeiro — e aí o seletor nem
+   * aparece. O pagamento dela cai em "sem carteira" e o João atribui depois,
+   * que é como o app antigo se comportava.
+   */
+  const [carteiras, setCarteiras] = useState<Array<{ id: string; nome: string; saldo: number }>>([]);
+  const [carteiraId, setCarteiraId] = useState("");
+
+  /* Embalagem: catálogo à esquerda, o que foi usado à direita. */
+  const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [usados, setUsados] = useState<Array<{ pecaId: string; quantidade: number }>>(
+    edicao?.insumos ?? [],
+  );
+  const [ultimos, setUltimos] = useState<Array<{ pecaId: string; quantidade: number }>>([]);
 
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [formaNova, setFormaNova] = useState<Forma>("DINHEIRO");
@@ -127,14 +210,21 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
 
   const [parcelas, setParcelas] = useState(String(orcamento?.parcelas ?? 1));
   const [intervalo, setIntervalo] = useState<"mes" | "quinzena" | "semana">("mes");
+  /* Um mês a partir de hoje, em hora LOCAL. Com `toISOString` o vencimento
+     saltava um dia toda noite depois das 21h — é o fuso de Brasília virando o
+     dia em UTC antes de virar aqui. */
   const [primeiro, setPrimeiro] = useState(
-    orcamento?.primeiroVencimento ??
-      (() => {
-        const d = new Date();
-        d.setMonth(d.getMonth() + 1);
-        return d.toISOString().slice(0, 10);
-      })(),
+    orcamento?.primeiroVencimento ?? campoDaData(somaMeses(new Date(), 1)),
   );
+  /*
+   * As datas escolhidas parcela a parcela.
+   *
+   * Vazio = seguir o atalho (primeiro vencimento + intervalo). Quando a
+   * pessoa mexe numa data, ela passa a mandar naquela parcela — a cliente
+   * combina "uma em dezembro e outra só em fevereiro" e o app tem de
+   * conseguir escrever isso.
+   */
+  const [datas, setDatas] = useState<Record<number, string>>({});
 
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
@@ -142,6 +232,18 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
   useEffect(() => {
     buscarClientesAction("").then((r) => {
       if (r.ok) setClientes(r.data);
+    });
+    buscarInsumosDaVendaAction().then((r) => {
+      if (r.ok) setInsumos(r.data);
+    });
+    ultimosInsumosAction().then((r) => {
+      if (r.ok) setUltimos(r.data);
+    });
+    buscarCarteirasDaVendaAction().then((r) => {
+      if (r.ok) {
+        setCarteiras(r.data);
+        if (r.data[0]) setCarteiraId(r.data[0].id);
+      }
     });
   }, []);
 
@@ -170,10 +272,56 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
     const pct = Math.min(Math.max(paraNumero(descontoPct), 0), 100);
     const desc = r2((subtotal * pct) / 100);
     const total = r2(Math.max(0, subtotal - desc));
-    const pago = r2(pagos.reduce((s, p) => s + p.valor, 0));
+    /* Editando, o "pago" é o que JÁ ENTROU na venda — a tela não recebe
+       dinheiro aqui. Lançar, o pago é o que a pessoa está digitando agora. */
+    const pago = edicao ? r2(edicao.pago) : r2(pagos.reduce((s, p) => s + p.valor, 0));
     const saldo = r2(Math.max(0, total - pago));
     return { subtotal, desc, total, pago, saldo, troco: r2(Math.max(0, pago - total)) };
-  }, [itens, descontoPct, pagos]);
+  }, [itens, descontoPct, pagos, edicao]);
+
+  /* Só quem vê financeiro tem `custo`; para a vendedora o total fica nulo e
+     a linha de custo nem aparece. */
+  const custoEmbalagem = useMemo(() => {
+    let temCusto = false;
+    let soma = 0;
+    for (const u of usados) {
+      const i = insumos.find((x) => x.id === u.pecaId);
+      if (i?.custo != null) {
+        temCusto = true;
+        soma += i.custo * u.quantidade;
+      }
+    }
+    return temCusto ? r2(soma) : null;
+  }, [usados, insumos]);
+
+  /* A data da parcela k: a escolhida à mão, ou a do atalho. */
+  function dataDaParcela(k: number): string {
+    const escolhida = datas[k];
+    if (escolhida) return escolhida;
+    const base = new Date(primeiro + "T12:00:00");
+    if (k === 0) return campoDaData(base);
+    if (intervalo === "semana") return campoDaData(somaDias(base, 7 * k));
+    if (intervalo === "quinzena") return campoDaData(somaDias(base, 15 * k));
+    return campoDaData(somaMeses(base, k));
+  }
+
+  /* O valor de cada parcela, com a sobra de centavos na ÚLTIMA — a mesma
+     conta que o servidor refaz na hora de gravar. */
+  function valorDaParcela(k: number, n: number): number {
+    const base = Math.floor((contas.saldo / n) * 100) / 100;
+    const sobra = r2(contas.saldo - base * n);
+    return k === n - 1 ? r2(base + sobra) : base;
+  }
+
+  function mexerInsumo(pecaId: string, delta: number) {
+    setUsados((a) => {
+      const ja = a.find((x) => x.pecaId === pecaId);
+      if (!ja) return delta > 0 ? [...a, { pecaId, quantidade: delta }] : a;
+      const q = ja.quantidade + delta;
+      if (q <= 0) return a.filter((x) => x.pecaId !== pecaId);
+      return a.map((x) => (x.pecaId === pecaId ? { ...x, quantidade: q } : x));
+    });
+  }
 
   function adicionar(p: Peca) {
     setItens((a) => {
@@ -199,6 +347,42 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
     }
 
     salvar(async () => {
+      const comuns = {
+        clienteId: clienteId || null,
+        observacao: observacao || null,
+        desconto: contas.desc,
+        itens: itens.map((i) => ({
+          pecaId: i.id,
+          quantidade: i.quantidade,
+          precoUnit: i.precoUnit,
+        })),
+        insumos: usados,
+        data: new Date(dataVenda + "T12:00:00"),
+        aPrazo:
+          contas.saldo > 0.005
+            ? {
+                parcelas: Number(parcelas) || 1,
+                intervalo,
+                primeiroVencimento: new Date(primeiro + "T12:00:00"),
+                vencimentos: Array.from(
+                  { length: Number(parcelas) || 1 },
+                  (_, k) => new Date(dataDaParcela(k) + "T12:00:00"),
+                ),
+              }
+            : null,
+      };
+
+      if (edicao) {
+        const r = await editarVendaAction({ ...comuns, vendaId: edicao.id });
+        if (r.ok) {
+          router.push(`/vendas/${r.data.id}`);
+          router.refresh();
+        } else {
+          setAviso(r.error.message);
+        }
+        return;
+      }
+
       const r = await fecharVendaAction({
         clienteId: clienteId || null,
         observacao: observacao || null,
@@ -208,10 +392,13 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
           quantidade: i.quantidade,
           precoUnit: i.precoUnit,
         })),
+        insumos: usados,
+        data: new Date(dataVenda + "T12:00:00"),
         // O troco não vira pagamento: registramos no máximo o total.
         pagamentos: pagos.map((p, ix) => ({
           forma: p.forma,
           valor: ix === pagos.length - 1 ? r2(p.valor - contas.troco) : p.valor,
+          carteiraId: carteiraId || null,
         })).filter((p) => p.valor > 0),
         aPrazo:
           contas.saldo > 0.005
@@ -219,6 +406,10 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                 parcelas: Number(parcelas) || 1,
                 intervalo,
                 primeiroVencimento: new Date(primeiro + "T12:00:00"),
+                vencimentos: Array.from(
+                  { length: Number(parcelas) || 1 },
+                  (_, k) => new Date(dataDaParcela(k) + "T12:00:00"),
+                ),
               }
             : null,
         // O orçamento vira Aprovado na MESMA transação da venda.
@@ -238,6 +429,15 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
     <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       {/* ─────────── carrinho ─────────── */}
       <div className="space-y-4">
+        {edicao && (
+          <p className="rounded-xl border border-dashed px-4 py-3 text-sm">
+            Editando a <strong>venda #{edicao.numero}</strong>. As peças voltam ao estoque e saem
+            de novo — o histórico da peça mostra a edição. Os{" "}
+            <strong>recebimentos não mudam aqui</strong>: para desfazer um valor, use “remover
+            recebimento” na ficha da venda.
+          </p>
+        )}
+
         {orcamento && (
           <p className="rounded-xl border border-(--ll-accent-line) bg-(--ll-accent-soft) px-4 py-3 text-sm">
             Venda do orçamento <strong>{orcamento.rotulo}</strong>
@@ -418,6 +618,118 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
             </ul>
           )}
         </section>
+
+        {/* ─────────── embalagem ─────────── */}
+        <section className="space-y-3 rounded-xl border bg-card p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Embalagem e insumos</h2>
+            <p className="text-xs text-muted-foreground">
+              O que saiu junto com a peça. Não entra no preço — baixa do estoque e conta no custo.
+            </p>
+          </div>
+
+          {insumos.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhum insumo cadastrado. Cadastre em <strong>Estoque › Insumos</strong> para lançar
+              aqui o saquinho e a caixinha que saíram com a venda.
+            </p>
+          ) : (
+            <>
+              {usados.length > 0 && (
+                <ul className="divide-y rounded-lg border">
+                  {usados.map((u) => {
+                    const i = insumos.find((x) => x.id === u.pecaId);
+                    if (!i) return null;
+                    return (
+                      <li key={u.pecaId} className="flex items-center gap-2 px-3 py-2">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm">{i.nome}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {i.custo != null ? `${brl(i.custo)} por ${i.unidade}` : i.unidade}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Menos um ${i.nome}`}
+                            onClick={() => mexerInsumo(i.id, -1)}
+                          >
+                            −
+                          </Button>
+                          <span className="w-6 text-center text-sm tabular-nums">
+                            {u.quantidade}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Mais um ${i.nome}`}
+                            onClick={() => mexerInsumo(i.id, 1)}
+                          >
+                            +
+                          </Button>
+                        </span>
+                        {i.custo != null && (
+                          <span className="w-20 shrink-0 text-right text-sm tabular-nums">
+                            {brl(r2(i.custo * u.quantidade))}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  id="insumo-venda"
+                  aria-label="Escolher insumo"
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) mexerInsumo(e.target.value, 1);
+                  }}
+                  className="h-10 min-w-0 flex-1 rounded-lg border bg-card px-3 text-sm"
+                >
+                  <option value="">Escolher insumo…</option>
+                  {insumos
+                    .filter((i) => !usados.some((u) => u.pecaId === i.id))
+                    .map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.nome}
+                        {i.custo != null ? ` · ${brl(i.custo)}` : ""} · {i.saldo} {i.unidade}
+                      </option>
+                    ))}
+                </select>
+
+                {/*
+                  Repetir a última: o uso é quase sempre o mesmo saquinho, e
+                  redigitar a cada venda é o que faz controle de insumo ser
+                  abandonado na segunda semana. Veio do app antigo.
+                */}
+                {usados.length === 0 && ultimos.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setUsados(ultimos.filter((u) => insumos.some((i) => i.id === u.pecaId)))
+                    }
+                  >
+                    Repetir da última venda
+                  </Button>
+                )}
+              </div>
+
+              {custoEmbalagem != null && usados.length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Custo de embalagem</span>
+                  <span className="font-semibold tabular-nums">{brl(custoEmbalagem)}</span>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
 
       {/* ─────────── fechamento ─────────── */}
@@ -439,6 +751,22 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="data-venda">Data da venda</Label>
+            <Input
+              id="data-venda"
+              type="date"
+              value={dataVenda}
+              onChange={(e) => setDataVenda(e.target.value)}
+              className="text-base"
+            />
+            {dataVenda !== campoDaData() && (
+              <p className="text-xs text-muted-foreground">
+                Esta venda vai faturar em {new Date(dataVenda + "T12:00:00").toLocaleDateString("pt-BR")}.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -508,8 +836,44 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
 
         <section className="space-y-3 rounded-xl border bg-card p-4">
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Como pagou
+            {editando ? "Pagamento" : "Como pagou"}
           </h2>
+
+          {/* Na edição o dinheiro é FATO CONSUMADO: ele já entrou, já caiu numa
+              carteira e já tem comprovante pendente ou não. Mexer nele aqui
+              seria reescrever a história do caixa. */}
+          {editando && (
+            <p className="rounded-lg border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
+              Já recebido: <strong className="text-foreground">{brl(contas.pago)}</strong>. Para
+              desfazer um valor, use “remover recebimento” na ficha da venda.
+            </p>
+          )}
+
+          {!editando && (
+          <>
+          {/* Só aparece quando há dinheiro entrando AGORA e a pessoa pode ver
+              o financeiro. Perguntar "onde entrou" antes de existir entrada
+              seria pergunta sem assunto. */}
+          {carteiras.length > 0 && contas.pago > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="carteira-venda">Onde o dinheiro entrou</Label>
+              <select
+                id="carteira-venda"
+                className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
+                value={carteiraId}
+                onChange={(e) => setCarteiraId(e.target.value)}
+              >
+                {carteiras.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} · {brl(c.saldo)}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Carteira é onde o dinheiro está, não como a cliente pagou.
+              </p>
+            </div>
+          )}
 
           {pagos.length > 0 && (
             <ul className="divide-y rounded-lg border">
@@ -573,6 +937,29 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
             </Button>
           </div>
 
+          {/*
+            O caminho mais comum da loja é "pagou tudo agora". Digitar o valor
+            que a própria tela já mostra logo acima é trabalho à toa — e é onde
+            nasce o centavo errado.
+          */}
+          {contas.saldo > 0.005 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setPagos((a) => [...a, { forma: formaNova, valor: contas.saldo }]);
+                setValorNovo("");
+              }}
+            >
+              Pagou tudo · {brl(contas.saldo)} em{" "}
+              {FORMAS.find((x) => x[0] === formaNova)?.[1].toLowerCase()}
+            </Button>
+          )}
+
+          </>
+          )}
+
           <dl className="space-y-1.5 border-t pt-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Pago</dt>
@@ -603,6 +990,7 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               <p className="text-xs text-muted-foreground">
                 Sobrou {brl(contas.saldo)}. Combine as parcelas — elas entram em contas a receber.
               </p>
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="parcelas" className="text-xs">
@@ -612,7 +1000,20 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                     id="parcelas"
                     inputMode="numeric"
                     value={parcelas}
-                    onChange={(e) => setParcelas(e.target.value.replace(/\D/g, "") || "1")}
+                    onChange={(e) => {
+                      const n = e.target.value.replace(/\D/g, "") || "1";
+                      setParcelas(n);
+                      /* Mudou a quantidade: as datas escolhidas à mão para
+                         parcelas que deixaram de existir vão junto, senão
+                         ressuscitam quando ele aumentar o número de novo. */
+                      setDatas((a) => {
+                        const out: Record<number, string> = {};
+                        for (const [k, v] of Object.entries(a)) {
+                          if (Number(k) < (Number(n) || 1)) out[Number(k)] = v;
+                        }
+                        return out;
+                      });
+                    }}
                     className="text-base"
                   />
                 </div>
@@ -624,7 +1025,10 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                     id="intervalo"
                     className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
                     value={intervalo}
-                    onChange={(e) => setIntervalo(e.target.value as typeof intervalo)}
+                    onChange={(e) => {
+                      setIntervalo(e.target.value as typeof intervalo);
+                      setDatas({});
+                    }}
                   >
                     <option value="mes">Mês</option>
                     <option value="quinzena">15 dias</option>
@@ -632,6 +1036,7 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                   </select>
                 </div>
               </div>
+
               <div className="space-y-1">
                 <Label htmlFor="primeiro" className="text-xs">
                   Primeiro vencimento
@@ -640,14 +1045,64 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                   id="primeiro"
                   type="date"
                   value={primeiro}
-                  onChange={(e) => setPrimeiro(e.target.value)}
+                  onChange={(e) => {
+                    setPrimeiro(e.target.value);
+                    setDatas({});
+                  }}
                   className="text-base"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {parcelas}× de{" "}
-                <strong>{brl(contas.saldo / (Number(parcelas) || 1))}</strong>
-              </p>
+
+              {/*
+                Cada parcela com a SUA data, editável.
+                Os campos de cima são o atalho ("3x, todo dia 10"); esta lista é
+                a combinação de verdade. A cliente que pede "uma em dezembro e a
+                outra só em fevereiro" existe, e o app tem de conseguir
+                escrever isso sem inventar um intervalo que ninguém combinou.
+              */}
+              <div className="space-y-1.5 border-t pt-3">
+                <p className="text-xs font-medium">
+                  {parcelas}× de <strong>{brl(valorDaParcela(0, Number(parcelas) || 1))}</strong>
+                  {Number(parcelas) > 1 && (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · a última fica {brl(valorDaParcela(Number(parcelas) - 1, Number(parcelas)))}
+                    </span>
+                  )}
+                </p>
+
+                <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+                  {Array.from({ length: Number(parcelas) || 1 }, (_, k) => (
+                    <li key={k} className="flex items-center gap-2">
+                      <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                        {k + 1}/{parcelas}
+                      </span>
+                      <Input
+                        type="date"
+                        aria-label={`Vencimento da parcela ${k + 1}`}
+                        value={dataDaParcela(k)}
+                        onChange={(e) =>
+                          setDatas((a) => ({ ...a, [k]: e.target.value }))
+                        }
+                        className="h-9 flex-1 text-sm"
+                      />
+                      <span className="w-24 shrink-0 text-right text-sm tabular-nums">
+                        {brl(valorDaParcela(k, Number(parcelas) || 1))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {Object.keys(datas).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setDatas({})}
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Voltar para as datas automáticas
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -676,11 +1131,17 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
             disabled={salvando || itens.length === 0}
             onClick={enviar}
           >
-            {salvando ? "Fechando…" : `Fechar venda · ${brl(contas.total)}`}
+            {salvando
+              ? editando
+                ? "Salvando…"
+                : "Fechando…"
+              : `${editando ? "Salvar alterações" : "Fechar venda"} · ${brl(contas.total)}`}
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            Pix, débito e crédito ficam pendentes de comprovante — dá para anexar depois.
+            {editando
+              ? "As parcelas em aberto são refeitas com o novo saldo. As já pagas ficam como estão."
+              : "Pix, débito e crédito ficam pendentes de comprovante — dá para anexar depois."}
           </p>
         </section>
       </div>

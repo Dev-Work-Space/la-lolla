@@ -6,6 +6,7 @@ import { ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { campoDaData } from "@/lib/dia";
 import {
   Dialog,
   DialogContent,
@@ -115,6 +116,17 @@ export function FormTransferencia({ carteiras }: { carteiras: CarteiraSaldo[] })
               aria-invalid={!!erros.valor}
             />
             {erros.valor && <p className="text-sm text-destructive">{erros.valor[0]}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="data-tr">Data</Label>
+            <Input
+              id="data-tr"
+              name="data"
+              type="date"
+              defaultValue={campoDaData()}
+              className="text-base"
+            />
           </div>
 
           {aviso && (

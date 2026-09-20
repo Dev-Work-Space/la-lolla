@@ -23,6 +23,15 @@ const conferir = (n, c, d = "") => {
   }
 };
 
+/* O banco é aberto no topo porque a peça de teste nasce por aqui — ver o
+   comentário em "CRIAR A PEÇA DE TESTE". A limpeza reaproveita a mesma
+   conexão no fim. */
+const { PrismaClient } = await import("@prisma/client");
+const { PrismaPg } = await import("@prisma/adapter-pg");
+const db = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: 3 }),
+});
+
 const navegador = await chromium.launch({ executablePath: EDGE, headless: true });
 const ctx = await navegador.newContext({ viewport: { width: 1366, height: 950 } });
 const page = await ctx.newPage();
@@ -75,21 +84,35 @@ try {
   await esperarPronto(page);
 
   console.log("\n=== CRIAR A PEÇA DE TESTE ===");
+  /*
+   * A peça nasce direto no banco, e não pelo formulário.
+   *
+   * Desde que a FOTO virou obrigatória no cadastro, criar pela tela depende do
+   * Supabase Storage estar ligado — e esta sonda não é sobre o cadastro, é
+   * sobre a FICHA. Amarrar o teste da ficha às chaves do Storage faria ela
+   * falhar por um motivo que não tem nada a ver com o que ela confere.
+   *
+   * É o mesmo caminho que a sonda-vendas já usava pelo mesmo motivo.
+   */
+  const skuTeste = `ZF-${Date.now().toString().slice(-6)}`;
+  const pecaTeste = await db.peca.create({
+    data: {
+      sku: skuTeste,
+      nome: MARCA + "Peça de Teste",
+      categoria: "Anéis",
+      precoTabela: 200,
+      codigoFornecedor: 20,
+      fator: 5,
+      custo: 100,
+    },
+    select: { id: true, nome: true },
+  });
   await page.goto(`${BASE}/estoque`, { waitUntil: "networkidle" });
   await esperarPronto(page);
-  await abrirDialogo(page, 'button:has-text("Nova peça")');
-  await page.fill("#nome", MARCA + "Peça de Teste");
-  // A categoria virou seletor, alimentado pelos Ajustes.
-  await page.selectOption("#categoria", "Anéis");
-  await page.fill("#precoTabela", "200,00");
-  await page.fill("#codigoFornecedor", "20");
-  await page.fill("#fator", "5");
-  await page.click('[role="dialog"] button:has-text("Salvar peça")');
-  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   await page.waitForFunction((n) => document.body.innerText.includes(n), MARCA + "Peça de Teste", {
     timeout: 15000,
   });
-  conferir("peça criada", true);
+  conferir("peça criada", !!pecaTeste.id);
 
   console.log("\n=== ABRIR A FICHA ===");
   await page.click(`a:has-text("${MARCA}Peça de Teste")`);
@@ -100,7 +123,9 @@ try {
 
   let txt = await page.textContent("body");
   conferir("abriu a ficha da peça certa", txt.includes(MARCA + "Peça de Teste"));
-  conferir("mostra o SKU", /LL-\d{4}/.test(txt));
+  /* Confere O CÓDIGO DESTA peça, e não o formato "LL-0000": o formato passava
+     mesmo que a ficha mostrasse o código de outra peça na tela. */
+  conferir("mostra o código interno da peça", txt.includes(skuTeste), skuTeste);
   conferir('indicador "Em estoque"', /Em estoque/i.test(txt));
   conferir('indicador "Reservadas"', /Reservadas/i.test(txt));
   conferir('indicador "Já vendidas"', /Já vendidas/i.test(txt));
@@ -169,11 +194,7 @@ try {
   console.log("\n=== LIMPEZA ===");
   if (pecaId) {
     // Apaga por ID exato, capturado da URL da própria ficha.
-    const { PrismaClient } = await import("@prisma/client");
-    const { PrismaPg } = await import("@prisma/adapter-pg");
-    const prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: 1 }),
-    });
+    const prisma = db;
     try {
       const alvo = await prisma.peca.findUnique({
         where: { id: pecaId },
@@ -187,8 +208,10 @@ try {
         console.log("  ABORTADO: o id não corresponde a uma peça de teste");
       }
     } finally {
-      await prisma.$disconnect();
+      await db.$disconnect();
     }
+  } else {
+    await db.$disconnect();
   }
   await navegador.close();
   console.log(`\nRESULTADO: ${passou} passaram, ${falhou} falharam\n`);

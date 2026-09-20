@@ -192,6 +192,8 @@ export function Linha({
   valorSub,
   onClickHref,
   acoes,
+  foto,
+  reservaFoto = false,
 }: {
   nome: string;
   pilulas?: React.ReactNode;
@@ -200,9 +202,40 @@ export function Linha({
   valorSub?: string;
   onClickHref?: string;
   acoes?: React.ReactNode;
+  /** URL já assinada da miniatura. A linha de peça é a única que usa. */
+  foto?: string | null;
+  /** Peça sem foto ainda ocupa o lugar dela, com o aviso no quadro. */
+  reservaFoto?: boolean;
 }) {
   const conteudo = (
     <>
+      {/*
+        A miniatura vem antes do nome porque é por ela que se reconhece a peça —
+        ler o nome é o plano B.
+
+        Quem ainda não tem foto ocupa o MESMO lugar, com o quadro vazio: a
+        lista fica alinhada e a falta salta aos olhos, que é o ponto. Antes o
+        espaço sumia, e catálogo sem foto nenhuma parecia catálogo sem o
+        recurso.
+      */}
+      {foto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={foto}
+          alt=""
+          loading="lazy"
+          className="size-14 shrink-0 rounded-lg border bg-muted object-cover"
+        />
+      ) : (
+        reservaFoto && (
+          <span
+            aria-hidden
+            className="grid size-14 shrink-0 place-items-center rounded-lg border border-dashed text-[9px] uppercase tracking-wide text-muted-foreground"
+          >
+            sem foto
+          </span>
+        )
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{nome}</span>

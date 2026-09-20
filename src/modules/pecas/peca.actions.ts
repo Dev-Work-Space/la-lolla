@@ -22,6 +22,18 @@ import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service
 
 type PecaCriada = { id: string; sku: string; nome: string };
 
+/*
+ * A foto viaja no mesmo FormData, mas FORA do schema do Zod.
+ *
+ * Zod valida texto e número vindos do formulário; arquivo é outra natureza —
+ * quem confere tipo, tamanho e formato é o `subirImagemPeca`, que é quem de
+ * fato mexe nos bytes. Aqui só respondo a pergunta de regra: veio ou não veio.
+ */
+function fotoDoFormulario(formData: FormData): File | null {
+  const f = formData.get("foto");
+  return f instanceof File && f.size > 0 ? f : null;
+}
+
 export async function criarPecaAction(formData: FormData): Promise<Result<PecaCriada>> {
   const sessao = await exigirPermissao("pecas", "criar");
   if (!sessao.ok) return sessao;
@@ -35,8 +47,21 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
     );
   }
 
+  const foto = fotoDoFormulario(formData);
+
+  /*
+   * FOTO OBRIGATÓRIA na peça — decisão do João, e é como o app antigo faz.
+   * O insumo fica de fora: saquinho e caixinha não precisam ser reconhecidos
+   * de relance na hora da venda, que é o motivo de a foto existir.
+   */
+  if (!foto && parsed.data.tipo === "PECA") {
+    return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
+      foto: ["Adicione a foto da peça — é por ela que a peça é achada na venda."],
+    });
+  }
+
   try {
-    const peca = await criarPeca(parsed.data, veFinanceiro(sessao.data));
+    const peca = await criarPeca(parsed.data, veFinanceiro(sessao.data), foto);
     recarregar("estoque");
     return ok(peca);
   } catch (e) {
@@ -54,7 +79,10 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
   }
 
   try {
-    const peca = await editarPeca(id, parsed.data, veFinanceiro(sessao.data));
+    /* Na edição a foto é OPCIONAL: sem arquivo novo, a que já está fica. Não
+       existe "remover foto" — a peça não pode ficar sem, então o caminho é
+       trocar por outra. */
+    const peca = await editarPeca(id, parsed.data, veFinanceiro(sessao.data), fotoDoFormulario(formData));
     recarregar("estoque", `/estoque/${id}`);
     return ok({ id: peca.id });
   } catch (e) {

@@ -48,15 +48,19 @@ export type DefWidget = {
 export const WIDGETS: DefWidget[] = [
   {
     id: "saudacao",
+    /* Largura toda: é a primeira coisa que se lê, e com o conteúdo em três
+       colunas (quem é você · quanto faturou · como vem indo) ela usa o espaço
+       em vez de deixar meia tela vazia. Pedido do João. */
     nome: "Saudação e faturamento do ano",
     desc: "Seu nome, a margem, o total do ano e os botões de ação rápida.",
-    tam: "grande",
+    tam: "cheio",
   },
   {
     id: "pendencias",
+    /* Faixa de aviso logo abaixo da saudação, atravessando a tela. */
     nome: "Precisa de você",
     desc: "Contas vencendo, peças zeradas e orçamentos expirando.",
-    tam: "pequeno",
+    tam: "cheio",
   },
   {
     id: "numeros",

@@ -1,6 +1,12 @@
 import "server-only";
 
-import { Prisma, type FormaPagamento, type StatusVenda } from "@prisma/client";
+import {
+  Prisma,
+  type FormaPagamento,
+  type ResolucaoDevolucao,
+  type TipoPessoa,
+  type StatusVenda,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio, NaoEncontrado } from "@/lib/errors";
 
@@ -84,6 +90,11 @@ export function custoDe(itens: ItemCalc[]): number {
   return r2(itens.reduce((s, i) => s + i.custoUnit * (i.quantidade - i.devolvido), 0));
 }
 
+/** O que a embalagem custou nesta venda. Congelado, igual ao custo da peça. */
+export function custoInsumosDe(insumos: Array<{ quantidade: number; custoUnit: number }>): number {
+  return r2(insumos.reduce((s, i) => s + i.custoUnit * i.quantidade, 0));
+}
+
 export function margemDe(total: number, custo: number): number | null {
   if (total <= 0) return null;
   return Math.round(((total - custo) / total) * 1000) / 10;
@@ -100,7 +111,19 @@ const SELECAO_VENDA = {
   data: true,
   canceladaEm: true,
   motivoCancelada: true,
-  cliente: { select: { id: true, nome: true } },
+  cliente: {
+    /* Documento, telefone e cidade existem por causa do RECIBO: é o papel que
+       a cliente leva, e papel sem quem-comprou não prova nada. */
+    select: {
+      id: true,
+      nome: true,
+      tipo: true,
+      doc: true,
+      telefone: true,
+      cidade: true,
+      uf: true,
+    },
+  },
   vendedor: { select: { id: true, nome: true } },
   itens: {
     select: {
@@ -110,13 +133,41 @@ const SELECAO_VENDA = {
       precoUnit: true,
       custoUnit: true,
       serie: true,
-      peca: { select: { id: true, nome: true, sku: true } },
+      /* O tamanho sai no recibo, do lado do nome — é o que a cliente confere
+         quando volta para trocar. */
+      peca: { select: { id: true, nome: true, sku: true, tamanho: true } },
+    },
+  },
+  /* As devoluções aparecem para todo mundo: o valor delas é PREÇO, não custo,
+     e quem atende precisa saber o que já voltou. */
+  devolucoes: {
+    select: {
+      id: true,
+      data: true,
+      total: true,
+      motivo: true,
+      resolucao: true,
+      itens: { select: { quantidade: true } },
+    },
+    orderBy: { data: "desc" as const },
+  },
+  /* Embalagem: custo, nunca preço. Só chega a quem vê financeiro — por isso
+     vive em VendaComCusto e não na venda pública. */
+  insumos: {
+    select: {
+      id: true,
+      quantidade: true,
+      custoUnit: true,
+      peca: { select: { id: true, nome: true } },
     },
   },
   pagamentos: {
     select: { id: true, forma: true, valor: true, parcelas: true, comprovanteId: true, data: true },
   },
   parcelas: {
+    /* Parcela cancelada some da ficha. Ela aparecia como "em aberto" depois de
+       uma devolução que a apagou — a venda dizia dever o que ninguém devia. */
+    where: { status: { not: "CANCELADA" as const } },
     select: { id: true, valor: true, vencimento: true, status: true, parcela: true, deParcelas: true },
     orderBy: { vencimento: "asc" as const },
   },
@@ -140,6 +191,7 @@ export type ItemVendaVisivel = {
   pecaId: string;
   nome: string;
   sku: string;
+  tamanho: string | null;
   serie: string | null;
   quantidade: number;
   devolvido: number;
@@ -152,7 +204,15 @@ export type VendaPublica = {
   numero: number;
   status: StatusVenda;
   cancelada: boolean;
-  cliente: { id: string; nome: string } | null;
+  cliente: {
+    id: string;
+    nome: string;
+    tipo: TipoPessoa;
+    doc: string | null;
+    telefone: string | null;
+    cidade: string | null;
+    uf: string | null;
+  } | null;
   vendedor: { id: string; nome: string } | null;
   observacao: string | null;
   data: Date;
@@ -176,6 +236,14 @@ export type VendaPublica = {
     numero: number | null;
     de: number | null;
   }>;
+  devolucoes: Array<{
+    id: string;
+    data: Date;
+    total: number;
+    motivo: string | null;
+    resolucao: ResolucaoDevolucao;
+    pecas: number;
+  }>;
   subtotal: number;
   desconto: number;
   devolvido: number;
@@ -186,7 +254,27 @@ export type VendaPublica = {
   comprovantesPendentes: number;
 };
 
-export type VendaComCusto = VendaPublica & { custo: number; margem: number | null };
+export type InsumoVendaVisivel = {
+  id: string;
+  pecaId: string;
+  nome: string;
+  quantidade: number;
+  custoUnit: number;
+};
+
+/**
+ * O custo aqui é o da peça MAIS o da embalagem.
+ *
+ * Separar os dois (`custoInsumos`) é o que deixa a cascata do faturamento
+ * mostrar para onde o dinheiro foi — no app antigo essa linha se chamava
+ * "Embalagem e insumos".
+ */
+export type VendaComCusto = VendaPublica & {
+  custo: number;
+  custoInsumos: number;
+  insumos: InsumoVendaVisivel[];
+  margem: number | null;
+};
 export type Venda = VendaPublica | VendaComCusto;
 
 /** `"custo" in v` já estreita; isto é só para deixar a intenção explícita. */
@@ -200,6 +288,7 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
     pecaId: i.peca.id,
     nome: i.peca.nome,
     sku: i.peca.sku,
+    tamanho: i.peca.tamanho,
     serie: i.serie,
     quantidade: i.quantidade,
     devolvido: i.devolvido,
@@ -248,6 +337,14 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
       numero: c.parcela,
       de: c.deParcelas,
     })),
+    devolucoes: v.devolucoes.map((d) => ({
+      id: d.id,
+      data: d.data,
+      total: num(d.total),
+      motivo: d.motivo,
+      resolucao: d.resolucao,
+      pecas: d.itens.reduce((s2, i) => s2 + i.quantidade, 0),
+    })),
     subtotal,
     desconto,
     devolvido,
@@ -259,8 +356,19 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
   };
 
   if (!veFinanceiro) return base;
-  const custo = custoDe(itens);
-  return { ...base, custo, margem: margemDe(total, custo) };
+  const insumos = v.insumos.map((i) => ({
+    id: i.id,
+    pecaId: i.peca.id,
+    nome: i.peca.nome,
+    quantidade: i.quantidade,
+    custoUnit: num(i.custoUnit),
+  }));
+  const custoInsumos = custoInsumosDe(insumos);
+  /* A embalagem entra no custo, e por isso na margem. Deixá-la de fora era
+     dizer que a venda deu R$ 90 de lucro quando deu R$ 86 — o erro some numa
+     venda e vira dinheiro no mês. */
+  const custo = r2(custoDe(itens) + custoInsumos);
+  return { ...base, custo, custoInsumos, insumos, margem: margemDe(total, custo) };
 }
 
 export const FILTROS_VENDA = [

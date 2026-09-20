@@ -7,6 +7,7 @@ import { FORMAS } from "@/modules/vendas/venda.service";
 import { brl, data as fData } from "@/lib/formato";
 import { Indicador, Indicadores, Pilula } from "@/components/padrao/indicadores";
 import { AcoesOrcamento } from "@/modules/orcamentos/components/acoes-orcamento";
+import { EmitirOrcamento } from "@/modules/orcamentos/components/emitir-orcamento";
 
 export const runtime = "nodejs";
 
@@ -78,18 +79,59 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
           </p>
         </div>
 
-        <AcoesOrcamento
-          orcamento={{
-            id: o.id,
-            rotulo: o.rotulo,
-            status: o.status,
-            vencido: o.vencido,
-            vendaId: o.vendaId,
-            substituidoPor: o.substituidoPor,
-            itens: o.itens.length,
-          }}
-          pode={pode}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Emitir vale em QUALQUER estado: a cliente pode pedir de novo o
+              papel de um orçamento já aprovado, e a loja precisa poder mandar
+              sem ter que refazer nada. */}
+          {o.itens.length > 0 && (
+            <EmitirOrcamento
+              orcamento={{
+                numero: o.numero,
+                data: o.data,
+                validoAte: o.validoAte,
+                revisaoDe: o.revisaoDe?.numero ?? null,
+                cliente: o.cliente
+                  ? {
+                      nome: o.cliente.nome,
+                      tipo: o.cliente.tipo,
+                      doc: o.cliente.doc,
+                      telefone: o.cliente.telefone,
+                      cidade: o.cliente.cidade,
+                      uf: o.cliente.uf,
+                    }
+                  : null,
+                itens: o.itens.map((i) => ({
+                  nome: i.nome,
+                  sku: i.sku,
+                  tamanho: i.tamanho,
+                  quantidade: i.quantidade,
+                  precoUnit: i.precoUnit,
+                })),
+                subtotal: o.subtotal,
+                desconto: o.desconto,
+                total: o.total,
+                modoPagamento: o.modoPagamento,
+                formaPagamento: o.formaPagamento,
+                parcelas: o.parcelas,
+                primeiroVencimento: o.primeiroVencimento,
+                observacao: o.observacao,
+              }}
+            />
+          )}
+
+          <AcoesOrcamento
+            orcamento={{
+              id: o.id,
+              rotulo: o.rotulo,
+              status: o.status,
+              vencido: o.vencido,
+              vendaId: o.vendaId,
+              substituidoPor: o.substituidoPor,
+              itens: o.itens.length,
+            }}
+            pode={pode}
+          />
+        </div>
       </div>
 
       {/* ── faixas de contexto: só aparecem quando há o que avisar ── */}

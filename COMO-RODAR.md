@@ -1,6 +1,11 @@
 # Como rodar o app no outro computador
 
+
 Passo a passo. Se seguir na ordem, funciona.
+
+> **Só quer ligar o app neste computador?** Duplo clique em **`INICIAR.bat`**.
+> Para o celular, rode o **`LIBERAR-REDE.bat`** uma vez, como administrador.
+> A versão explicada disso está em `..\..\Documentacao\02-COMO-RODAR.md`.
 
 ---
 
@@ -63,9 +68,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="PREENCHER"
 SUPABASE_SERVICE_ROLE_KEY="PREENCHER"
 ```
 
-Elas só fazem falta para **foto de peça**, que ainda não foi construída. O
-resto do app funciona sem. Quando for fazer as fotos, pegue as duas no painel
-do Supabase em **Settings › API**.
+Elas fazem falta para a **foto da peça**, que já está construída e testada —
+falta só ligar. Dois passos, uma vez só:
+
+1. **Supabase › Storage › New bucket** → nome `pecas`, **privado**.
+2. **Supabase › Settings › API** → copie a *anon public* e a *service_role*
+   para o `.env`, no lugar de `PREENCHER`, e reinicie o servidor.
+
+Enquanto isso não for feito, cadastrar peça é recusado com a mensagem que
+explica exatamente esses dois passos. O resto do app funciona normalmente.
 
 ---
 
@@ -93,7 +104,7 @@ Abre em <http://localhost:3000>.
 **Para abrir no celular pela rede da loja:**
 
 ```bash
-npx next dev -H 0.0.0.0 -p 3000
+npm run dev:rede
 ```
 
 Depois descubra o IP deste computador (`ipconfig` no terminal, procure
@@ -158,8 +169,13 @@ node --env-file=.env scripts/sonda-comunicacao.mjs
 > **Atenção:** as sondas do banco GRAVAM dados de teste (marcados com `ZZQA`)
 > e apagam no fim. Não rode em cima de dados que importam sem backup.
 
-São 369 conferências no total, todas passando hoje. A lista completa está no
-`HISTORICO.md`, seção 9.
+São **562 conferências** no total, em 16 sondas, todas passando hoje. A lista
+completa está no `HISTORICO.md`, seção 9, e explicada em
+`..\..\Documentacao\09-TESTES-E-SONDAS.md`.
+
+```bash
+npm run sondas      # roda todas e resume no fim
+```
 
 ---
 

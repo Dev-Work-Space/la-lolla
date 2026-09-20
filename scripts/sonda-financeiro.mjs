@@ -98,24 +98,63 @@ try {
   await abrirDialogo(page, 'button:has-text("Saída de dinheiro")');
   await page.fill("#descricao", MARCA + "Conta de luz");
   await page.fill("#valor", "250,00");
+  await page.selectOption("#categoria", "Energia");
+  const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  await page.fill("#data-lanc", ontem);
   await page.selectOption("#carteiraId", cart.id);
+  await page.waitForTimeout(300);
+
+  /*
+   * A tela tem de dizer ONDE o dinheiro sai e em quanto a carteira fica.
+   * Ver o saldo depois é o que denuncia a carteira errada ANTES de gravar —
+   * era o pedido do João, e é o mesmo aviso que o app antigo dava.
+   */
+  {
+    const d = (await page.locator('[role="dialog"]').innerText()).replace(/\s+/g, " ");
+    conferir("o diálogo diz de qual carteira sai", /De qual carteira o dinheiro sai/i.test(d), d.slice(0, 200));
+    conferir(
+      "e mostra o saldo depois do lançamento",
+      /R\$ ?1\.000,00 → R\$ ?750,00/.test(d),
+      d.slice(0, 400),
+    );
+  }
+
   await page.click('[role="dialog"] button:has-text("Gravar")');
   await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
   await page.waitForTimeout(1200);
 
   const lanc = await db.lancamento.findFirst({
     where: { descricao: MARCA + "Conta de luz" },
-    select: { id: true, valor: true, carteiraId: true },
+    select: { id: true, valor: true, carteiraId: true, data: true },
   });
   criados.lancamentos.push(lanc.id);
   conferir("gravado como NEGATIVO (−250)", Number(lanc.valor) === -250, String(lanc.valor));
+
   conferir("vinculado à carteira", lanc.carteiraId === cart.id);
+  conferir(
+    "gravado com a data de ontem, não a de hoje",
+    lanc.data.toISOString().slice(0, 10) === ontem,
+    String(lanc.data),
+  );
 
   await page.reload({ waitUntil: "networkidle" });
   await esperarPronto(page);
   txt = await page.textContent("body");
   conferir("extrato mostra a saída", txt.includes(MARCA + "Conta de luz"));
   conferir("extrato mostra '− R$ 250,00'", /−\s*R\$\s*250,00/.test(txt));
+
+  /* Os dois blocos que vieram do app antigo: a figura de seis meses e o para
+     onde o dinheiro foi. innerText do <main> para não ler o payload do React
+     que mora dentro das <script> do body. */
+  {
+    const vis = (await page.locator("main").innerText()).replace(/\s+/g, " ");
+    conferir("tem o gráfico de entradas e saídas", /entradas e saídas/i.test(vis), vis.slice(0, 200));
+    conferir("com os seis meses rotulados", (vis.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b/gi) || []).length >= 6);
+    conferir("tem as saídas por categoria", /saídas por categoria/i.test(vis));
+    conferir("com a categoria do lançamento", /Energia/.test(vis), vis.slice(0, 300));
+    /* Agrupado por dia, com o resultado do dia ao lado. */
+    conferir("o extrato é agrupado por dia", /\d{2}\/\d{2}\/\d{4}/.test(vis));
+  }
 
   await page.goto(`${BASE}/financeiro?aba=carteiras`, { waitUntil: "networkidle" });
   await esperarPronto(page);
@@ -178,6 +217,45 @@ try {
     Math.abs(Number(saldoCart._sum.valor) - esperado) < 0.01,
     String(saldoCart._sum.valor),
   );
+
+  /*
+   * CATEGORIA ESCRITA À MÃO.
+   *
+   * "Outros" engolia tudo que não estava na lista, e o "saídas por categoria"
+   * perdia justamente o que interessava saber. Escolher Outros agora abre um
+   * campo — e o que a pessoa escreve tem de chegar ao banco, não o rótulo.
+   */
+  console.log("\n=== CATEGORIA LIVRE EM 'OUTROS' ===");
+  await page.goto(`${BASE}/financeiro?aba=caixa`, { waitUntil: "networkidle" });
+  await esperarPronto(page);
+  await abrirDialogo(page, 'button:has-text("Entrada de dinheiro")');
+  {
+    const d = (await page.locator('[role="dialog"]').innerText()).replace(/\s+/g, " ");
+    conferir("a entrada oferece Depósito", /Depósito/.test(d), d.slice(0, 200));
+    conferir("o campo livre começa escondido", (await page.locator("#categoria-livre").count()) === 0);
+  }
+  await page.fill("#descricao", MARCA + "Empréstimo do sócio");
+  await page.fill("#valor", "100,00");
+  await page.selectOption("#categoria", "Outros");
+  await page.waitForTimeout(300);
+  conferir("escolher Outros abre o campo", (await page.locator("#categoria-livre").count()) === 1);
+  await page.fill("#categoria-livre", MARCA + "Empréstimo");
+  await page.selectOption("#carteiraId", cart.id);
+  await page.click('[role="dialog"] button:has-text("Gravar")');
+  await page.waitForSelector('[role="dialog"]', { state: "detached", timeout: 30000 });
+  await page.waitForTimeout(1200);
+
+  const livre = await db.lancamento.findFirst({
+    where: { descricao: MARCA + "Empréstimo do sócio" },
+    select: { id: true, categoria: true, valor: true },
+  });
+  if (livre) criados.lancamentos.push(livre.id);
+  conferir(
+    "gravou a categoria escrita, não 'Outros'",
+    livre?.categoria === MARCA + "Empréstimo",
+    String(livre?.categoria),
+  );
+  conferir("e a entrada é positiva", Number(livre?.valor) === 100, String(livre?.valor));
 
   await page.screenshot({ path: "scripts/shots/financeiro.png", fullPage: true });
 

@@ -1,6 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+/* O saldo em caixa vem do MESMO lugar que o Financeiro usa — uma conta só
+   para uma pergunta só. */
+import { carteirasComSaldo, naoAtribuido } from "@/modules/financeiro/financeiro.service";
 
 /*
  * Dados do Início.
@@ -70,11 +73,23 @@ export async function dadosDoInicio(nome: string) {
             peca: { select: { id: true, nome: true, sku: true } },
           },
         },
+        insumos: { select: { quantidade: true, custoUnit: true } },
       },
     }),
 
-    // 2) saldo em caixa
-    prisma.lancamento.aggregate({ _sum: { valor: true } }),
+    /*
+     * 2) saldo em caixa — a MESMA conta do Financeiro.
+     *
+     * Antes era só `sum(lancamentos)`, e por isso o Início mostrava
+     * "Em caixa R$ 0,00" depois de uma venda paga em Pix: pagamento de venda
+     * não é lançamento. Faltavam também o saldo inicial das carteiras e as
+     * transferências. Dois números para a mesma pergunta é o defeito que o
+     * João chama de "as telas não se falam".
+     */
+    (async () => {
+      const [carteiras, solto] = await Promise.all([carteirasComSaldo(), naoAtribuido()]);
+      return r2(carteiras.reduce((soma, c) => soma + c.saldo, 0) + solto);
+    })(),
 
     // 3) meta do mês
     prisma.config.findUnique({ where: { chave: "meta" } }),
@@ -126,13 +141,33 @@ export async function dadosDoInicio(nome: string) {
   const doDia = noPeriodo(dia0);
   const doMesAnterior = noPeriodo(mesAnt0, mes0);
 
-  const soma = (lista: typeof vendas) => r2(lista.reduce((s, v) => s + num(v.total), 0));
+  /*
+   * FATURAMENTO DESCONTA A DEVOLUÇÃO.
+   *
+   * O campo `total` da venda é o que foi combinado no fechamento; ele não
+   * muda quando uma peça volta (de propósito — o histórico da venda continua
+   * contando o que aconteceu). Quem desconta o devolvido é o cálculo, como já
+   * fazia a ficha da venda (`totalDe`).
+   *
+   * Sem isto, uma venda com TODAS as peças devolvidas continuava faturando: o
+   * João viu R$ 412,70 no ano quando R$ 279,80 daquilo tinha voltado inteiro
+   * para a prateleira. A margem saía inflada junto, porque o custo já
+   * descontava o devolvido e a receita não.
+   */
+  const faturadoDe = (v: (typeof vendas)[number]) =>
+    r2(num(v.total) - v.itens.reduce((t, i) => t + num(i.precoUnit) * i.devolvido, 0));
 
+  const soma = (lista: typeof vendas) => r2(lista.reduce((s, v) => s + faturadoDe(v), 0));
+
+  /* Custo de peça MAIS embalagem — a mesma conta da ficha da venda. Sem os
+     insumos, a margem do Início ficava maior que a da venda que a gerou. */
   const custoDe = (lista: typeof vendas) =>
     r2(
       lista.reduce(
         (s, v) =>
-          s + v.itens.reduce((t, i) => t + num(i.custoUnit) * (i.quantidade - i.devolvido), 0),
+          s +
+          v.itens.reduce((t, i) => t + num(i.custoUnit) * (i.quantidade - i.devolvido), 0) +
+          v.insumos.reduce((t, i) => t + num(i.custoUnit) * i.quantidade, 0),
         0,
       ),
     );
@@ -241,12 +276,20 @@ export async function dadosDoInicio(nome: string) {
       vendasMes: doMes.length,
       fatMes,
       fatMesAnterior: soma(doMesAnterior),
-      vendasAno: doAno.length,
+      /* Conta as vendas que faturaram: com a devolvida e a de valor zero no
+         meio, a tela dizia "3 vendas · ticket R$ 132,90" — e as duas coisas
+         não podiam estar certas ao mesmo tempo. */
+      vendasAno: doAno.filter((v) => faturadoDe(v) > 0.005).length,
+      /* O ticket divide pelas vendas que de fato faturaram: venda zerada por
+         devolução (ou de valor zero) achatava a média de quem comprou. */
       fatAno,
       margemAno,
       margemPct: fatAno > 0 ? Math.round((margemAno / fatAno) * 100) : 0,
-      ticketAno: doAno.length ? r2(fatAno / doAno.length) : 0,
-      emCaixa: num(caixa._sum?.valor),
+      ticketAno: (() => {
+        const comValor = doAno.filter((v) => faturadoDe(v) > 0.005).length;
+        return comValor ? r2(fatAno / comValor) : 0;
+      })(),
+      emCaixa: caixa,
       meta: Number.isFinite(metaValor) && metaValor > 0 ? metaValor : 0,
     },
     serie,

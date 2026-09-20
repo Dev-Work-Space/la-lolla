@@ -25,6 +25,18 @@ const dinheiro = z
 
 const dec = (n: number) => new Prisma.Decimal(n.toFixed(2));
 
+/*
+ * O dia em que o dinheiro se moveu, que não é o dia do registro.
+ *
+ * O frete de ontem lançado hoje tem de entrar no caixa de ontem — senão o
+ * fechamento do dia nunca bate, e é o fechamento do dia que faz alguém
+ * confiar no app. Vazio vale como hoje.
+ */
+const dataDoFato = z
+  .union([z.literal(""), z.coerce.date()])
+  .optional()
+  .transform((v) => (v === "" || v === undefined ? new Date() : (v as Date)));
+
 /* ─────────────── lançamento (entrada e saída de dinheiro) ─────────────── */
 
 const lancamentoSchema = z.object({
@@ -33,6 +45,7 @@ const lancamentoSchema = z.object({
   valor: dinheiro.refine((n) => n > 0, "Informe um valor maior que zero"),
   categoria: z.string().trim().max(40).optional(),
   carteiraId: z.string().optional(),
+  data: dataDoFato,
 });
 
 export async function lancarAction(formData: FormData): Promise<Result<{ id: string }>> {
@@ -54,6 +67,7 @@ export async function lancarAction(formData: FormData): Promise<Result<{ id: str
         valor: dec(d.tipo === "saida" ? -d.valor : d.valor),
         categoria: d.categoria || null,
         carteiraId: d.carteiraId || null,
+        data: d.data,
       },
       select: { id: true },
     });
@@ -136,6 +150,7 @@ const baixaSchema = z.object({
    * da venda, e pagamento tem forma. Nas outras contas o campo é ignorado.
    */
   forma: z.enum(["DINHEIRO", "PIX", "DEBITO", "CREDITO"]).optional(),
+  data: dataDoFato,
 });
 
 /*
@@ -207,12 +222,13 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
             valor: dec(valor),
             carteiraId: d.carteiraId,
             comprovanteId: d.comprovanteId || null,
+            data: d.data,
           },
           select: { id: true },
         });
         await tx.conta.update({
           where: { id: conta.id },
-          data: { status: "PAGA", pagoEm: new Date() },
+          data: { status: "PAGA", pagoEm: d.data },
         });
         return;
       }
@@ -225,6 +241,7 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
           valor: dec(conta.tipo === "PAGAR" ? -valor : valor),
           categoria: conta.tipo === "PAGAR" ? "Conta paga" : "Recebimento",
           comprovanteId: d.comprovanteId || null,
+          data: d.data,
         },
         select: { id: true },
       });
@@ -303,6 +320,7 @@ const transferenciaSchema = z
     origemId: z.string().min(1, "De onde sai"),
     destinoId: z.string().min(1, "Para onde vai"),
     valor: dinheiro.refine((n) => n > 0, "Informe um valor maior que zero"),
+    data: dataDoFato,
   })
   .refine((v) => v.origemId !== v.destinoId, {
     path: ["destinoId"],
@@ -321,7 +339,12 @@ export async function transferirAction(formData: FormData): Promise<Result<{ id:
 
   try {
     const t = await prisma.transferencia.create({
-      data: { origemId: d.origemId, destinoId: d.destinoId, valor: dec(d.valor) },
+      data: {
+        origemId: d.origemId,
+        destinoId: d.destinoId,
+        valor: dec(d.valor),
+        data: d.data,
+      },
       select: { id: true },
     });
     recarregar();

@@ -30,6 +30,13 @@ export function data(d: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(dt);
 }
 
+/** Só a hora: serve à lista do caixa, onde o dia já é o título do grupo. */
+export function hora(d: Date | string | null | undefined): string {
+  if (!d) return "—";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  return new Intl.DateTimeFormat("pt-BR", { timeStyle: "short" }).format(dt);
+}
+
 export function dataHora(d: Date | string | null | undefined): string {
   if (!d) return "—";
   const dt = typeof d === "string" ? new Date(d) : d;

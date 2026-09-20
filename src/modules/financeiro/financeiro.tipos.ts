@@ -28,7 +28,16 @@ export const CATEGORIAS_SAIDA = [
   "Outros",
 ];
 
-export const CATEGORIAS_ENTRADA = ["Venda", "Aporte", "Outros"];
+/*
+ * "Outros" é sempre a ÚLTIMA: quando ela é escolhida, a tela abre um campo
+ * para escrever a categoria de verdade. Sem isso, tudo que não cabia na lista
+ * virava "Outros" e o relatório de para-onde-foi-o-dinheiro perdia a metade
+ * mais interessante.
+ */
+export const CATEGORIAS_ENTRADA = ["Venda", "Aporte", "Depósito", "Outros"];
+
+/** A opção que destrava o campo livre, nas duas listas. */
+export const CATEGORIA_LIVRE = "Outros";
 
 export const FILTROS_CONTA = [
   ["abertas", "Em aberto"],
@@ -94,4 +103,77 @@ export type ContaLinha = {
   fornecedor: string | null;
   vendaId: string | null;
   parcela: string | null;
+  /* Compra no crédito: a conta pertence a uma FATURA, e fatura se paga
+     inteira. Sem estes dois campos a tela lista três compras onde existe uma
+     dívida só, e o botão "Pagar" fica em cima da coisa errada. */
+  cartaoId: string | null;
+  cartaoNome: string | null;
 };
+
+/*
+ * O cartão de crédito, do jeito que a tela precisa.
+ *
+ * Fica no módulo neutro porque o formulário de compra é Client Component e
+ * precisa do tipo — importar do serviço arrastaria o Prisma para o navegador.
+ */
+export type CartaoResumo = {
+  id: string;
+  nome: string;
+  limite: number;
+  /** O que estava comprometido ANTES do app — o campo guardado. */
+  usadoInicial: number;
+  usado: number;
+  disponivel: number;
+  /** 0 a 100, para a barra. */
+  pct: number;
+  diaFechamento: number | null;
+  diaVencimento: number | null;
+  validade: string | null;
+  validadeBR: string | null;
+  vencido: boolean;
+  proximaFatura: { vencimento: Date; total: number; compras: number } | null;
+};
+
+export type FaturaLinha = {
+  id: string;
+  descricao: string;
+  valor: number;
+  dataCompra: Date | null;
+  parcela: string | null;
+};
+
+/** Uma linha da agenda: uma conta a pagar ou a receber, com dia e valor. */
+export type CompromissoAgenda = {
+  id: string;
+  tipo: "pagar" | "receber";
+  titulo: string;
+  quem: string | null;
+  valor: number;
+  vencimento: Date;
+  atrasado: boolean;
+  href: string | null;
+};
+
+/** Uma semana da previsão de caixa. */
+export type SemanaPrevista = {
+  inicio: Date;
+  fim: Date;
+  entra: number;
+  sai: number;
+  /** Saldo projetado ao fim da semana. */
+  saldo: number;
+};
+
+/** Um mês no gráfico do caixa. */
+export type MesResumo = {
+  /** "AAAA-MM" */
+  mes: string;
+  /** "set", "out" — o rótulo curto embaixo da barra. */
+  rotulo: string;
+  entradas: number;
+  saidas: number;
+  saldo: number;
+};
+
+/** Uma fatia de "para onde o dinheiro foi". */
+export type CategoriaGasto = { categoria: string; valor: number; pct: number };

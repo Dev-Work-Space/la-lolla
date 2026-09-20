@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { campoDaData } from "@/lib/dia";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +91,17 @@ export function BaixarConta({
             }}
             className="space-y-4"
           >
+            <div className="space-y-1.5">
+              <Label htmlFor={`data-${contaId}`}>Data</Label>
+              <Input
+                id={`data-${contaId}`}
+                name="data"
+                type="date"
+                defaultValue={campoDaData()}
+                className="text-base"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor={`cart-${contaId}`}>
                 {pagar ? "De qual carteira saiu" : "Em qual carteira entrou"}

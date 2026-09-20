@@ -1,5 +1,11 @@
 # LaLolla · referência do app antigo
 
+> **Nota de 17/09/2026.** Este arquivo é um retrato de 11/09 e não foi
+> atualizado desde então — ele descreve o APP ANTIGO, que não muda mais, e por
+> isso continua válido como consulta. O que o app NOVO faz hoje está na pasta
+> `LaLolla/Documentacao/`, e o que ainda falta está em
+> `Documentacao/12-O-QUE-FALTA.md`.
+
 > **Mudança de enquadramento (11/09/2026).** O João disse: *"o app antigo pode
 > esquecer, só quero que use para consulta, eu tô fazendo tudo novo aqui"*.
 >

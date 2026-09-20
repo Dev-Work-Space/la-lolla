@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio, NaoEncontrado } from "@/lib/errors";
+import { apagarImagem, subirImagemPeca } from "@/lib/storage";
 import type { CriarPecaDados, InsumoDados, PecaComCusto, PecaPublica, PecaVisivel } from "./peca.schema";
 
 /*
@@ -134,7 +135,54 @@ export async function buscarPeca(id: string, veFinanceiro: boolean): Promise<Pec
   return projetar(p, agg._sum.delta ?? 0, veFinanceiro);
 }
 
-export async function criarPeca(dados: CriarPecaDados, veFinanceiro: boolean) {
+/**
+ * Cria a peça e sobe a foto.
+ *
+ * A ordem aqui não é livre. A foto precisa do id da peça para nomear o
+ * arquivo no bucket, então a peça nasce primeiro — mas se a subida falhar, a
+ * peça é APAGADA. Uma peça de catálogo sem foto é justamente o que a
+ * documentação proíbe, e deixá-la ali "pela metade" obrigaria a pessoa a
+ * descobrir sozinha que precisa editar e completar.
+ *
+ * Apagar é seguro neste ponto e só neste ponto: a peça acabou de nascer, não
+ * tem venda, movimento nem orçamento apontando para ela.
+ *
+ * A subida fica FORA da transação de propósito: é uma chamada de rede que
+ * pode levar segundos, e segurar uma conexão do banco aberta esse tempo todo
+ * é como travar a fila do caixa para atender o telefone.
+ */
+export async function criarPeca(
+  dados: CriarPecaDados,
+  veFinanceiro: boolean,
+  foto?: File | null,
+) {
+  const peca = await criarRegistroDaPeca(dados, veFinanceiro);
+
+  if (foto) {
+    try {
+      const img = await subirImagemPeca(peca.id, foto);
+      await prisma.imagemPeca.create({
+        data: {
+          pecaId: peca.id,
+          pathThumb: img.pathThumb,
+          pathMedia: img.pathMedia,
+          pathOriginal: img.pathOriginal,
+          largura: img.largura,
+          altura: img.altura,
+          bytes: img.bytes,
+          principal: true,
+        },
+      });
+    } catch (e) {
+      await prisma.peca.delete({ where: { id: peca.id } }).catch(() => {});
+      throw e;
+    }
+  }
+
+  return peca;
+}
+
+async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean) {
   const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
 
   return prisma.$transaction(async (tx) => {
@@ -169,9 +217,51 @@ export async function criarPeca(dados: CriarPecaDados, veFinanceiro: boolean) {
  * edita o nome da peça sem apagar o custo que ele nem enxerga. Os campos
  * financeiros só entram no update quando quem edita pode vê-los.
  */
-export async function editarPeca(id: string, dados: CriarPecaDados, veFinanceiro: boolean) {
-  const existe = await prisma.peca.findUnique({ where: { id }, select: { id: true } });
+export async function editarPeca(
+  id: string,
+  dados: CriarPecaDados,
+  veFinanceiro: boolean,
+  foto?: File | null,
+) {
+  const existe = await prisma.peca.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      imagens: { select: { id: true, pathThumb: true, pathMedia: true, pathOriginal: true } },
+    },
+  });
   if (!existe) throw new NaoEncontrado("Peça");
+
+  /*
+   * Trocar a foto: sobe a nova ANTES de apagar a velha.
+   *
+   * Se apagasse primeiro e a subida falhasse, a peça ficaria sem foto nenhuma
+   * — pior do que continuar com a antiga. Na ordem certa, o erro deixa tudo
+   * como estava.
+   */
+  if (foto) {
+    const img = await subirImagemPeca(id, foto);
+    const antigas = existe.imagens;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.imagemPeca.deleteMany({ where: { pecaId: id } });
+      await tx.imagemPeca.create({
+        data: {
+          pecaId: id,
+          pathThumb: img.pathThumb,
+          pathMedia: img.pathMedia,
+          pathOriginal: img.pathOriginal,
+          largura: img.largura,
+          altura: img.altura,
+          bytes: img.bytes,
+          principal: true,
+        },
+      });
+    });
+
+    // Só agora o arquivo antigo some do bucket.
+    await apagarImagem(antigas.flatMap((i) => [i.pathThumb, i.pathMedia, i.pathOriginal]));
+  }
 
   const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
 
