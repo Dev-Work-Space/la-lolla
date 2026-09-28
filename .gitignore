@@ -42,3 +42,5 @@ next-env.d.ts
 
 # o modelo sem segredo DEVE ser versionado
 !.env.example
+
+/graphify-out

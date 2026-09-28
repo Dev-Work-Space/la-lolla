@@ -173,6 +173,13 @@ endereço.
 
 ---
 
+## Criar usuários
+
+Veja [Como criar ou atualizar um usuário](CRIAR-USUARIO.md) para os comandos,
+os papéis disponíveis e o funcionamento da senha no primeiro acesso.
+
+---
+
 ## Se der problema
 
 | Sintoma | Causa quase certa |
