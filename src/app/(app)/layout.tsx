@@ -3,6 +3,7 @@ import { sessaoAtual } from "@/lib/auth/sessao";
 import { BarraNavegacao } from "@/components/layout/barra-navegacao";
 import { BarraLateral } from "@/components/layout/barra-lateral";
 import { Cabecalho } from "@/components/layout/cabecalho";
+import { ChatFlutuante } from "@/modules/assistente/components/chat-flutuante";
 import { cn } from "@/lib/utils";
 
 /*
@@ -48,6 +49,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <BarraNavegacao permissoes={sessao.permissoes} papel={sessao.papel} />
+
+      {/*
+        O ChatFlutuante é Client Component mas a decisão de renderizá-lo
+        vive aqui, no servidor: verificamos a presença da chave antes de
+        passar a prop `configurado`. A chave em si NUNCA desce ao cliente.
+      */}
+      <ChatFlutuante configurado={Boolean(process.env.GEMINI_API_KEY)} />
     </div>
   );
 }
