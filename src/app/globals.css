@@ -7,14 +7,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-lalolla);
   --font-mono: var(--font-geist-mono);
   --color-marca: var(--ll-brand);
   --color-ouro: var(--ll-accent);
   --color-ouro-suave: var(--ll-accent-soft);
   --color-ok: var(--ll-ok);
   --color-aviso: var(--ll-warn);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-lalolla);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,6 +40,11 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--ll-accent-hover);
+  --color-destructive-soft: var(--ll-danger-soft);
+  --color-overlay: var(--ll-overlay);
+  --shadow-card: var(--ll-shadow-card);
+  --shadow-dialog: var(--ll-shadow-dialog);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -53,37 +58,39 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   PALETA OFICIAL DA LALOLLA
-   Copiada do app antigo (web/estilo.css) sem alterar um tom.
-   Areia e tinta quente no claro; dourado como única cor de marca.
-   ══════════════════════════════════════════════════════════════ */
+/* LaLolla: marfim, areia e ouro envelhecido. Valores compartilhados pela UI. */
 :root {
-  /* --- superfícies e tinta --- */
+  --radius: 0.625rem;
+
+  /* Superfícies e texto. */
   --ll-canvas: #F7F6F3;
   --ll-surface: #FFFFFF;
-  --ll-surface-2: #F1EFE9;
-  --ll-surface-3: #E9E5DC;
-  --ll-ink: #1A1814;
+  --ll-surface-2: #EEE9E2;
+  --ll-surface-3: #EBE7DF;
+  --ll-ink: #26221E;
   --ll-ink-2: #4C463D;
-  --ll-muted: #7B756A;
-  --ll-line: #E6E1D6;
-  --ll-line-2: #D8D1C2;
+  --ll-muted: #6F665C;
+  --ll-line: #DED5C9;
+  --ll-line-2: #948575;
 
-  /* --- marca --- */
-  --ll-brand: #A9792C;
-  --ll-accent: #8C6620;
+  /* Marca: também usada em textos pequenos, com contraste AA. */
+  --ll-brand: #805D2D;
+  --ll-accent-hover: #704F25;
   --ll-accent-ink: #FFFFFF;
-  --ll-accent-soft: #F6EFDF;
-  --ll-accent-line: #E3D3B0;
+  --ll-accent-soft: #F2E8D8;
+  --ll-accent-line: #D8C4A3;
 
-  /* --- estados --- */
+  /* Estados. */
   --ll-ok: #1F6B4C;
   --ll-ok-soft: #E7F1EC;
   --ll-warn: #9A5322;
   --ll-warn-soft: #F7EBE2;
   --ll-danger: #A32B3C;
   --ll-danger-soft: #FAEAEA;
+
+  --ll-overlay: rgb(38 34 30 / 32%);
+  --ll-shadow-card: 0 2px 8px rgb(38 34 30 / 6%);
+  --ll-shadow-dialog: 0 16px 48px rgb(38 34 30 / 16%);
 
   /* --- barra lateral (68px fechada, 244px aberta no hover) --- */
   --nav-fechada: 68px;
@@ -122,20 +129,47 @@
      precisa reservar exatamente isto por cima. */
   --cabecalho-celular: 52px;
   --ll-ease: cubic-bezier(.22, .72, .24, 1);
+}
 
-  /* --- ponte para os tokens do shadcn --- */
+.dark {
+  --ll-canvas: #191714;
+  --ll-surface: #24201C;
+  --ll-surface-2: #302B25;
+  --ll-surface-3: #393229;
+  --ll-ink: #F4EFE8;
+  --ll-ink-2: #D9CFC2;
+  --ll-muted: #BDB2A4;
+  --ll-line: #494036;
+  --ll-line-2: #8B7D6B;
+
+  --ll-brand: #D6B475;
+  --ll-accent-hover: #E2C38F;
+  --ll-accent-ink: #211A11;
+  --ll-accent-soft: #3A3022;
+  --ll-accent-line: #705A38;
+
+  --ll-ok: #79C49A;
+  --ll-ok-soft: #21362A;
+  --ll-warn: #E7B174;
+  --ll-warn-soft: #3D2C1D;
+  --ll-danger: #F08C9C;
+  --ll-danger-soft: #40252B;
+
+  --ll-overlay: rgb(0 0 0 / 56%);
+  --ll-shadow-card: 0 2px 8px rgb(0 0 0 / 18%);
+  --ll-shadow-dialog: 0 16px 48px rgb(0 0 0 / 36%);
+}
+
+/* Recalcula os aliases no tema ativo, inclusive em superfícies .dark locais. */
+:root,
+.dark {
+  --ll-accent: var(--ll-brand);
   --background: var(--ll-canvas);
   --foreground: var(--ll-ink);
   --card: var(--ll-surface);
   --card-foreground: var(--ll-ink);
   --popover: var(--ll-surface);
   --popover-foreground: var(--ll-ink);
-  /*
-   * O botão principal era PRETO — o padrão que veio com a biblioteca. Num app
-   * de semijoias, com a logo em ouro velho, "Nova venda" em preto era a coisa
-   * mais genérica da tela. Agora o ouro da marca manda no botão de ação, e o
-   * preto continua sendo só a cor do texto.
-   */
   --primary: var(--ll-accent);
   --primary-foreground: var(--ll-accent-ink);
   --secondary: var(--ll-surface-2);
@@ -145,15 +179,15 @@
   --accent: var(--ll-accent-soft);
   --accent-foreground: var(--ll-accent);
   --destructive: var(--ll-danger);
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: var(--ll-canvas);
   --border: var(--ll-line);
   --input: var(--ll-line-2);
-  --ring: var(--ll-brand);
-  --chart-1: #9A7118;
-  --chart-2: #2C6FB5;
-  --chart-3: #8E2A52;
-  --chart-4: var(--ll-brand);
-  --chart-5: var(--ll-ok);
+  --ring: var(--ll-accent);
+  --chart-1: var(--ll-accent);
+  --chart-2: var(--ll-ok);
+  --chart-3: var(--ll-danger);
+  --chart-4: var(--ll-warn);
+  --chart-5: var(--ll-muted);
   --sidebar: var(--ll-surface);
   --sidebar-foreground: var(--ll-ink);
   --sidebar-primary: var(--ll-accent);
@@ -161,77 +195,12 @@
   --sidebar-accent: var(--ll-accent-soft);
   --sidebar-accent-foreground: var(--ll-accent);
   --sidebar-border: var(--ll-line);
-  --sidebar-ring: var(--ll-brand);
-}
-
-/* Escuro: o dourado clareia para manter contraste sobre fundo quase preto. */
-
-.dark {
-  /*
-   * Os tokens --ll-* da MARCA também mudam no escuro.
-   *
-   * Antes só os tokens da biblioteca (--background, --card…) tinham versão
-   * escura, e tudo que usa o ouro direto — o chip de filtro ligado, a fita do
-   * cartão, o item ativo da barra — continuava com o tom feito para papel
-   * claro. Resultado: o botão "Nova peça" com um dourado e o chip "Todas" com
-   * outro, mais escuro, na mesma tela.
-   *
-   * O creme vira marrom profundo e o ouro clareia, que é o que mantém o
-   * contraste sobre fundo quase preto.
-   */
-  --ll-brand: #D2A657;
-  --ll-accent: #C79A46;
-  --ll-accent-ink: #201A0E;
-  --ll-accent-soft: #2A2114;
-  --ll-accent-line: #4A3B1F;
-  --ll-surface-2: #262626;
-  --ll-surface-3: #303030;
-  --ll-line: #3A3A3A;
-  --ll-line-2: #474747;
-  --ll-danger: #E8677A;
-  --ll-danger-soft: #3A1D22;
-  --ll-ok: #57C08F;
-  --ll-ok-soft: #15301F;
-  --ll-warn: #E39A5E;
-  --ll-warn-soft: #33220F;
-
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* No escuro o ouro precisa clarear para continuar legível sobre o fundo. */
-  --primary: #C79A46;
-  --primary-foreground: #201A0E;
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: var(--ll-accent);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;
@@ -253,10 +222,6 @@
    */
   :focus:not(:focus-visible) {
     outline: none;
-  }
-  :focus-visible {
-    outline: 2px solid var(--ll-accent);
-    outline-offset: 2px;
   }
 
   /*
@@ -295,6 +260,12 @@
     max-width: 100%;
     overflow-x: clip;
   }
+}
+
+/* Fora das camadas para que outline-none não oculte o foco do teclado. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* ═══════════════════════ ENTRADA DOS BLOCOS ═══════════════════════

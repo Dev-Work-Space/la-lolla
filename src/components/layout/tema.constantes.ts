@@ -20,7 +20,7 @@ export const CHAVE_TEMA = "lalolla-tema";
  * cor no topo.
  */
 export const COR_BARRA_CLARA = "#F7F6F3";
-export const COR_BARRA_ESCURA = "#0D0D0D";
+export const COR_BARRA_ESCURA = "#191714";
 
 export type Tema = "claro" | "escuro" | "sistema";
 
