@@ -30,7 +30,7 @@ export default async function InicioPage() {
   }));
 
   return (
-    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <PainelInicio dados={dados} />
     </main>
   );

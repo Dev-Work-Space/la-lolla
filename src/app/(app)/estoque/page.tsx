@@ -50,7 +50,7 @@ export default async function EstoquePage({
   };
 
   return (
-    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <Segmentado
         opcoes={[
           ["catalogo", "Peças"],

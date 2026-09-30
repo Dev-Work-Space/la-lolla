@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { campoDaData } from "@/lib/dia";
 import { buscarOrcamento } from "@/modules/orcamentos/orcamento.service";
@@ -60,10 +60,10 @@ export default async function NovaVendaPage({
         href={deOrcamento ? `/orcamentos/${deOrcamento.id}` : "/vendas"}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         {deOrcamento ? `Orçamento ${deOrcamento.rotulo}` : "Portal de vendas"}
       </Link>
-      <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">
+      <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">
         {deOrcamento ? "Fechar a venda do orçamento" : "Nova venda"}
       </h1>
       <NovaVenda orcamento={deOrcamento} />

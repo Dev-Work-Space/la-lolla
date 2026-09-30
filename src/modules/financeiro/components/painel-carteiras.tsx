@@ -1,4 +1,5 @@
-import { PiggyBank, Wallet } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { PiggyBankIcon, WalletIcon } from "@phosphor-icons/react/ssr";
 import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { BlocoVazio } from "@/components/padrao/indicadores";
@@ -26,7 +27,7 @@ export function PainelCarteiras({
   const total = carteiras.reduce((s, c) => s + c.saldo, 0);
 
   return (
-    <div className="ll-entra space-y-4">
+    <div className="space-y-4">
       <p className="rounded-lg border border-dashed px-4 py-3 text-sm leading-relaxed text-muted-foreground">
         <strong className="text-foreground">Carteira é onde o dinheiro está</strong> — espécie,
         conta do banco, reserva. Não confunda com a forma de pagamento: um Pix e um crédito podem
@@ -39,7 +40,7 @@ export function PainelCarteiras({
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {carteiras.map((c) => (
-              <section key={c.id} className="rounded-xl border bg-card p-4">
+              <Card as="section" key={c.id} className="block overflow-visible py-0 text-base p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
@@ -51,9 +52,9 @@ export function PainelCarteiras({
                       )}
                     >
                       {c.tipo === "RESERVA" ? (
-                        <PiggyBank className="size-4" aria-hidden />
+                        <PiggyBankIcon weight="regular" className="size-4" aria-hidden />
                       ) : (
-                        <Wallet className="size-4" aria-hidden />
+                        <WalletIcon weight="regular" className="size-4" aria-hidden />
                       )}
                     </span>
                     <span className="min-w-0">
@@ -100,14 +101,14 @@ export function PainelCarteiras({
                     <dd className="tabular-nums text-destructive">− {brl(c.saidas)}</dd>
                   </div>
                 </dl>
-              </section>
+              </Card>
             ))}
           </div>
 
-          <div className="flex items-baseline justify-between rounded-xl border bg-card px-4 py-3">
+          <Card className="overflow-visible py-0 text-base flex flex-row gap-0 items-baseline justify-between px-4 py-3">
             <span className="text-sm font-medium">Somando todas</span>
             <span className="text-lg font-bold tabular-nums">{brl(total)}</span>
-          </div>
+          </Card>
 
           {naoAtribuido !== 0 && (
             <div className="rounded-lg border border-(--ll-accent-line) bg-(--ll-accent-soft) px-4 py-3">

@@ -7,6 +7,7 @@ Sistema de gestão da loja: catálogo, vendas, compras, estoque e financeiro.
 | Arquivo | Para quê |
 |---|---|
 | **[COMO-RODAR.md](COMO-RODAR.md)** | passo a passo para pôr o app no ar noutro computador |
+| **[CRIAR-USUARIO.md](CRIAR-USUARIO.md)** | criar ou atualizar usuários pelo terminal, definir senha e escolher permissões |
 | **[HISTORICO.md](HISTORICO.md)** | o que foi feito, por quê, e as armadilhas que já custaram tempo |
 | **[CLAUDE.md](CLAUDE.md)** | as regras do projeto — lido automaticamente por quem for programar |
 | [PARIDADE.md](PARIDADE.md) | o que o app antigo fazia, tela por tela (consulta) |

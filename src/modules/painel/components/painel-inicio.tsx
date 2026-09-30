@@ -41,7 +41,7 @@ export function PainelInicio({ dados }: { dados: Promise<DadosPainel> }) {
         João: o Início é para olhar a loja, não para configurá-la. A leitura do
         arranjo continua sendo feita aqui, no localStorage deste aparelho.
       */}
-      <h1 className="mb-4 text-xl font-bold tracking-tight">Início</h1>
+      <h1 className="ll-entra-cabecalho mb-4 text-xl font-bold tracking-tight">Início</h1>
 
       <Suspense fallback={<EsqueletoGrade />}>
         <Grade dados={dados} cfg={cfg} pronto={pronto} />
@@ -68,7 +68,7 @@ function Grade({
 
   if (ligados.length === 0) {
     return pronto ? (
-      <div className="ll-entra rounded-xl border border-dashed px-6 py-14 text-center">
+      <div className="rounded-xl border border-dashed px-6 py-14 text-center">
         <p className="font-semibold">Seu painel está vazio.</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Escolha o que mostrar aqui em <strong>Ajustes › Meu painel do Início</strong>.
@@ -80,20 +80,13 @@ function Grade({
   return (
     // Grade de 12 colunas no monitor; no celular tudo ocupa a largura.
     <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-12">
-      {ligados.map((it, i) => (
+      {ligados.map((it) => (
         <section
           key={it.id}
           data-wgt={it.id}
-          /*
-           * Os blocos entram em cascata curta, de cima para baixo. Todos ao
-           * mesmo tempo pareceria um piscar só; o atraso de 40ms entre eles
-           * dá a leitura na ordem em que a pessoa olha. Passa de 5 e para de
-           * escalonar, senão o último bloco demoraria a aparecer.
-           */
-          className="ll-entra min-w-0"
+          className="min-w-0"
           style={{
             gridColumn: `span ${COLUNAS[it.tam]} / span ${COLUNAS[it.tam]}`,
-            animationDelay: `${Math.min(i, 5) * 0.04}s`,
           }}
         >
           <RenderWidget id={it.id} dados={d} />

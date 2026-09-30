@@ -4,9 +4,9 @@
  * O motivo é a mesma regra do App Router que já custou um 500 nesta base
  * (ver navegacao.ts): quando um Server Component importa algo de um módulo
  * marcado com "use client", ele NÃO recebe o valor — recebe uma referência
- * para o cliente. O layout raiz é Server Component e precisa do texto do
- * script para injetar no <head>; vindo do módulo com "use client", ele
- * receberia um objeto opaco e o script iria para a página como lixo.
+ * para o cliente. O layout raiz é Server Component e também importa constantes deste
+ * arquivo; vindas de um módulo com "use client", seriam referências
+ * opacas em vez dos valores esperados.
  *
  * Módulo neutro pode ser importado pelos dois lados.
  */
@@ -20,7 +20,7 @@ export const CHAVE_TEMA = "lalolla-tema";
  * cor no topo.
  */
 export const COR_BARRA_CLARA = "#F7F6F3";
-export const COR_BARRA_ESCURA = "#0D0D0D";
+export const COR_BARRA_ESCURA = "#191714";
 
 export type Tema = "claro" | "escuro" | "sistema";
 
@@ -35,13 +35,9 @@ export type Tema = "claro" | "escuro" | "sistema";
  * `data-theme` fica junto porque ajuda a enxergar o estado ao depurar, mas
  * quem pinta é a classe.
  *
- * Roda ANTES da primeira pintura, no <head>.
- *
- * Sem ele o app pinta claro, o React acorda, lê a escolha e troca para
- * escuro — e quem escolheu escuro leva um flash branco na cara toda vez que
- * abre. É feio e, no escuro, incomoda de verdade.
- *
- * Pequeno e sem dependência de propósito: ele bloqueia a pintura.
+ * Inserido por ScriptTema no HTML do servidor, antes da primeira pintura.
+ * Não é renderizado novamente pelo React no cliente. Mantém a escolha salva e a cor da barra do navegador
+ * sincronizadas sem depender de um efeito de componente cliente.
  */
 export const SCRIPT_TEMA = `
 try {

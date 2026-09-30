@@ -1,6 +1,7 @@
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { buscarOrcamento, temCusto } from "@/modules/orcamentos/orcamento.service";
 import { FORMAS } from "@/modules/vendas/venda.service";
@@ -58,14 +59,14 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
         href="/vendas?aba=orcamentos"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Orçamentos
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Orçamento {o.rotulo}</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Orçamento {o.rotulo}</h1>
             {o.status === "ABERTO" && !o.vencido && <Pilula tom="accent">em aberto</Pilula>}
             {o.vencido && <Pilula tom="due">vencido</Pilula>}
             {o.status === "CONVERTIDO" && <Pilula>aprovado</Pilula>}
@@ -165,7 +166,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* ── itens ── */}
-      <section className="mt-4 rounded-xl border bg-card">
+      <Card as="section" className="block overflow-visible py-0 text-base mt-4">
         <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Peças da proposta
         </h2>
@@ -200,15 +201,15 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
             <span className="tabular-nums">{brl(o.total)}</span>
           </div>
         </div>
-      </section>
+      </Card>
 
       {o.observacao && (
-        <section className="mt-4 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base mt-4 p-4">
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Observação
           </h2>
           <p className="mt-1.5 whitespace-pre-wrap text-sm">{o.observacao}</p>
-        </section>
+        </Card>
       )}
 
       {/* A reserva é o efeito menos óbvio do orçamento; dizer isso na ficha

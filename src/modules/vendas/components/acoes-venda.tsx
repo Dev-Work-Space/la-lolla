@@ -85,20 +85,21 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
             <Label>Forma</Label>
             <div className="flex flex-wrap gap-1">
               {FORMAS.map(([v, r]) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={v}
                   type="button"
                   aria-pressed={forma === v}
                   onClick={() => setForma(v)}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium",
+                    "h-auto gap-0 p-0 whitespace-normal rounded-full border border-border px-3 py-1.5 text-xs font-medium",
                     forma === v
                       ? "border-foreground bg-foreground text-background"
                       : "text-muted-foreground",
                   )}
                 >
                   {r}
-                </button>
+                </Button>
               ))}
             </div>
           </div>

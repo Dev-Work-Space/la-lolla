@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function FormAjustes({
       }}
       className="space-y-4"
     >
-      <section className="space-y-4 rounded-xl border bg-card p-4">
+      <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Peças e preço
         </h2>
@@ -82,9 +83,9 @@ export function FormAjustes({
           usos={usoCategorias}
           erro={erros.categorias?.[0]}
         />
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-xl border bg-card p-4">
+      <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Metas e clientes
         </h2>
@@ -109,9 +110,9 @@ export function FormAjustes({
           inputMode="numeric"
           sufixo="dias"
         />
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-xl border bg-card p-4">
+      <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Etiquetas
         </h2>
@@ -125,7 +126,7 @@ export function FormAjustes({
           placeholder="https://…"
           type="url"
         />
-      </section>
+      </Card>
 
       {aviso && (
         <p role="alert" className="text-sm font-medium text-destructive">

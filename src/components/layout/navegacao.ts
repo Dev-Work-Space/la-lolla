@@ -1,4 +1,5 @@
-import { Home, ShoppingBag, ShoppingCart, Boxes, Wallet, Users, Settings, type LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
+import { HouseIcon, ShoppingBagIcon, ShoppingCartIcon, PackageIcon, WalletIcon, UsersIcon, GearIcon } from "@phosphor-icons/react/ssr";
 import type { Papel } from "@prisma/client";
 import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
 
@@ -19,24 +20,24 @@ export type ItemNav = {
   href: string;
   nome: string;
   curto: string;
-  icone: LucideIcon;
+  icone: Icon;
   area: Area;
 };
 
 export const ITENS_NAV: ItemNav[] = [
-  { href: "/", nome: "Início", curto: "Início", icone: Home, area: "pecas" },
-  { href: "/vendas", nome: "Portal de vendas", curto: "Vendas", icone: ShoppingBag, area: "vendas" },
-  { href: "/compras", nome: "Portal de compras", curto: "Compras", icone: ShoppingCart, area: "pecas" },
-  { href: "/estoque", nome: "Estoque", curto: "Estoque", icone: Boxes, area: "pecas" },
-  { href: "/financeiro", nome: "Financeiro", curto: "Caixa", icone: Wallet, area: "financeiro" },
-  { href: "/cadastros", nome: "Cadastros", curto: "Clientes", icone: Users, area: "pessoas" },
+  { href: "/", nome: "Início", curto: "Início", icone: HouseIcon, area: "pecas" },
+  { href: "/vendas", nome: "Portal de vendas", curto: "Vendas", icone: ShoppingBagIcon, area: "vendas" },
+  { href: "/compras", nome: "Portal de compras", curto: "Compras", icone: ShoppingCartIcon, area: "pecas" },
+  { href: "/estoque", nome: "Estoque", curto: "Estoque", icone: PackageIcon, area: "pecas" },
+  { href: "/financeiro", nome: "Financeiro", curto: "Caixa", icone: WalletIcon, area: "financeiro" },
+  { href: "/cadastros", nome: "Cadastros", curto: "Clientes", icone: UsersIcon, area: "pessoas" },
   /*
    * Ajustes fica por último e só aparece para quem pode editá-lo. O ponto de
    * atenção 5 da documentação diz que hoje a engrenagem abre para qualquer
    * perfil e o Vendedor vê campos que não consegue salvar — aqui ele nem vê o
    * caminho.
    */
-  { href: "/ajustes", nome: "Ajustes", curto: "Ajustes", icone: Settings, area: "ajustes" },
+  { href: "/ajustes", nome: "Ajustes", curto: "Ajustes", icone: GearIcon, area: "ajustes" },
 ];
 
 /** Início é sempre visível; o resto depende de poder ver a área. */

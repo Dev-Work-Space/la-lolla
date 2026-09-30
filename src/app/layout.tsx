@@ -1,18 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { SCRIPT_TEMA } from "@/components/layout/tema.constantes";
+import { ScriptTema } from "@/components/layout/script-tema";
+import { COR_BARRA_CLARA } from "@/components/layout/tema.constantes";
 import "./globals.css";
 
-/*
- * A variável precisa se chamar --font-sans: é o nome que o bloco
- * `@theme inline` do globals.css procura. Publicando como --font-inter, a
- * regra virava `--font-sans: var(--font-sans)` (uma referência a si mesma),
- * o navegador desistia e o app inteiro caía no serifado padrão.
- */
-const inter = Inter({
+// Nome próprio evita uma referência circular ao token --font-sans do Tailwind.
+const manrope = Manrope({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-sans",
+  variable: "--font-lalolla",
   display: "swap",
 });
 
@@ -29,7 +25,7 @@ export const metadata: Metadata = {
  * claro deixava a barra do iPhone preta em cima de tela clara.
  */
 export const viewport: Viewport = {
-  themeColor: "#F7F6F3",
+  themeColor: COR_BARRA_CLARA,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -50,17 +46,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${manrope.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        {/*
-          Aplica o tema escolhido ANTES da primeira pintura.
-
-          Sem isto o app pinta claro, o React acorda, lê a escolha e troca para
-          escuro — e quem escolheu escuro leva um flash branco na cara toda vez
-          que abre. É por isso que este script fica aqui, cru e bloqueante, em
-          vez de virar um componente.
-        */}
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+        <ScriptTema />
       </head>
       <body className="flex min-h-full flex-col font-sans">
         {children}

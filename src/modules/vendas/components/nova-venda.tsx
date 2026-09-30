@@ -1,8 +1,11 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
+
+import { Card } from "@/components/ui/card";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Trash2, X } from "lucide-react";
+import { PlusIcon, MagnifyingGlassIcon, TrashIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -248,10 +251,10 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
         )}
 
         {!travado && (
-        <section className="rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base p-4">
           <Label htmlFor="busca-peca">Adicionar peça</Label>
           <div className="relative mt-1.5">
-            <Search
+            <MagnifyingGlassIcon weight="regular"
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
@@ -264,14 +267,15 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               autoComplete="off"
             />
             {termo && (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => mudarTermo("")}
                 aria-label="Limpar busca"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
               >
-                <X className="size-4" />
-              </button>
+                <XIcon weight="regular" className="size-4" />
+              </Button>
             )}
           </div>
 
@@ -279,10 +283,11 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
             <ul className="mt-2 max-h-72 divide-y overflow-y-auto rounded-lg border">
               {achadas.map((p) => (
                 <li key={p.id}>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => adicionar(p)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
+                    className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{p.nome}</span>
@@ -297,8 +302,8 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                     <span className="shrink-0 text-sm font-medium tabular-nums">
                       {p.preco > 0 ? brl(p.preco) : "sem preço"}
                     </span>
-                    <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
+                    <PlusIcon weight="bold" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -309,10 +314,10 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
           {!buscando && termo.length >= 2 && achadas.length === 0 && (
             <p className="mt-2 text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
           )}
-        </section>
+        </Card>
         )}
 
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {travado ? "Peças do orçamento" : "No carrinho"}
           </h2>
@@ -409,7 +414,7 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                     aria-label={`Remover ${i.nome}`}
                     onClick={() => setItens((a) => a.filter((x) => x.id !== i.id))}
                   >
-                    <Trash2 className="size-4 text-muted-foreground" />
+                    <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
                   </Button>
                     </>
                   )}
@@ -417,28 +422,25 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       </div>
 
       {/* ─────────── fechamento ─────────── */}
       <div className="space-y-4 lg:sticky lg:top-4">
-        <section className="space-y-4 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="cliente">Cliente</Label>
-            <select
+            <Seletor
               id="cliente"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm disabled:opacity-70"
               value={clienteId}
               disabled={travado}
-              onChange={(e) => setClienteId(e.target.value)}
-            >
-              <option value="">Sem cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
+              onValueChange={(valor) => setClienteId(valor)}
+              opcoes={[
+                { value: "", label: "Sem cliente" },
+                ...clientes.map((c) => ({ value: c.id, label: c.nome }))
+              ]}
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -453,20 +455,21 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               <>
             <div className="flex flex-wrap gap-1">
               {ATALHOS_DESCONTO.map((p) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={p}
                   type="button"
                   aria-pressed={paraNumero(descontoPct) === p}
                   onClick={() => setDescontoPct(String(p))}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    "h-auto gap-0 p-0 whitespace-normal rounded-full border border-border px-3 py-1.5 text-xs font-medium",
                     paraNumero(descontoPct) === p
                       ? "border-foreground bg-foreground text-background"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {p === 0 ? "Sem desconto" : `${p}%`}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="flex items-center gap-2">
@@ -504,9 +507,9 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               <dd className="text-xl font-bold tabular-nums">{brl(contas.total)}</dd>
             </div>
           </dl>
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Como pagou
           </h2>
@@ -524,7 +527,7 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                     aria-label="Remover pagamento"
                     onClick={() => setPagos((a) => a.filter((_, i) => i !== ix))}
                   >
-                    <X className="size-3.5" />
+                    <XIcon weight="regular" className="size-3.5" />
                   </Button>
                 </li>
               ))}
@@ -533,20 +536,21 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
 
           <div className="flex flex-wrap gap-1">
             {FORMAS.map(([v, r]) => (
-              <button
+              <Button
+                variant="ghost"
                 key={v}
                 type="button"
                 aria-pressed={formaNova === v}
                 onClick={() => setFormaNova(v)}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  "h-auto gap-0 p-0 whitespace-normal rounded-full border border-border px-3 py-1.5 text-xs font-medium",
                   formaNova === v
                     ? "border-foreground bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -620,16 +624,17 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
                   <Label htmlFor="intervalo" className="text-xs">
                     A cada
                   </Label>
-                  <select
+                  <Seletor
                     id="intervalo"
                     className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
                     value={intervalo}
-                    onChange={(e) => setIntervalo(e.target.value as typeof intervalo)}
-                  >
-                    <option value="mes">Mês</option>
-                    <option value="quinzena">15 dias</option>
-                    <option value="semana">Semana</option>
-                  </select>
+                    onValueChange={(valor) => setIntervalo(valor as typeof intervalo)}
+                    opcoes={[
+                      { value: "mes", label: "Mês" },
+                      { value: "quinzena", label: "15 dias" },
+                      { value: "semana", label: "Semana" }
+                    ]}
+                  />
                 </div>
               </div>
               <div className="space-y-1">
@@ -650,9 +655,9 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
               </p>
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="obs">Observação</Label>
             <Input
@@ -682,7 +687,7 @@ export function NovaVenda({ orcamento }: { orcamento?: VendaDeOrcamento }) {
           <p className="text-center text-xs text-muted-foreground">
             Pix, débito e crédito ficam pendentes de comprovante — dá para anexar depois.
           </p>
-        </section>
+        </Card>
       </div>
     </div>
   );
