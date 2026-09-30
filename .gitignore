@@ -44,4 +44,3 @@ next-env.d.ts
 !.env.example
 
 /graphify-out
-/tasks
