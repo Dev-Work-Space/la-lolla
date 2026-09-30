@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +34,7 @@ export function Indicador({
      * cartões vira barulho; o que separa aqui é o branco do cartão sobre o
      * creme da página.
      */
-    <div
-      className={cn(
-        "relative min-w-0 overflow-hidden rounded-xl border bg-card p-3.5",
-        "shadow-[0_1px_2px_rgba(26,24,20,.04)] transition-shadow duration-200",
-        "hover:shadow-[0_2px_10px_-4px_rgba(26,24,20,.14)]",
-      )}
-    >
+    <Card className="relative block min-w-0 p-3.5 text-base">
       <span
         aria-hidden
         className={cn(
@@ -71,7 +67,7 @@ export function Indicador({
           {sub}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -115,7 +111,7 @@ export function Segmentado({
   return (
     // Fundo próprio e aba erguida em branco: a escolhida parece uma pastilha
     // por cima, em vez de só mudar de cor. Fica óbvio onde se está.
-    <div className="inline-flex rounded-xl border bg-(--ll-surface-2) p-1">
+    <div className="ll-entra-cabecalho inline-flex rounded-xl border bg-(--ll-surface-2) p-1">
       {opcoes.map(([valor, rotulo]) => (
         <Link
           key={valor}
@@ -173,9 +169,9 @@ export function Chips({
 /** Cartão-lista: as linhas do app antigo (`.card.list` + `.row`). */
 export function Lista({ children }: { children: React.ReactNode }) {
   return (
-    <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(26,24,20,.04)]">
+    <Card className="block divide-y py-0 text-base">
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -265,8 +261,10 @@ export function Pilula({
   tom?: "neutro" | "due" | "accent";
 }) {
   return (
-    <span
+    <Badge
+      variant="outline"
       className={cn(
+        "h-auto",
         // Contorno fino no lugar do fundo chapado: a pílula para de competir
         // com o nome da peça, que é o que a pessoa está lendo.
         "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
@@ -276,7 +274,7 @@ export function Pilula({
       )}
     >
       {children}
-    </span>
+    </Badge>
   );
 }
 

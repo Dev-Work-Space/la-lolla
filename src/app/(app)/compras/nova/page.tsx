@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { NovaCompra } from "@/modules/compras/components/nova-compra";
 
@@ -20,10 +20,10 @@ export default async function NovaCompraPage() {
         href="/compras"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de compras
       </Link>
-      <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">Nova compra</h1>
+      <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">Nova compra</h1>
       <NovaCompra />
     </main>
   );

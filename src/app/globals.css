@@ -44,6 +44,7 @@
   --color-destructive-soft: var(--ll-danger-soft);
   --color-overlay: var(--ll-overlay);
   --shadow-card: var(--ll-shadow-card);
+  --shadow-card-hover: var(--ll-shadow-card-hover);
   --shadow-dialog: var(--ll-shadow-dialog);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
@@ -60,7 +61,7 @@
 
 /* LaLolla: marfim, areia e ouro envelhecido. Valores compartilhados pela UI. */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
   /* Superfícies e texto. */
   --ll-canvas: #F7F6F3;
@@ -90,6 +91,7 @@
 
   --ll-overlay: rgb(38 34 30 / 32%);
   --ll-shadow-card: 0 2px 8px rgb(38 34 30 / 6%);
+  --ll-shadow-card-hover: 0 4px 12px rgb(38 34 30 / 10%);
   --ll-shadow-dialog: 0 16px 48px rgb(38 34 30 / 16%);
 
   /* --- barra lateral (68px fechada, 244px aberta no hover) --- */
@@ -129,6 +131,8 @@
      precisa reservar exatamente isto por cima. */
   --cabecalho-celular: 52px;
   --ll-ease: cubic-bezier(.22, .72, .24, 1);
+  --ll-duracao-hover: 150ms;
+  --ll-duracao-suave: 180ms;
 }
 
 .dark {
@@ -157,6 +161,7 @@
 
   --ll-overlay: rgb(0 0 0 / 56%);
   --ll-shadow-card: 0 2px 8px rgb(0 0 0 / 18%);
+  --ll-shadow-card-hover: 0 4px 12px rgb(0 0 0 / 24%);
   --ll-shadow-dialog: 0 16px 48px rgb(0 0 0 / 36%);
 }
 
@@ -268,32 +273,8 @@
   outline-offset: 2px;
 }
 
-/* ═══════════════════════ ENTRADA DOS BLOCOS ═══════════════════════
- *
- * A tela agora entra ANTES do banco responder: título, abas, busca e
- * filtros aparecem no toque, e cada bloco de dados chega quando fica
- * pronto. Estas animações são o que torna essa chegada legível — sem
- * elas o conteúdo "pisca" no lugar do esqueleto e a tela parece tremer.
- *
- * São curtas de propósito (220ms). Animação de entrada longa atrasa a
- * leitura do número, que é justamente o que a pessoa foi ali buscar.
- *
- * O deslocamento é de 8px, para baixo. Mais que isso empurra o resto da
- * página e dá a sensação de que algo pulou.
- */
-
-@keyframes ll-entra {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes ll-entra-tela {
+/* Entrada apenas dos títulos e controles do cabeçalho, sem animar listas. */
+@keyframes ll-entra-cabecalho {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -304,36 +285,17 @@
   }
 }
 
-/* Um bloco de dados que acabou de chegar do servidor. */
-.ll-entra {
-  animation: ll-entra 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+.ll-entra-cabecalho {
+  animation: ll-entra-cabecalho var(--ll-duracao-suave) var(--ll-ease);
 }
 
-/*
- * Escalonamento: quando dois blocos chegam juntos, entrarem exatamente
- * ao mesmo tempo parece um piscar só. Um atraso mínimo entre eles dá a
- * leitura de cima para baixo, que é como a pessoa lê a tela.
- */
-.ll-entra-2 {
-  animation-delay: 0.05s;
-}
-.ll-entra-3 {
-  animation-delay: 0.1s;
-}
-
-/* A tela inteira ao trocar de aba/rota: mais sutil que os blocos. */
-.ll-entra-tela {
-  animation: ll-entra-tela 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/*
- * Quem pediu menos movimento no sistema recebe menos movimento. Não é
- * só enfeite: animação de entrada incomoda de verdade quem tem
- * sensibilidade vestibular, e o conteúdo continua o mesmo sem ela.
- */
+/* Inclui overlays em portais e pseudoelementos, sem alterar estados visuais. */
 @media (prefers-reduced-motion: reduce) {
-  .ll-entra,
-  .ll-entra-tela {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,7 +1,8 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -71,7 +72,7 @@ export function MontarPainel() {
   const ligados = cfg.filter((i) => i.on).length;
 
   return (
-    <section className="rounded-xl border bg-card">
+    <Card as="section" className="block overflow-visible py-0 text-base">
       <div className="border-b px-4 py-3">
         <h2 className="text-sm font-semibold">Meu painel do Início</h2>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
@@ -111,7 +112,7 @@ export function MontarPainel() {
                     disabled={ix === 0}
                     onClick={() => mover(ix, -1)}
                   >
-                    <ChevronUp className="size-4" />
+                    <CaretUpIcon weight="regular" className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -120,7 +121,7 @@ export function MontarPainel() {
                     disabled={ix === cfg.length - 1}
                     onClick={() => mover(ix, 1)}
                   >
-                    <ChevronDown className="size-4" />
+                    <CaretDownIcon weight="regular" className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -128,20 +129,21 @@ export function MontarPainel() {
               {it.on && (
                 <div className="mt-2.5 flex flex-wrap gap-1 pl-7">
                   {TAMANHOS_WGT.map(([valor, rotulo]) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={valor}
                       type="button"
                       aria-pressed={it.tam === valor}
                       onClick={() => redimensionar(ix, valor)}
                       className={cn(
-                        "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                        "h-auto gap-0 p-0 font-normal whitespace-normal rounded-full border border-border px-2.5 py-1 text-xs",
                         it.tam === valor
-                          ? "border-(--ll-accent) bg-(--ll-accent) text-white"
+                          ? "border-(--ll-accent) bg-(--ll-accent) text-(--ll-accent-ink)"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {rotulo}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -158,6 +160,6 @@ export function MontarPainel() {
           Restaurar padrão
         </Button>
       </div>
-    </section>
+    </Card>
   );
 }

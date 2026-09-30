@@ -154,11 +154,12 @@ export function FormFornecedor({
 
         <div className="flex gap-1.5">
           {ETAPAS.map((nome, i) => (
-            <button
+            <Button
+              variant="ghost"
               key={nome}
               type="button"
               onClick={() => setEtapa(i)}
-              className={cn("h-1 flex-1 rounded-full", i <= etapa ? "bg-foreground" : "bg-muted")}
+              className={cn("gap-0 border-0 p-0 font-normal whitespace-normal h-1 flex-1 rounded-full", i <= etapa ? "bg-foreground" : "bg-muted")}
               aria-label={`Ir para ${nome}`}
             />
           ))}
@@ -171,18 +172,19 @@ export function FormFornecedor({
                 <Label>Tipo</Label>
                 <div className="inline-flex rounded-lg border p-1">
                   {(["PJ", "PF"] as const).map((t) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={t}
                       type="button"
                       aria-pressed={e.tipo === t}
                       onClick={() => e.tipo !== t && setE((a) => ({ ...a, tipo: t, doc: "" }))}
                       className={cn(
-                        "rounded-md px-3.5 py-1.5 text-sm font-medium",
+                        "h-auto gap-0 border-0 p-0 whitespace-normal rounded-md px-3.5 py-1.5 text-sm font-medium",
                         e.tipo === t ? "bg-accent text-accent-foreground" : "text-muted-foreground",
                       )}
                     >
                       {t === "PJ" ? "Empresa" : "Pessoa física"}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

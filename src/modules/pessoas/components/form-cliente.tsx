@@ -208,12 +208,13 @@ export function FormCliente({
         {/* Trilha das etapas */}
         <div className="flex gap-1.5">
           {ETAPAS.map((nome, i) => (
-            <button
+            <Button
+              variant="ghost"
               key={nome}
               type="button"
               onClick={() => setEtapa(i)}
               className={cn(
-                "h-1 flex-1 rounded-full transition-colors",
+                "gap-0 border-0 p-0 font-normal whitespace-normal h-1 flex-1 rounded-full",
                 i <= etapa ? "bg-foreground" : "bg-muted",
               )}
               aria-label={`Ir para ${nome}`}
@@ -228,7 +229,8 @@ export function FormCliente({
                 <Label>Tipo</Label>
                 <div className="inline-flex rounded-lg border p-1">
                   {(["PF", "PJ"] as const).map((t) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={t}
                       type="button"
                       aria-pressed={e.tipo === t}
@@ -238,12 +240,12 @@ export function FormCliente({
                         setE((a) => ({ ...a, tipo: t, doc: "" }));
                       }}
                       className={cn(
-                        "rounded-md px-3.5 py-1.5 text-sm font-medium",
+                        "h-auto gap-0 border-0 p-0 whitespace-normal rounded-md px-3.5 py-1.5 text-sm font-medium",
                         e.tipo === t ? "bg-accent text-accent-foreground" : "text-muted-foreground",
                       )}
                     >
                       {t === "PF" ? "Pessoa física" : "Empresa"}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

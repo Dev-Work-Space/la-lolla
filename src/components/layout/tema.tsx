@@ -1,7 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { MonitorIcon, MoonIcon, SunIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { CHAVE_TEMA, COR_BARRA_CLARA, COR_BARRA_ESCURA, type Tema } from "./tema.constantes";
 
@@ -61,10 +62,10 @@ function seguirSistema(ativo: boolean) {
   return () => mq.removeEventListener("change", aoMudar);
 }
 
-const OPCOES: Array<[Tema, string, typeof Sun]> = [
-  ["claro", "Claro", Sun],
-  ["escuro", "Escuro", Moon],
-  ["sistema", "Do aparelho", Monitor],
+const OPCOES: Array<[Tema, string, typeof SunIcon]> = [
+  ["claro", "Claro", SunIcon],
+  ["escuro", "Escuro", MoonIcon],
+  ["sistema", "Do aparelho", MonitorIcon],
 ];
 
 /** Três botões lado a lado, para a tela de Ajustes. */
@@ -86,7 +87,8 @@ export function EscolhaDeTema() {
   return (
     <div className="inline-flex rounded-xl border bg-(--ll-surface-2) p-1">
       {OPCOES.map(([valor, rotulo, Icone]) => (
-        <button
+        <Button
+          variant="ghost"
           key={valor}
           type="button"
           aria-pressed={tema === valor}
@@ -95,16 +97,15 @@ export function EscolhaDeTema() {
             aplicar(valor);
           }}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium",
-            "transition-all duration-200 ease-(--ll-ease)",
+            "h-auto border-0 p-0 whitespace-normal inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium",
             tema === valor
               ? "bg-card text-foreground shadow-[0_1px_3px_rgba(26,24,20,.10)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <Icone className="size-4" aria-hidden />
+          <Icone weight="regular" className="size-4" aria-hidden />
           {rotulo}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -138,7 +139,7 @@ export function alternarTema() {
 function IconesTema({ tamanho = "size-[19px]" }: { tamanho?: string }) {
   return (
     <span className="relative grid place-items-center">
-      <Sun
+      <SunIcon weight="regular"
         aria-hidden
         className={cn(
           tamanho,
@@ -147,7 +148,7 @@ function IconesTema({ tamanho = "size-[19px]" }: { tamanho?: string }) {
           "dark:scale-100 dark:rotate-0 dark:opacity-100",
         )}
       />
-      <Moon
+      <MoonIcon weight="regular"
         aria-hidden
         className={cn(
           tamanho,
@@ -182,20 +183,21 @@ function RotuloTema({ className }: { className?: string }) {
  */
 export function BotaoTema({ className }: { className?: string }) {
   return (
-    <button
+    <Button
+      variant="ghost"
       type="button"
       aria-label="Alternar entre tema claro e escuro"
       title="Alternar tema"
       onClick={alternarTema}
       className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground",
-        "transition-colors hover:bg-(--ll-surface-2) hover:text-foreground",
+        "gap-0 border-0 p-0 font-normal whitespace-normal grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground",
+        "hover:bg-(--ll-surface-2) hover:text-foreground",
         "outline-none focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
         className,
       )}
     >
       <IconesTema tamanho="size-4" />
-    </button>
+    </Button>
   );
 }
 
@@ -209,11 +211,12 @@ export function BotaoTema({ className }: { className?: string }) {
  */
 export function LinhaTema({ className }: { className?: string }) {
   return (
-    <button
+    <Button
+      variant="ghost"
       type="button"
       aria-label="Alternar entre tema claro e escuro"
       onClick={alternarTema}
-      className={className}
+      className={cn("h-auto justify-start gap-0 border-0 p-0 font-normal whitespace-normal", className)}
     >
       <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
         <IconesTema />
@@ -229,6 +232,6 @@ export function LinhaTema({ className }: { className?: string }) {
       >
         <RotuloTema className="whitespace-nowrap" />
       </span>
-    </button>
+    </Button>
   );
 }

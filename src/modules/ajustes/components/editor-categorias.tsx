@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { CaretLeftIcon, CaretRightIcon, PlusIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,15 +96,16 @@ export function EditorCategorias({
                 "bg-(--ll-surface-2) transition-colors",
               )}
             >
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 aria-label={`Mover ${c} para a esquerda`}
                 disabled={ix === 0}
                 onClick={() => mover(ix, -1)}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal text-muted-foreground hover:text-foreground disabled:opacity-25"
               >
-                <ChevronLeft className="size-3.5" />
-              </button>
+                <CaretLeftIcon weight="regular" className="size-3.5" />
+              </Button>
 
               <span className="font-medium">{c}</span>
               <span
@@ -114,29 +115,31 @@ export function EditorCategorias({
                 {emUso}
               </span>
 
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 aria-label={`Mover ${c} para a direita`}
                 disabled={ix === lista.length - 1}
                 onClick={() => mover(ix, 1)}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal text-muted-foreground hover:text-foreground disabled:opacity-25"
               >
-                <ChevronRight className="size-3.5" />
-              </button>
+                <CaretRightIcon weight="regular" className="size-3.5" />
+              </Button>
 
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 aria-label={`Remover ${c}`}
                 onClick={() => remover(c)}
                 className={cn(
-                  "ml-0.5 grid size-5 place-items-center rounded-full transition-colors",
+                  "gap-0 border-0 p-0 font-normal whitespace-normal ml-0.5 grid size-5 place-items-center rounded-full",
                   emUso > 0
                     ? "text-muted-foreground/40 hover:bg-amber-100 hover:text-amber-800 dark:hover:bg-amber-950"
                     : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
                 )}
               >
-                <X className="size-3.5" />
-              </button>
+                <XIcon weight="regular" className="size-3.5" />
+              </Button>
             </span>
           );
         })}
@@ -169,7 +172,7 @@ export function EditorCategorias({
           maxLength={40}
         />
         <Button type="button" variant="secondary" onClick={adicionar} disabled={!nova.trim()}>
-          <Plus className="size-4" />
+          <PlusIcon weight="bold" className="size-4" />
           <span className="hidden sm:inline">Adicionar</span>
         </Button>
       </div>

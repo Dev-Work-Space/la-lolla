@@ -1,8 +1,9 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck } from "lucide-react";
+import { ArrowLineDownIcon, ArrowLineUpIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,10 +93,10 @@ export function FormMovimento({
     });
   }
 
-  const MODOS: Array<[Modo, string, typeof ArrowDownToLine]> = [
-    ["entrada", "Entrada", ArrowDownToLine],
-    ["saida", "Saída", ArrowUpFromLine],
-    ["inventario", "Inventário", ClipboardCheck],
+  const MODOS: Array<[Modo, string, typeof ArrowLineDownIcon]> = [
+    ["entrada", "Entrada", ArrowLineDownIcon],
+    ["saida", "Saída", ArrowLineUpIcon],
+    ["inventario", "Inventário", ListChecksIcon],
   ];
 
   return (
@@ -128,7 +129,8 @@ export function FormMovimento({
         <form action={enviar} className="space-y-4">
           <div className="grid grid-cols-3 gap-1 rounded-lg border p-1">
             {MODOS.map(([valor, rotulo, Icone]) => (
-              <button
+              <Button
+                variant="ghost"
                 key={valor}
                 type="button"
                 aria-pressed={modo === valor}
@@ -137,15 +139,15 @@ export function FormMovimento({
                   setAviso(null);
                 }}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-md px-2 py-2 text-xs font-medium transition-colors",
+                  "h-auto border-0 p-0 whitespace-normal flex flex-col items-center gap-1 rounded-md px-2 py-2 text-xs font-medium",
                   modo === valor
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icone className="size-4" aria-hidden />
+                <Icone weight="regular" className="size-4" aria-hidden />
                 {rotulo}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -175,19 +177,14 @@ export function FormMovimento({
 
           <div className="space-y-1.5">
             <Label htmlFor="motivo">Motivo</Label>
-            <select
+            <Seletor
               id="motivo"
               name="motivo"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
               defaultValue={MOTIVOS[modo][0][0]}
               key={modo}
-            >
-              {MOTIVOS[modo].map(([v, r]) => (
-                <option key={v} value={v}>
-                  {r}
-                </option>
-              ))}
-            </select>
+              opcoes={MOTIVOS[modo].map(([v, r]) => ({ value: v, label: r }))}
+            />
           </div>
 
           <div className="space-y-1.5">

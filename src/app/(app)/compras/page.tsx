@@ -72,10 +72,10 @@ export default async function ComprasPage({
   const chave = `${atual}:${busca ?? ""}`;
 
   return (
-    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Portal de compras</h1>
+          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de compras</h1>
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}
@@ -120,7 +120,7 @@ async function ContagemCompras({
 }) {
   const compras = await promessa;
   return (
-    <p className="ll-entra text-sm text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       {plural(compras.length, "compra", "compras")}
       {busca ? ` para “${busca}”` : ""}
     </p>
@@ -136,7 +136,7 @@ async function IndicadoresDeCompras() {
       : null;
 
   return (
-    <div className="ll-entra">
+    <div>
       <Indicadores>
         <Indicador
           titulo="Comprado no mês"
@@ -178,7 +178,7 @@ async function ListaDasCompras({
   const compras = await promessa;
 
   return (
-    <div className="ll-entra ll-entra-2">
+    <div>
       <Lista>
         {compras.length > 0 ? (
           compras.map((c) => {

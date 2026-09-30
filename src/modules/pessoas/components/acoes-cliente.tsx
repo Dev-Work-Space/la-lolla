@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { TrashIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,7 +49,7 @@ export function AcoesCliente({
           setAberto(true);
         }}
       >
-        <Trash2 className="size-4 text-muted-foreground" />
+        <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>

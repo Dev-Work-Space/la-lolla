@@ -1,5 +1,6 @@
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, ArrowLeftRight } from "lucide-react";
+import { ArrowDownRightIcon, ArrowUpRightIcon, ArrowsLeftRightIcon } from "@phosphor-icons/react/ssr";
 import { brl, dataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Lista, Vazio } from "@/components/padrao/indicadores";
@@ -41,7 +42,7 @@ export async function PainelCaixa({
   const totalSaiu = saiu.reduce((s, l) => s + l.valor, 0);
 
   return (
-    <div className="ll-entra space-y-4">
+    <div className="space-y-4">
       {pode.criar && (
         <div className="flex flex-wrap gap-2">
           <FormLancamento tipo="entrada" carteiras={carteiras} />
@@ -56,23 +57,23 @@ export async function PainelCaixa({
       />
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg border bg-card p-3">
+        <Card className="block overflow-visible py-0 text-base p-3">
           <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Entrou
           </p>
           <p className="mt-1 overflow-hidden whitespace-nowrap text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
             {brl(totalEntrou)}
           </p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
+        </Card>
+        <Card className="block overflow-visible py-0 text-base p-3">
           <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Saiu
           </p>
           <p className="mt-1 overflow-hidden whitespace-nowrap text-lg font-bold tabular-nums text-destructive">
             {brl(totalSaiu)}
           </p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
+        </Card>
+        <Card className="block overflow-visible py-0 text-base p-3">
           <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Sobrou
           </p>
@@ -84,7 +85,7 @@ export async function PainelCaixa({
           >
             {brl(totalEntrou - totalSaiu)}
           </p>
-        </div>
+        </Card>
       </div>
 
       <Lista>
@@ -92,10 +93,10 @@ export async function PainelCaixa({
           linhas.map((l) => {
             const Icone =
               l.origem === "transferencia"
-                ? ArrowLeftRight
+                ? ArrowsLeftRightIcon
                 : l.tipo === "entrada"
-                  ? ArrowDownRight
-                  : ArrowUpRight;
+                  ? ArrowDownRightIcon
+                  : ArrowUpRightIcon;
 
             const corpo = (
               <>
@@ -109,7 +110,7 @@ export async function PainelCaixa({
                         : "bg-destructive/10 text-destructive",
                   )}
                 >
-                  <Icone className="size-4" aria-hidden />
+                  <Icone weight="regular" className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{l.descricao}</span>

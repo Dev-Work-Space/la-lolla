@@ -1,5 +1,6 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { criarPecaAction } from "../peca.actions";
@@ -74,19 +75,14 @@ export function NovaPeca({
             <div className="space-y-1.5">
               <Label htmlFor="categoria">Categoria</Label>
               {categorias.length > 0 ? (
-                <select
+                <Seletor
                   id="categoria"
                   name="categoria"
                   className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
                   aria-invalid={!!erroDe("categoria")}
                   required
-                >
-                  {categorias.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                  opcoes={categorias.map((c) => ({ value: c, label: c }))}
+                />
               ) : (
                 <Input id="categoria" name="categoria" className="text-base" required />
               )}

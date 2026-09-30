@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { COR_BARRA_CLARA, SCRIPT_TEMA } from "@/components/layout/tema.constantes";
+import { ScriptTema } from "@/components/layout/script-tema";
+import { COR_BARRA_CLARA } from "@/components/layout/tema.constantes";
 import "./globals.css";
 
 // Nome próprio evita uma referência circular ao token --font-sans do Tailwind.
@@ -47,15 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${manrope.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        {/*
-          Aplica o tema escolhido ANTES da primeira pintura.
-
-          Sem isto o app pinta claro, o React acorda, lê a escolha e troca para
-          escuro — e quem escolheu escuro leva um flash branco na cara toda vez
-          que abre. É por isso que este script fica aqui, cru e bloqueante, em
-          vez de virar um componente.
-        */}
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+        <ScriptTema />
       </head>
       <body className="flex min-h-full flex-col font-sans">
         {children}

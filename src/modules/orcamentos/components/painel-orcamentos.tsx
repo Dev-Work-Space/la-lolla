@@ -54,7 +54,7 @@ export async function PainelOrcamentos({
   };
 
   return (
-    <div className="ll-entra space-y-4">
+    <div className="space-y-4">
       <Indicadores>
         <Indicador
           titulo="Em aberto"

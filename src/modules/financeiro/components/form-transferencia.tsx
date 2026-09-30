@@ -1,8 +1,9 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowsLeftRightIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +44,7 @@ export function FormTransferencia({ carteiras }: { carteiras: CarteiraSaldo[] })
       }}
     >
       <DialogTrigger render={<Button variant="ghost" />}>
-        <ArrowLeftRight className="mr-1.5 size-4" aria-hidden />
+        <ArrowsLeftRightIcon weight="regular" className="mr-1.5 size-4" aria-hidden />
         Transferir
       </DialogTrigger>
 
@@ -72,35 +73,25 @@ export function FormTransferencia({ carteiras }: { carteiras: CarteiraSaldo[] })
         >
           <div className="space-y-1.5">
             <Label htmlFor="origemId">De</Label>
-            <select
+            <Seletor
               id="origemId"
               name="origemId"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
               defaultValue={carteiras[0]?.id}
-            >
-              {carteiras.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome} · {brl(c.saldo)}
-                </option>
-              ))}
-            </select>
+              opcoes={carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {brl(c.saldo)}</> }))}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="destinoId">Para</Label>
-            <select
+            <Seletor
               id="destinoId"
               name="destinoId"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
               defaultValue={carteiras[1]?.id}
               aria-invalid={!!erros.destinoId}
-            >
-              {carteiras.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome} · {brl(c.saldo)}
-                </option>
-              ))}
-            </select>
+              opcoes={carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {brl(c.saldo)}</> }))}
+            />
             {erros.destinoId && <p className="text-sm text-destructive">{erros.destinoId[0]}</p>}
           </div>
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { EditorOrcamento } from "@/modules/orcamentos/components/editor-orcamento";
 
@@ -17,10 +17,10 @@ export default async function NovoOrcamentoPage() {
         href="/vendas?aba=orcamentos"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Orçamentos
       </Link>
-      <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">Novo orçamento</h1>
+      <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Novo orçamento</h1>
       <p className="mb-5 text-sm text-muted-foreground">
         A proposta reserva as peças enquanto vale, mas não baixa o estoque. O número sai ao salvar.
       </p>

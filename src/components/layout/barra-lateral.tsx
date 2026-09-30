@@ -1,9 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { SignOutIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { LinhaTema } from "./tema";
 import type { Papel } from "@prisma/client";
@@ -161,7 +162,7 @@ export function BarraLateral({
             >
               {/* trilho de largura fixa: é ele que mantém o ícone parado */}
               <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-                <Icone className="size-[19px] shrink-0" aria-hidden />
+                <Icone weight="regular" className="size-[19px] shrink-0" aria-hidden />
               </span>
               {/* opacidade + max-width, nunca display:none */}
               <span data-rotulo className={ROTULO}>{i.nome}</span>
@@ -180,16 +181,17 @@ export function BarraLateral({
       />
 
       <form action={logoutAction} className="mt-1 shrink-0">
-        <button
+        <Button
+          variant="ghost"
           type="submit"
           title={`Sair (${nome})`}
-          className={cn(LINHA, "w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
+          className={cn("h-auto justify-start gap-0 border-0 p-0 font-normal whitespace-normal", LINHA, "w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
         >
           <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-            <LogOut className="size-[19px] shrink-0" aria-hidden />
+            <SignOutIcon weight="regular" className="size-[19px] shrink-0" aria-hidden />
           </span>
           <span data-rotulo className={ROTULO}>Sair</span>
-        </button>
+        </Button>
       </form>
     </nav>
   );
