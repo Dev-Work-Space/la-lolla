@@ -65,10 +65,10 @@ export default async function VendasPage({
   if (qual === "orcamentos") {
     const podeCriarOrc = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.vendas.criar;
     return (
-      <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+      <main className="mx-auto w-full max-w-7xl px-4 py-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Portal de vendas</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de vendas</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               A proposta que vai para a cliente antes de fechar.
             </p>
@@ -129,10 +129,10 @@ export default async function VendasPage({
   const chave = `${atual}:${busca ?? ""}`;
 
   return (
-    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Portal de vendas</h1>
+          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de vendas</h1>
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}
@@ -189,7 +189,7 @@ async function ContagemVendas({
 }) {
   const vendas = await promessa;
   return (
-    <p className="ll-entra text-sm text-muted-foreground">
+    <p className="text-sm text-muted-foreground">
       {plural(vendas.length, "venda", "vendas")}
       {busca ? ` para “${busca}”` : ""}
     </p>
@@ -199,7 +199,7 @@ async function ContagemVendas({
 async function IndicadoresDeVendas({ veFinanceiro: fin }: { veFinanceiro: boolean }) {
   const ind = await indicadoresVendas(fin);
   return (
-    <div className="ll-entra">
+    <div>
       <Indicadores>
         <Indicador
           titulo="Vendido hoje"
@@ -247,7 +247,7 @@ async function ListaDasVendas({
   const vendas = await promessa;
 
   return (
-    <div className="ll-entra ll-entra-2">
+    <div>
       <Lista>
         {vendas.length > 0 ? (
           vendas.map((v) => {

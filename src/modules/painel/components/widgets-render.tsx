@@ -1,3 +1,6 @@
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { CheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
@@ -42,7 +45,7 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
   const maior = Math.max(...serie.map((s) => s.valor), 1);
 
   return (
-    <section className="rounded-xl border bg-card p-5">
+    <Card as="section" className="block overflow-visible py-0 text-base p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-lg font-bold tracking-tight">
@@ -126,15 +129,15 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
           Faturamento
         </Button>
       </div>
-    </section>
+    </Card>
   );
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+    <Badge variant="outline" className="h-auto rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
       {children}
-    </span>
+    </Badge>
   );
 }
 
@@ -144,21 +147,23 @@ function Pendencias({ pend }: DadosPainel) {
   const urgente = pend.some((p) => p.p <= 1);
 
   return (
-    <section className={cn("rounded-xl border bg-card p-4", urgente && "border-destructive/40")}>
+    <Card as="section" className={cn("block overflow-visible p-4 text-base", urgente && "ring-destructive/40")}>
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Precisa de você
         </p>
-        <span
+        <Badge
+          variant="outline"
           className={cn(
+            "h-auto",
             "rounded-full px-2 py-0.5 text-xs font-bold",
-            pend.length === 0 && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+            pend.length === 0 && "bg-(--ll-ok-soft) text-ok",
             pend.length > 0 && !urgente && "bg-muted text-muted-foreground",
             urgente && "bg-destructive/10 text-destructive",
           )}
         >
-          {pend.length === 0 ? "✓" : pend.length}
-        </span>
+          {pend.length === 0 ? <CheckIcon weight="regular" className="inline-block size-3 align-middle" aria-label="Sem pendências" /> : pend.length}
+        </Badge>
       </div>
 
       {pend.length > 0 ? (
@@ -179,7 +184,7 @@ function Pendencias({ pend }: DadosPainel) {
           Nada vencido, nenhuma peça zerada e nenhum orçamento expirando. Bom dia para vender.
         </p>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -240,35 +245,39 @@ function Cartao({
   seloBom?: boolean;
 }) {
   return (
-    <Link href={href} className="min-w-0 rounded-xl border bg-card p-4 transition-colors hover:bg-accent/30">
-      <div className="flex items-center gap-1.5">
-        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {titulo}
+    <Link href={href} className="min-w-0">
+      <Card className="block h-full p-4 text-base hover:bg-accent/30">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {titulo}
+          </p>
+          {selo && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "h-auto",
+                "shrink-0 rounded px-1 py-0.5 text-[10px] font-bold",
+                seloBom
+                  ? "bg-(--ll-ok-soft) text-ok"
+                  : "bg-destructive/10 text-destructive",
+              )}
+            >
+              {selo}
+            </Badge>
+          )}
+        </div>
+        <p
+          className={cn(
+            "mt-1 overflow-hidden whitespace-nowrap text-2xl font-bold tabular-nums",
+            tom === "pos" && "text-emerald-700 dark:text-emerald-400",
+            tom === "neg" && "text-destructive",
+            tom === "accent" && "text-amber-700 dark:text-amber-500",
+          )}
+        >
+          {valor}
         </p>
-        {selo && (
-          <span
-            className={cn(
-              "shrink-0 rounded px-1 py-0.5 text-[10px] font-bold",
-              seloBom
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                : "bg-destructive/10 text-destructive",
-            )}
-          >
-            {selo}
-          </span>
-        )}
-      </div>
-      <p
-        className={cn(
-          "mt-1 overflow-hidden whitespace-nowrap text-2xl font-bold tabular-nums",
-          tom === "pos" && "text-emerald-700 dark:text-emerald-400",
-          tom === "neg" && "text-destructive",
-          tom === "accent" && "text-amber-700 dark:text-amber-500",
-        )}
-      >
-        {valor}
-      </p>
-      <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
+      </Card>
     </Link>
   );
 }
@@ -282,7 +291,7 @@ function Meta({ ctx }: DadosPainel) {
   const nomeMes = ctx.mes0.toLocaleDateString("pt-BR", { month: "long" });
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <Card as="section" className="block overflow-visible py-0 text-base p-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Meta de <span className="first-letter:uppercase">{nomeMes}</span>
@@ -299,7 +308,7 @@ function Meta({ ctx }: DadosPainel) {
           ? "Meta batida. O que vier agora é acima do combinado."
           : `Faltam ${brl(ctx.meta - ctx.fatMes)} · ${pct}% do caminho`}
       </p>
-    </section>
+    </Card>
   );
 }
 
@@ -310,7 +319,7 @@ function Ritmo14({ ritmo }: DadosPainel) {
   const total = ritmo.reduce((s, r) => s + r.valor, 0);
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <Card as="section" className="block overflow-visible py-0 text-base p-4">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Ritmo dos últimos 14 dias
@@ -335,7 +344,7 @@ function Ritmo14({ ritmo }: DadosPainel) {
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -345,7 +354,7 @@ function MaisVendidas({ mais }: DadosPainel) {
   if (mais.length === 0) return null; // sem venda no mês, o bloco some
 
   return (
-    <section className="rounded-xl border bg-card">
+    <Card as="section" className="block overflow-visible py-0 text-base">
       <p className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Mais vendidas no mês
       </p>
@@ -365,7 +374,7 @@ function MaisVendidas({ mais }: DadosPainel) {
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 

@@ -57,7 +57,7 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
                 ativo(i.href) ? "text-(--ll-accent)" : "text-muted-foreground",
               )}
             >
-              <Icone className="size-5 shrink-0" aria-hidden />
+              <Icone weight="regular" className="size-5 shrink-0" aria-hidden />
               <span className="w-full truncate text-[10px] font-medium leading-none">{i.curto}</span>
             </Link>
           );

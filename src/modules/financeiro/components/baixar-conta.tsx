@@ -1,8 +1,9 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { CheckIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -62,7 +63,7 @@ export function BaixarConta({
           setAberto(true);
         }}
       >
-        <Check className="size-4 text-muted-foreground" />
+        <CheckIcon weight="regular" className="size-4 text-muted-foreground" />
       </Button>
 
       <Dialog open={aberto} onOpenChange={setAberto}>
@@ -93,20 +94,17 @@ export function BaixarConta({
               <Label htmlFor={`cart-${contaId}`}>
                 {pagar ? "De qual carteira saiu" : "Em qual carteira entrou"}
               </Label>
-              <select
+              <Seletor
                 id={`cart-${contaId}`}
                 name="carteiraId"
                 className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
                 defaultValue={carteiras[0]?.id ?? ""}
                 required
-              >
-                {carteiras.length === 0 && <option value="">Nenhuma carteira cadastrada</option>}
-                {carteiras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} · {brl(c.saldo)}
-                  </option>
-                ))}
-              </select>
+                opcoes={[
+                  ...(carteiras.length === 0 ? [{ value: "", label: "Nenhuma carteira cadastrada" }] : []),
+                  ...carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {brl(c.saldo)}</> }))
+                ]}
+              />
             </div>
 
             {/*
@@ -118,17 +116,18 @@ export function BaixarConta({
             {deVenda && (
               <div className="space-y-1.5">
                 <Label htmlFor={`forma-${contaId}`}>Como a cliente pagou</Label>
-                <select
+                <Seletor
                   id={`forma-${contaId}`}
                   name="forma"
                   className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
                   defaultValue="DINHEIRO"
-                >
-                  <option value="DINHEIRO">Dinheiro</option>
-                  <option value="PIX">Pix</option>
-                  <option value="DEBITO">Débito</option>
-                  <option value="CREDITO">Crédito</option>
-                </select>
+                  opcoes={[
+                    { value: "DINHEIRO", label: "Dinheiro" },
+                    { value: "PIX", label: "Pix" },
+                    { value: "DEBITO", label: "Débito" },
+                    { value: "CREDITO", label: "Crédito" }
+                  ]}
+                />
               </div>
             )}
 

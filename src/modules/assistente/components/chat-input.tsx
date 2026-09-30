@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent } from "react";
-import { Loader2Icon, SendIcon } from "lucide-react";
+import { SpinnerGapIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 
 interface ChatInputProps {
@@ -56,9 +56,9 @@ export function ChatInput({ valor, onChange, onEnviar, digitando, disabled }: Ch
         aria-label="Enviar mensagem"
       >
         {digitando ? (
-          <Loader2Icon className="h-4 w-4 animate-spin" />
+          <SpinnerGapIcon weight="regular" className="h-4 w-4 animate-spin" />
         ) : (
-          <SendIcon className="h-4 w-4" />
+          <PaperPlaneTiltIcon weight="bold" className="h-4 w-4" />
         )}
       </Button>
     </div>

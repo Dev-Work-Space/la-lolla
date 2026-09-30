@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { lerAjustes, usoDasCategorias } from "@/modules/ajustes/ajustes.service";
@@ -25,7 +26,7 @@ export default async function AjustesPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-5">
-      <h1 className="text-xl font-bold tracking-tight">Ajustes</h1>
+      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Ajustes</h1>
       <p className="mt-0.5 text-sm text-muted-foreground">
         O que vale para a loja inteira: multiplicador do custo, meta, desconto e categorias.
       </p>
@@ -39,7 +40,7 @@ export default async function AjustesPage() {
         */}
         <MontarPainel />
 
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Aparência</h2>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
@@ -52,7 +53,7 @@ export default async function AjustesPage() {
           <div className="p-4">
             <EscolhaDeTema />
           </div>
-        </section>
+        </Card>
       </div>
     </main>
   );

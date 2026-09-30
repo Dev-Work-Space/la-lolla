@@ -1,8 +1,11 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
+
+import { Card } from "@/components/ui/card";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Trash2, X } from "lucide-react";
+import { PlusIcon, MagnifyingGlassIcon, TrashIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -229,10 +232,10 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
     <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       {/* ─────────── peças ─────────── */}
       <div className="space-y-4">
-        <section className="rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base p-4">
           <Label htmlFor="busca-peca">Adicionar peça</Label>
           <div className="relative mt-1.5">
-            <Search
+            <MagnifyingGlassIcon weight="regular"
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
@@ -245,14 +248,15 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
               autoComplete="off"
             />
             {termo && (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => mudarTermo("")}
                 aria-label="Limpar busca"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
               >
-                <X className="size-4" />
-              </button>
+                <XIcon weight="regular" className="size-4" />
+              </Button>
             )}
           </div>
 
@@ -260,10 +264,11 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             <ul className="mt-2 max-h-72 divide-y overflow-y-auto rounded-lg border">
               {achadas.map((p) => (
                 <li key={p.id}>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => adicionar(p)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
+                    className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{p.nome}</span>
@@ -278,8 +283,8 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
                     <span className="shrink-0 text-sm font-medium tabular-nums">
                       {p.preco > 0 ? brl(p.preco) : "sem preço"}
                     </span>
-                    <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
+                    <PlusIcon weight="bold" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -290,9 +295,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
           {!buscando && termo.length >= 2 && achadas.length === 0 && (
             <p className="mt-2 text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Na proposta
           </h2>
@@ -381,33 +386,30 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
                     aria-label={`Remover ${i.nome}`}
                     onClick={() => setItens((a) => a.filter((x) => x.pecaId !== i.pecaId))}
                   >
-                    <Trash2 className="size-4 text-muted-foreground" />
+                    <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
                   </Button>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       </div>
 
       {/* ─────────── condições ─────────── */}
       <div className="space-y-4 lg:sticky lg:top-4">
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <div>
             <Label htmlFor="orc-cliente">Cliente</Label>
-            <select
+            <Seletor
               id="orc-cliente"
               value={clienteId}
-              onChange={(e) => setClienteId(e.target.value)}
+              onValueChange={(valor) => setClienteId(valor)}
               className="mt-1.5 h-10 w-full rounded-md border bg-transparent px-3 text-base"
-            >
-              <option value="">Sem cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
+              opcoes={[
+                { value: "", label: "Sem cliente" },
+                ...clientes.map((c) => ({ value: c.id, label: c.nome }))
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -423,18 +425,13 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             </div>
             <div>
               <Label htmlFor="orc-validade">Validade</Label>
-              <select
+              <Seletor
                 id="orc-validade"
                 value={validadeDias}
-                onChange={(e) => setValidadeDias(e.target.value)}
+                onValueChange={(valor) => setValidadeDias(valor)}
                 className="mt-1.5 h-10 w-full rounded-md border bg-transparent px-3 text-base"
-              >
-                {VALIDADES.map((d) => (
-                  <option key={d} value={d}>
-                    {d} dias
-                  </option>
-                ))}
-              </select>
+                opcoes={VALIDADES.map((d) => ({ value: String(d), label: <>{d} dias</> }))}
+              />
             </div>
           </div>
 
@@ -444,9 +441,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
               peças ficam reservadas — sem baixar do estoque.
             </p>
           )}
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <Label>Desconto</Label>
           <div className="flex flex-wrap items-center gap-2">
             {ATALHOS_DESCONTO.map((p) => (
@@ -469,9 +466,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             />
             <span className="text-sm text-muted-foreground">%</span>
           </div>
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <Label>Como a cliente vai pagar</Label>
           <div className="flex flex-wrap gap-2">
             {MODOS.map(([id, rotulo]) => (
@@ -495,18 +492,13 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             <div className="space-y-3">
               <div>
                 <Label htmlFor="orc-forma">Forma</Label>
-                <select
-                  id="orc-forma"
-                  value={forma}
-                  onChange={(e) => setForma(e.target.value as Forma)}
-                  className="mt-1.5 h-10 w-full rounded-md border bg-transparent px-3 text-base"
-                >
-                  {FORMAS.map(([id, rotulo]) => (
-                    <option key={id} value={id}>
-                      {rotulo}
-                    </option>
-                  ))}
-                </select>
+                  <Seletor
+                    id="orc-forma"
+                    value={forma}
+                    onValueChange={(valor) => setForma(valor as Forma)}
+                    className="mt-1.5 h-10 w-full rounded-md border bg-transparent px-3 text-base"
+                    opcoes={FORMAS.map(([id, rotulo]) => ({ value: id, label: rotulo }))}
+                  />
               </div>
 
               {modo === "PARCELADO" && (
@@ -540,9 +532,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
               )}
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <Label htmlFor="orc-obs">Observação no PDF</Label>
           <textarea
             id="orc-obs"
@@ -555,9 +547,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
           <p className="text-xs text-muted-foreground">
             Este texto sai no orçamento que a cliente recebe.
           </p>
-        </section>
+        </Card>
 
-        <section className="space-y-2 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-2 p-4">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums">{brl(contas.subtotal)}</span>
@@ -572,7 +564,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             <span>Total</span>
             <span className="tabular-nums">{brl(contas.total)}</span>
           </div>
-        </section>
+        </Card>
 
         {aviso && (
           <p role="alert" className="text-sm font-medium text-destructive">

@@ -1,8 +1,9 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRightIcon, ArrowUpRightIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +40,7 @@ export function FormLancamento({
   const [salvando, salvar] = useTransition();
 
   const entrada = tipo === "entrada";
-  const Icone = entrada ? ArrowDownRight : ArrowUpRight;
+  const Icone = entrada ? ArrowDownRightIcon : ArrowUpRightIcon;
   const categorias = entrada ? CATEGORIAS_ENTRADA : CATEGORIAS_SAIDA;
 
   return (
@@ -54,7 +55,7 @@ export function FormLancamento({
       }}
     >
       <DialogTrigger render={<Button variant={entrada ? "default" : "secondary"} />}>
-        <Icone className="mr-1.5 size-4" aria-hidden />
+        <Icone weight="regular" className="mr-1.5 size-4" aria-hidden />
         {entrada ? "Entrada de dinheiro" : "Saída de dinheiro"}
       </DialogTrigger>
 
@@ -113,36 +114,28 @@ export function FormLancamento({
 
             <div className="space-y-1.5">
               <Label htmlFor="categoria">Categoria</Label>
-              <select
+              <Seletor
                 id="categoria"
                 name="categoria"
                 className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
                 defaultValue={categorias[0]}
-              >
-                {categorias.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                opcoes={categorias.map((c) => ({ value: c, label: c }))}
+              />
             </div>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="carteiraId">De qual carteira</Label>
-            <select
+            <Seletor
               id="carteiraId"
               name="carteiraId"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
               defaultValue={carteiras[0]?.id ?? ""}
-            >
-              <option value="">Não informar</option>
-              {carteiras.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome} · {c.saldo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </option>
-              ))}
-            </select>
+              opcoes={[
+                { value: "", label: "Não informar" },
+                ...carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {c.saldo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</> }))
+              ]}
+            />
             <p className="text-xs text-muted-foreground">
               Carteira é <strong>onde</strong> o dinheiro está, não como foi pago.
             </p>

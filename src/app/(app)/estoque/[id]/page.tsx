@@ -1,6 +1,7 @@
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { fichaPeca, ROTULO_MOTIVO } from "@/modules/pecas/catalogo.service";
 import { brl, dataHora } from "@/lib/formato";
@@ -64,14 +65,14 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
         href={insumo ? "/estoque?aba=insumos" : "/estoque"}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         {insumo ? "Insumos" : "Estoque"}
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">{p.nome}</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{p.nome}</h1>
             {insumo && <Pilula>insumo</Pilula>}
             {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
           </div>
@@ -138,7 +139,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Ficha
           </h2>
@@ -156,9 +157,9 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
           </dl>
-        </section>
+        </Card>
 
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Histórico de estoque
           </h2>
@@ -201,7 +202,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
               </p>
             </div>
           )}
-        </section>
+        </Card>
       </div>
     </main>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
@@ -47,38 +48,30 @@ export function FiltrosCatalogo({
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      <select
+      <Seletor
         aria-label="Filtrar por fornecedor"
         className={estilo}
         value={fornecedorId ?? ""}
         disabled={pendente}
-        onChange={(e) => navegar("fornecedor", e.target.value)}
-      >
-        <option value="">Todos os fornecedores</option>
-        {opcoes.fornecedores.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.nome} ({f.qtd})
-          </option>
-        ))}
-        {opcoes.semFornecedor > 0 && (
-          <option value="__sem">Sem fornecedor ({opcoes.semFornecedor})</option>
-        )}
-      </select>
+        onValueChange={(valor) => navegar("fornecedor", valor)}
+        opcoes={[
+          { value: "", label: "Todos os fornecedores" },
+          ...opcoes.fornecedores.map((f) => ({ value: f.id, label: <>{f.nome} ({f.qtd})</> })),
+          ...(opcoes.semFornecedor > 0 ? [{ value: "__sem", label: <>Sem fornecedor ({opcoes.semFornecedor})</> }] : [])
+        ]}
+      />
 
-      <select
+      <Seletor
         aria-label="Filtrar por categoria"
         className={estilo}
         value={categoria ?? ""}
         disabled={pendente}
-        onChange={(e) => navegar("categoria", e.target.value)}
-      >
-        <option value="">Todas as categorias</option>
-        {opcoes.categorias.map((c) => (
-          <option key={c.nome} value={c.nome}>
-            {c.nome} ({c.qtd})
-          </option>
-        ))}
-      </select>
+        onValueChange={(valor) => navegar("categoria", valor)}
+        opcoes={[
+          { value: "", label: "Todas as categorias" },
+          ...opcoes.categorias.map((c) => ({ value: c.nome, label: <>{c.nome} ({c.qtd})</> }))
+        ]}
+      />
     </div>
   );
 }

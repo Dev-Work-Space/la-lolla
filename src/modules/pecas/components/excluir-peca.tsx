@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, TriangleAlert } from "lucide-react";
+import { TrashIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -101,7 +101,7 @@ export function ExcluirPeca({
       <DialogTrigger
         render={
           <Button variant="ghost" className="text-destructive hover:bg-destructive/10">
-            <Trash2 className="size-4" aria-hidden />
+            <TrashIcon weight="regular" className="size-4" aria-hidden />
             Excluir {oQue}
           </Button>
         }
@@ -120,7 +120,7 @@ export function ExcluirPeca({
         {impacto && linhas.length > 0 && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
             <p className="flex items-center gap-1.5 text-sm font-medium text-amber-900 dark:text-amber-200">
-              <TriangleAlert className="size-4 shrink-0" aria-hidden />
+              <WarningIcon weight="regular" className="size-4 shrink-0" aria-hidden />
               O que está em jogo
             </p>
             <ul className="mt-1.5 space-y-0.5 text-sm text-amber-900/90 dark:text-amber-200/90">

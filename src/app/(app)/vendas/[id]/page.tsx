@@ -1,6 +1,7 @@
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { buscarVenda, FORMAS } from "@/modules/vendas/venda.service";
 import { brl, data as fData, dataHora } from "@/lib/formato";
@@ -50,14 +51,14 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
         href="/vendas"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de vendas
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Venda #{v.numero}</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Venda #{v.numero}</h1>
             {v.cancelada && <Pilula tom="due">cancelada</Pilula>}
             {!v.cancelada && v.saldo > 0 && <Pilula tom="due">a receber</Pilula>}
             {!v.cancelada && v.comprovantesPendentes > 0 && (
@@ -122,7 +123,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Peças
           </h2>
@@ -176,10 +177,10 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
           {v.observacao && (
             <p className="border-t px-4 py-3 text-sm text-muted-foreground">{v.observacao}</p>
           )}
-        </section>
+        </Card>
 
         <div className="space-y-4">
-          <section className="rounded-xl border bg-card">
+          <Card as="section" className="block overflow-visible py-0 text-base">
             <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Pagamentos
             </h2>
@@ -207,10 +208,10 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                 Nenhum pagamento registrado.
               </p>
             )}
-          </section>
+          </Card>
 
           {v.parcelas.length > 0 && (
-            <section className="rounded-xl border bg-card">
+            <Card as="section" className="block overflow-visible py-0 text-base">
               <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 Parcelas
               </h2>
@@ -241,7 +242,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                   </li>
                 ))}
               </ul>
-            </section>
+            </Card>
           )}
         </div>
       </div>

@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import {
-  BotMessageSquareIcon,
+  RobotIcon,
   XIcon,
-  Trash2Icon,
+  TrashIcon,
   FileTextIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { enviarMensagemAction, resumirTelaAction } from "../assistente.actions";
@@ -119,7 +119,7 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
       ...prev,
       {
         papel: "user" as const,
-        texto: `📄 Resumo: ${nomeDaTela(tela)}`,
+        texto: `\u{1F4C4} Resumo: ${nomeDaTela(tela)}`,
       },
       { papel: "model" as const, texto: result.data.resposta },
     ]);
@@ -154,9 +154,9 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
           aria-expanded={aberto}
         >
           {aberto ? (
-            <XIcon className="h-5 w-5" />
+            <XIcon weight="regular" className="h-5 w-5" />
           ) : (
-            <BotMessageSquareIcon className="h-5 w-5" />
+            <RobotIcon weight="bold" className="h-5 w-5" />
           )}
         </Button>
       </div>
@@ -178,7 +178,7 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
         >
           {/* Cabeçalho */}
           <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-3 shrink-0">
-            <BotMessageSquareIcon className="h-4 w-4 text-muted-foreground" />
+            <RobotIcon weight="regular" className="h-4 w-4 text-muted-foreground" />
             <span className="flex-1 text-sm font-medium">Assistente LaLolla</span>
 
             {/* Botão de resumo da página */}
@@ -200,7 +200,7 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
                   : "Resumo não disponível nesta página"
               }
             >
-              <FileTextIcon className="h-4 w-4" />
+              <FileTextIcon weight="regular" className="h-4 w-4" />
             </Button>
 
             {/* Limpar conversa */}
@@ -214,7 +214,7 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
               title="Limpar conversa"
               aria-label="Limpar conversa"
             >
-              <Trash2Icon className="h-4 w-4" />
+              <TrashIcon weight="regular" className="h-4 w-4" />
             </Button>
 
             {/* Fechar */}
@@ -225,7 +225,7 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
               onClick={() => setAberto(false)}
               aria-label="Fechar assistente"
             >
-              <XIcon className="h-4 w-4" />
+              <XIcon weight="regular" className="h-4 w-4" />
             </Button>
           </div>
 

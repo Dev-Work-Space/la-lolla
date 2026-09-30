@@ -1,8 +1,9 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +57,7 @@ export function FormCarteira({
         }
       >
         {editando ? (
-          <Pencil className="size-4 text-muted-foreground" />
+          <PencilSimpleIcon weight="regular" className="size-4 text-muted-foreground" />
         ) : (
           (rotulo ?? "Nova carteira")
         )}
@@ -120,18 +121,13 @@ export function FormCarteira({
               de fato guarda dinheiro. */}
           <div className="space-y-1.5">
             <Label htmlFor="carteira-tipo">Tipo</Label>
-            <select
+            <Seletor
               id="carteira-tipo"
               name="tipo"
               defaultValue={carteira?.tipo ?? "CONTA"}
               className="h-10 w-full rounded-md border bg-transparent px-3 text-base"
-            >
-              {TIPOS_CARTEIRA.filter(([id]) => id !== "CARTAO").map(([id, nome]) => (
-                <option key={id} value={id}>
-                  {nome}
-                </option>
-              ))}
-            </select>
+              opcoes={TIPOS_CARTEIRA.filter(([id]) => id !== "CARTAO").map(([id, nome]) => ({ value: id, label: nome }))}
+            />
             <p className="text-xs text-muted-foreground">
               Carteira é onde o dinheiro está, não como o cliente pagou. A reserva conta no total,
               mas não é caixa do dia a dia.

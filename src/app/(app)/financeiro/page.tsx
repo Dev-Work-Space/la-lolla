@@ -50,8 +50,8 @@ export default async function FinanceiroPage({
   };
 
   return (
-    <main className="ll-entra-tela mx-auto w-full max-w-7xl px-4 py-5">
-      <h1 className="mb-4 text-xl font-bold tracking-tight">Financeiro</h1>
+    <main className="mx-auto w-full max-w-7xl px-4 py-5">
+      <h1 className="ll-entra-cabecalho mb-4 text-xl font-bold tracking-tight">Financeiro</h1>
 
       <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
         <IndicadoresDoCaixa />
@@ -93,7 +93,7 @@ async function IndicadoresDoCaixa() {
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
   return (
-    <div className="ll-entra">
+    <div>
       <Indicadores>
         <Indicador
           titulo="Em caixa"

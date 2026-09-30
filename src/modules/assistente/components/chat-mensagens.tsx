@@ -1,7 +1,12 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef } from "react";
+import { CircleIcon, FileTextIcon } from "@phosphor-icons/react/ssr";
 import type { Mensagem } from "../assistente.schemas";
+
+// O marcador permanece no histórico; apenas sua apresentação usa Phosphor.
+const MARCADOR_RESUMO = "\u{1F4C4} ";
 
 interface ChatMensagensProps {
   mensagens: Mensagem[];
@@ -33,12 +38,13 @@ export function ChatMensagens({ mensagens, digitando, erro }: ChatMensagensProps
               "Como foram as vendas este mês?",
               "Há contas vencidas?",
             ].map((sugestao) => (
-              <span
+              <Badge
+                variant="outline"
                 key={sugestao}
-                className="rounded-full border bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+                className="h-auto rounded-full border bg-muted px-2.5 py-1 text-xs text-muted-foreground"
               >
                 {sugestao}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
@@ -60,7 +66,12 @@ export function ChatMensagens({ mensagens, digitando, erro }: ChatMensagensProps
                 : "bg-muted text-foreground rounded-bl-sm"
             }`}
           >
-            {msg.texto}
+            {msg.texto.startsWith(MARCADOR_RESUMO) ? (
+              <>
+                <FileTextIcon weight="regular" className="mr-1 inline-block size-4 align-text-bottom" aria-hidden />
+                {msg.texto.slice(MARCADOR_RESUMO.length)}
+              </>
+            ) : msg.texto}
           </div>
         </div>
       ))}
@@ -69,9 +80,9 @@ export function ChatMensagens({ mensagens, digitando, erro }: ChatMensagensProps
         <div className="flex justify-start">
           <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
             <span className="flex gap-1 items-center">
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" />
+              <CircleIcon weight="regular" className="h-1.5 w-1.5 text-muted-foreground animate-bounce [animation-delay:-0.3s]" aria-hidden />
+              <CircleIcon weight="regular" className="h-1.5 w-1.5 text-muted-foreground animate-bounce [animation-delay:-0.15s]" aria-hidden />
+              <CircleIcon weight="regular" className="h-1.5 w-1.5 text-muted-foreground animate-bounce" aria-hidden />
             </span>
           </div>
         </div>

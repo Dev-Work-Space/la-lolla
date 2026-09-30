@@ -1,8 +1,11 @@
 "use client";
 
+import { Seletor } from "@/components/padrao/seletor";
+
+import { Card } from "@/components/ui/card";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Trash2, X } from "lucide-react";
+import { PlusIcon, MagnifyingGlassIcon, TrashIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,22 +164,19 @@ export function NovaCompra() {
   return (
     <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       <div className="space-y-4">
-        <section className="space-y-4 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="fornecedor">Fornecedor</Label>
-            <select
+            <Seletor
               id="fornecedor"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
               value={fornecedorId}
-              onChange={(e) => setFornecedorId(e.target.value)}
-            >
-              <option value="">Escolha…</option>
-              {fornecedores.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nome}
-                </option>
-              ))}
-            </select>
+              onValueChange={(valor) => setFornecedorId(valor)}
+              opcoes={[
+                { value: "", label: "Escolha…" },
+                ...fornecedores.map((f) => ({ value: f.id, label: f.nome }))
+              ]}
+            />
             {fornecedores.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 Nenhum fornecedor cadastrado — cadastre em Cadastros › Fornecedores.
@@ -187,7 +187,7 @@ export function NovaCompra() {
           <div className="space-y-1.5">
             <Label htmlFor="busca-item">Adicionar peça ou insumo</Label>
             <div className="relative">
-              <Search
+              <MagnifyingGlassIcon weight="regular"
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
               />
@@ -200,14 +200,15 @@ export function NovaCompra() {
                 autoComplete="off"
               />
               {termo && (
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => mudarTermo("")}
                   aria-label="Limpar busca"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                  className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                 >
-                  <X className="size-4" />
-                </button>
+                  <XIcon weight="regular" className="size-4" />
+                </Button>
               )}
             </div>
           </div>
@@ -216,10 +217,11 @@ export function NovaCompra() {
             <ul className="max-h-72 divide-y overflow-y-auto rounded-lg border">
               {achados.map((p) => (
                 <li key={p.id}>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     onClick={() => adicionar(p)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
+                    className="h-auto gap-0 border-0 p-0 font-normal whitespace-normal flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">
@@ -240,8 +242,8 @@ export function NovaCompra() {
                     <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                       {p.custo > 0 ? brl(p.custo) : "sem custo"}
                     </span>
-                    <Plus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
+                    <PlusIcon weight="bold" className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -251,9 +253,9 @@ export function NovaCompra() {
               Nada encontrado. Cadastre a peça no Estoque antes de comprar.
             </p>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-xl border bg-card">
+        <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             No pedido
           </h2>
@@ -336,17 +338,17 @@ export function NovaCompra() {
                     aria-label={`Remover ${i.nome}`}
                     onClick={() => setItens((a) => a.filter((x) => x.id !== i.id))}
                   >
-                    <Trash2 className="size-4 text-muted-foreground" />
+                    <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
                   </Button>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-4">
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <div className="flex items-baseline justify-between">
             <span className="font-semibold">Total da compra</span>
             <span className="text-xl font-bold tabular-nums">{brl(total)}</span>
@@ -355,9 +357,9 @@ export function NovaCompra() {
             {itens.reduce((s, i) => s + i.quantidade, 0)} unidades em {itens.length}{" "}
             {itens.length === 1 ? "item" : "itens"}
           </p>
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Como pagou o fornecedor
           </h2>
@@ -373,39 +375,37 @@ export function NovaCompra() {
                 ["prazo", "A prazo"],
               ] as const
             ).map(([v, r]) => (
-              <button
+              <Button
+                variant="ghost"
                 key={v}
                 type="button"
                 aria-pressed={forma === v}
                 onClick={() => setForma(v)}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "h-auto gap-0 border-0 p-0 whitespace-normal rounded-md px-3 py-2 text-sm font-medium",
                   forma === v
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
 
           {forma === "avista" ? (
             <div className="space-y-1.5">
               <Label htmlFor="carteira-compra">De qual carteira saiu</Label>
-              <select
+              <Seletor
                 id="carteira-compra"
                 className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
                 value={carteiraId}
-                onChange={(e) => setCarteiraId(e.target.value)}
-              >
-                {carteiras.length === 0 && <option value="">Nenhuma carteira cadastrada</option>}
-                {carteiras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} · {brl(c.saldo)}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(valor) => setCarteiraId(valor)}
+                opcoes={[
+                  ...(carteiras.length === 0 ? [{ value: "", label: "Nenhuma carteira cadastrada" }] : []),
+                  ...carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {brl(c.saldo)}</> }))
+                ]}
+              />
             </div>
           ) : (
             <div className="space-y-3">
@@ -426,16 +426,17 @@ export function NovaCompra() {
                   <Label htmlFor="intervalo-compra" className="text-xs">
                     A cada
                   </Label>
-                  <select
-                    id="intervalo-compra"
-                    className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
-                    value={intervalo}
-                    onChange={(e) => setIntervalo(e.target.value as typeof intervalo)}
-                  >
-                    <option value="mes">Mês</option>
-                    <option value="quinzena">15 dias</option>
-                    <option value="semana">Semana</option>
-                  </select>
+                    <Seletor
+                      id="intervalo-compra"
+                      className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
+                      value={intervalo}
+                      onValueChange={(valor) => setIntervalo(valor as typeof intervalo)}
+                      opcoes={[
+                        { value: "mes", label: "Mês" },
+                        { value: "quinzena", label: "15 dias" },
+                        { value: "semana", label: "Semana" }
+                      ]}
+                    />
                 </div>
               </div>
               <div className="space-y-1">
@@ -457,9 +458,9 @@ export function NovaCompra() {
               )}
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="obs-compra">Observação</Label>
             <Input
@@ -489,7 +490,7 @@ export function NovaCompra() {
           <p className="text-center text-xs text-muted-foreground">
             O estoque entra e o custo das peças é atualizado.
           </p>
-        </section>
+        </Card>
       </div>
     </div>
   );
