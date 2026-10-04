@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { defineConfig, env } from "prisma/config";
 
 /*
@@ -15,7 +16,10 @@ import { defineConfig, env } from "prisma/config";
 
 // O CLI do Prisma 7 não carrega .env sozinho. Node 20.12+ tem isto nativo,
 // então não precisamos da dependência `dotenv`.
-process.loadEnvFile?.(".env");
+// Prioriza .env.local e permite executar com variáveis fornecidas pelo ambiente.
+for (const file of [".env.local", ".env"]) {
+  if (existsSync(file)) process.loadEnvFile?.(file);
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
