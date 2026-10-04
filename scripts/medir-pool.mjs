@@ -46,7 +46,8 @@ async function testar(max, rotulo) {
 
 console.log("\n=== 8 CONSULTAS EM Promise.all, VARIANDO O TAMANHO DO POOL ===\n");
 const com1 = await testar(1, "max: 1  (o que está hoje)");
-const com5 = await testar(5, "max: 5");
+// Só imprime: o meio-termo serve de referência na tabela, não entra na conta.
+await testar(5, "max: 5");
 const com10 = await testar(10, "max: 10");
 
 console.log("\n=== LEITURA ===");

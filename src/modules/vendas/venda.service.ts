@@ -8,7 +8,7 @@ import {
   type StatusVenda,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ErroDominio, NaoEncontrado } from "@/lib/errors";
+import { NaoEncontrado } from "@/lib/errors";
 
 /*
  * REGRAS DA VENDA. Portadas do app antigo linha a linha, porque erro aqui é

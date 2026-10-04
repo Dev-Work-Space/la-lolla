@@ -7,8 +7,7 @@
  * os dois pela interface no fim — por nome exato, conferido antes de clicar.
  */
 import { chromium } from "playwright-core";
-import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
-import { mkdirSync } from "node:fs";
+import { abrirDialogo, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";

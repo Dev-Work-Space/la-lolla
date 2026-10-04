@@ -12,7 +12,7 @@
  * Limpa tudo no fim, por id exato.
  */
 import { chromium } from "playwright-core";
-import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
+import { abrirDialogo, esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
