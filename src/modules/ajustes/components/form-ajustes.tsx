@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarAjustesAction } from "../ajustes.actions";
 import { EditorCategorias } from "./editor-categorias";
+import { CamposEtiqueta } from "./campos-etiqueta";
 import { AJUSTES_PADRAO, ROTULOS, type Ajustes } from "../ajustes.tipos";
 import type { ErrosDeCampo } from "@/lib/result";
 
@@ -115,6 +116,13 @@ export function FormAjustes({
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Etiquetas
         </h2>
+
+        <CamposEtiqueta
+          largura={atuais.etiquetaLargura}
+          altura={atuais.etiquetaAltura}
+          dobrada={atuais.etiquetaDobrada}
+          erros={{ largura: erros.etiquetaLargura?.[0], altura: erros.etiquetaAltura?.[0] }}
+        />
 
         <Campo
           id="urlApp"

@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { FormMovimento } from "@/modules/pecas/components/form-movimento";
 import { ExcluirPeca } from "@/modules/pecas/components/excluir-peca";
+import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
+import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
+import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
+import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
 export const runtime = "nodejs";
 
@@ -41,6 +45,10 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   const podeExcluir = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.excluir;
   const insumo = p.tipo === "INSUMO";
   const un = insumo ? p.unidade : "un";
+  // Insumo não vai para a vitrine: etiqueta é só de peça.
+  const [paraEtiqueta, ajustes] = insumo
+    ? [[], null]
+    : await Promise.all([pecasParaEtiqueta([p.id]), lerAjustes()]);
 
   const ficha: Array<[string, string]> = [
     ["Código interno", p.sku],
@@ -96,6 +104,14 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
         <div className="flex flex-wrap items-center gap-2">
           {podeExcluir && (
             <ExcluirPeca pecaId={p.id} nome={p.nome} insumo={insumo} veFinanceiro={fin} />
+          )}
+          {ajustes && paraEtiqueta.length > 0 && (
+            <ImprimirEtiquetas
+              pecas={paraEtiqueta}
+              modelo={modeloDosAjustes(ajustes)}
+              podeNumerar={podeEditar}
+              rotulo="Imprimir etiqueta"
+            />
           )}
           {podeEditar && (
             <FormMovimento pecaId={p.id} nome={p.nome} saldo={p.saldo} unidade={un} />

@@ -38,6 +38,13 @@ export function primeiroNome(nome: string) {
   return p ? p.charAt(0).toUpperCase() + p.slice(1) : nome;
 }
 
+/**
+ * Recusa com motivo, escrita para a pessoa. Quem gera o PDF lança isto quando
+ * o servidor diz não (ex.: "No máximo 500 etiquetas por vez") — qualquer outro
+ * erro continua virando a mensagem genérica.
+ */
+export class AvisoPdf extends Error {}
+
 export function EnviarPdf({
   rotulo,
   titulo,
@@ -46,6 +53,7 @@ export function EnviarPdf({
   telefone,
   nomeCliente,
   rotuloBotao = "Gerar PDF",
+  desabilitado = false,
   gerar,
 }: {
   /** Como o documento se chama, para o título do compartilhamento. */
@@ -57,6 +65,7 @@ export function EnviarPdf({
   telefone: string | null;
   nomeCliente: string | null;
   rotuloBotao?: string;
+  desabilitado?: boolean;
   gerar: () => Promise<{ blob: Blob; nome: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -83,8 +92,8 @@ export function EnviarPdf({
         const r = await gerar();
         setPdf({ ...r, url: URL.createObjectURL(r.blob) });
         setAberto(true);
-      } catch {
-        setAviso("Não consegui gerar o PDF. Tente de novo.");
+      } catch (e) {
+        setAviso(e instanceof AvisoPdf ? e.message : "Não consegui gerar o PDF. Tente de novo.");
       }
     });
   }
@@ -101,7 +110,7 @@ export function EnviarPdf({
 
   return (
     <>
-      <Button onClick={emitir} disabled={gerando}>
+      <Button onClick={emitir} disabled={gerando || desabilitado}>
         <FileText className="mr-1.5 size-4" aria-hidden />
         {gerando ? "Gerando…" : rotuloBotao}
       </Button>

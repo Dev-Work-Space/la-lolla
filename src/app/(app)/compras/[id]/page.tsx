@@ -6,6 +6,10 @@ import { buscarCompra } from "@/modules/compras/compra.service";
 import { brl, data as fData, dataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
+import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
+import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
+import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
+import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
 export const runtime = "nodejs";
 
@@ -35,6 +39,19 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
 
   const pago = c.total - c.saldo;
 
+  /* Mercadoria que acabou de chegar é a hora certa de etiquetar: o painel já
+     abre com a quantidade que entrou de cada peça. Insumo não leva etiqueta. */
+  const entrou: Record<string, number> = {};
+  for (const i of c.itens) if (!i.insumo) entrou[i.pecaId] = (entrou[i.pecaId] ?? 0) + i.quantidade;
+  const [paraEtiqueta, ajustes] = await Promise.all([
+    pecasParaEtiqueta(Object.keys(entrou)),
+    lerAjustes(),
+  ]);
+  // Na ordem em que vieram na compra, que é a ordem da nota do fornecedor.
+  const ordem = Object.keys(entrou);
+  paraEtiqueta.sort((a, b) => ordem.indexOf(a.id) - ordem.indexOf(b.id));
+  const podeNumerar = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.editar;
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
@@ -54,6 +71,18 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
         <p className="mt-0.5 text-sm text-muted-foreground">
           {dataHora(c.data)} · {c.fornecedor.nome}
         </p>
+        {paraEtiqueta.length > 0 && (
+          <div className="mt-3">
+            <ImprimirEtiquetas
+              pecas={paraEtiqueta}
+              quantidades={entrou}
+              modelo={modeloDosAjustes(ajustes)}
+              podeNumerar={podeNumerar}
+              rotulo="Etiquetas desta compra"
+              titulo={`Etiquetas da compra #${c.numero}`}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">

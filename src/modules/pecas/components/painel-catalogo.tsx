@@ -22,6 +22,9 @@ import { FiltrosCatalogo } from "./filtros-catalogo";
 import { NovaPeca } from "./nova-peca";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 import { fotosConfiguradas } from "@/lib/storage";
+import { ImprimirEtiquetas } from "./imprimir-etiquetas";
+import { LerEtiqueta } from "./ler-etiqueta";
+import { modeloDosAjustes, precosDaEtiqueta } from "../etiqueta.regras";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -153,6 +156,31 @@ export async function PainelCatalogo({
         valor={busca}
         placeholder="Buscar por nome, código, LL- ou fornecedor"
       />
+
+      {/*
+        As etiquetas saem das peças que estão NA LISTA: filtrar antes é o jeito
+        de escolher "todas as de brinco" ou "as que chegaram zeradas". Dentro
+        do painel dá para marcar e desmarcar uma a uma.
+      */}
+      <div className="flex flex-wrap gap-2">
+        <LerEtiqueta />
+        {linhas.length > 0 && (
+          <ImprimirEtiquetas
+            pecas={linhas.map((p) => ({
+              id: p.id,
+              sku: p.sku,
+              nome: p.nome,
+              tamanho: p.tamanho,
+              saldo: p.saldo,
+              ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
+            }))}
+            modelo={modeloDosAjustes(ajustes)}
+            podeNumerar={pode.editar}
+            rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
+            titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
+          />
+        )}
+      </div>
 
       <Chips
         opcoes={filtrosVisiveis(veFinanceiro)}

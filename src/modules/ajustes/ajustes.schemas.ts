@@ -20,6 +20,17 @@ export const ajustesSchema = z.object({
   descontoVista: numeroBr.refine((n) => n >= 0 && n <= 100, "O desconto vai de 0 a 100"),
   urlApp: z.union([z.literal(""), z.string().trim().url("Endereço inválido")]),
   categorias: z.string().trim().max(2000),
+  /* A D110 imprime até ~15 mm de altura; o comprimento vai longe. Os limites
+     barram o erro de digitação (300 no lugar de 30), não a impressora. */
+  etiquetaLargura: numeroBr.refine(
+    (n) => n >= 10 && n <= 120,
+    "O comprimento vai de 10 a 120 mm — confira na caixa do rolo",
+  ),
+  etiquetaAltura: numeroBr.refine(
+    (n) => n >= 8 && n <= 50,
+    "A altura vai de 8 a 50 mm — confira na caixa do rolo",
+  ),
+  etiquetaDobrada: z.enum(["true", "false"]).transform((v) => v === "true"),
 });
 
 export type AjustesEntrada = z.input<typeof ajustesSchema>;
