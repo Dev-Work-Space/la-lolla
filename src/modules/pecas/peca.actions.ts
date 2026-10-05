@@ -7,6 +7,7 @@ import { ok, fail, type Result } from "@/lib/result";
 import { z } from "zod";
 import { criarPecaSchema, insumoSchema } from "./peca.schema";
 import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
+import { fotosConfiguradas } from "@/lib/storage";
 
 /*
  * Toda action segue os MESMOS TRÊS PASSOS, nesta ordem:
@@ -53,8 +54,13 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
    * FOTO OBRIGATÓRIA na peça — decisão do João, e é como o app antigo faz.
    * O insumo fica de fora: saquinho e caixinha não precisam ser reconhecidos
    * de relance na hora da venda, que é o motivo de a foto existir.
+   *
+   * Só vale com o Storage ligado. Sem as chaves, exigir foto travaria o
+   * cadastro de peça inteiro — e o site da loja cadastrava peça sem foto antes
+   * da foto existir. Decisão do João (05/10): enquanto as chaves não estiverem
+   * na Vercel, a peça entra sem foto.
    */
-  if (!foto && parsed.data.tipo === "PECA") {
+  if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
     return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
       foto: ["Adicione a foto da peça — é por ela que a peça é achada na venda."],
     });

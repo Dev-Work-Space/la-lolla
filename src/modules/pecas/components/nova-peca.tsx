@@ -31,8 +31,11 @@ export function NovaPeca({
   rotulo,
   fator = 2.9,
   categorias = [],
+  fotosLigadas = true,
 }: {
   veFinanceiro: boolean;
+  /** Sem o Storage configurado a foto não tem onde ficar: o seletor some e a peça entra sem foto. */
+  fotosLigadas?: boolean;
   rotulo?: string;
   /** Multiplicador vindo dos Ajustes; usado como padrão no cadastro. */
   fator?: number;
@@ -100,7 +103,7 @@ export function NovaPeca({
         <form onSubmit={enviar} className="space-y-4">
           {/* Primeiro campo, como no app antigo: quem cadastra está com a peça
               na mão, e a foto é o que ela tem de mais fresco. */}
-          <SeletorFoto valor={foto} aoMudar={setFoto} erro={erroDe("foto")} />
+          {fotosLigadas && <SeletorFoto valor={foto} aoMudar={setFoto} erro={erroDe("foto")} />}
 
           <Campo id="nome" rotulo="Nome da peça" erro={erroDe("nome")} autoFocus required />
           <div className="grid gap-4 sm:grid-cols-2">

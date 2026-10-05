@@ -125,7 +125,7 @@ export async function PainelCatalogo({
       {pode.criar && !fotosConfiguradas() && (
         <div className="rounded-xl border border-(--ll-danger) bg-card px-4 py-3">
           <p className="text-sm font-semibold text-destructive">
-            As fotos ainda não estão ligadas — não dá para cadastrar peça
+            As fotos ainda não estão ligadas — por enquanto as peças são cadastradas sem foto
           </p>
           <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs leading-relaxed text-muted-foreground">
             <li>
@@ -136,13 +136,14 @@ export async function PainelCatalogo({
               Em <strong>Settings › API</strong>, copie a <em>anon public</em> e a{" "}
               <em>service_role</em> para o arquivo <code>.env</code>, no lugar de PREENCHER.
             </li>
-            <li>Reinicie o app.</li>
+            <li>Reinicie o app. Daí em diante a foto passa a ser obrigatória no cadastro.</li>
           </ol>
         </div>
       )}
 
       {pode.criar && (
         <NovaPeca
+          fotosLigadas={fotosConfiguradas()}
           veFinanceiro={veFinanceiro}
           fator={ajustes.fator}
           categorias={ajustes.categorias}
@@ -270,6 +271,7 @@ export async function PainelCatalogo({
             acao={
               pode.criar ? (
                 <NovaPeca
+                  fotosLigadas={fotosConfiguradas()}
                   veFinanceiro={veFinanceiro}
                   rotulo="Lançar a primeira peça"
                   fator={ajustes.fator}
