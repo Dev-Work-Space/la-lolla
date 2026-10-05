@@ -7,7 +7,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { criarSessao, encerrarSessao, limparSessoesVencidas } from "@/lib/auth/sessao";
 import { tratarErro } from "@/lib/errors";
-import { conferirSenha, MENSAGEM, MIN_SENHA } from "./senha";
+import { conferirSenha, MENSAGEM } from "./senha";
 import { ok, fail, type Result } from "@/lib/result";
 
 /*

@@ -41,6 +41,12 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
       Array.isArray(cats) && cats.length > 0
         ? cats.map(String)
         : AJUSTES_PADRAO.categorias,
+    etiquetaLargura:
+      numero(CHAVES.etiquetaLargura, AJUSTES_PADRAO.etiquetaLargura) || AJUSTES_PADRAO.etiquetaLargura,
+    etiquetaAltura:
+      numero(CHAVES.etiquetaAltura, AJUSTES_PADRAO.etiquetaAltura) || AJUSTES_PADRAO.etiquetaAltura,
+    // Só vira "simples" quando alguém desligou de propósito; o padrão é a de joia.
+    etiquetaDobrada: bruto.get(CHAVES.etiquetaDobrada) !== false,
   };
 });
 

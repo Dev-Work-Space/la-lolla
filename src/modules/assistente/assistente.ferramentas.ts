@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { veFinanceiro, type exigirPermissao } from "@/lib/auth/guard";
+import { veFinanceiro } from "@/lib/auth/guard";
 import { brl } from "@/lib/formato";
 import type { Sessao } from "@/lib/auth/sessao";
 import { podeFazer } from "@/modules/usuarios/permissoes";

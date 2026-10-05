@@ -46,7 +46,6 @@ export function MontarPainel() {
      */
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCfg(lerPainel());
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPronto(true);
   }, []);
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { Seletor } from "@/components/padrao/seletor";
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { criarPecaAction } from "../peca.actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SeletorFoto, type FotoEscolhida } from "./seletor-foto";
 import {
   Dialog,
   DialogContent,
@@ -30,24 +31,54 @@ export function NovaPeca({
   rotulo,
   fator = 2.9,
   categorias = [],
+  fotosLigadas = true,
 }: {
   veFinanceiro: boolean;
+  /** Sem o Storage configurado a foto não tem onde ficar: o seletor some e a peça entra sem foto. */
+  fotosLigadas?: boolean;
   rotulo?: string;
   /** Multiplicador vindo dos Ajustes; usado como padrão no cadastro. */
   fator?: number;
   categorias?: string[];
 }) {
   const [aberto, setAberto] = useState(false);
+  const [foto, setFoto] = useState<FotoEscolhida | null>(null);
+  const [estado, setEstado] = useState<Awaited<ReturnType<typeof criarPecaAction>> | null>(null);
+  const [pendente, salvar] = useTransition();
   const router = useRouter();
 
-  const [estado, enviar, pendente] = useActionState(async (_prev: unknown, fd: FormData) => {
-    const r = await criarPecaAction(fd);
-    if (r.ok) {
-      setAberto(false);
-      router.refresh();
-    }
-    return r;
-  }, null);
+  /*
+   * `onSubmit` no lugar de `<form action={...}>`, e isso NÃO é estilo.
+   *
+   * O React 19 LIMPA o formulário sozinho depois de um envio por form action —
+   * inclusive quando ele falha. Na prática: a pessoa preenchia nome, preço,
+   * código, o salvamento era recusado por qualquer motivo, e ela encontrava
+   * todos os campos em branco para digitar de novo. Com a foto obrigatória
+   * isso deixou de ser raro e virou o caminho comum.
+   *
+   * Tratando o envio à mão, o que foi digitado continua na tela e a pessoa só
+   * corrige o que faltou.
+   */
+  function enviar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+
+    /* A foto não vem de um <input> do formulário: ela é recortada e comprimida
+       no navegador e vive em estado. Entra aqui, no mesmo FormData, para a
+       action receber tudo de uma vez só. */
+    if (foto) fd.set("foto", foto.arquivo);
+
+    salvar(async () => {
+      const r = await criarPecaAction(fd);
+      setEstado(r);
+      if (r.ok) {
+        setAberto(false);
+        setFoto(null);
+        setEstado(null);
+        router.refresh();
+      }
+    });
+  }
 
   const erroDe = (campo: string) =>
     estado && !estado.ok ? estado.error.fields?.[campo]?.[0] : undefined;
@@ -69,7 +100,11 @@ export function NovaPeca({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={enviar} className="space-y-4">
+        <form onSubmit={enviar} className="space-y-4">
+          {/* Primeiro campo, como no app antigo: quem cadastra está com a peça
+              na mão, e a foto é o que ela tem de mais fresco. */}
+          {fotosLigadas && <SeletorFoto valor={foto} aoMudar={setFoto} erro={erroDe("foto")} />}
+
           <Campo id="nome" rotulo="Nome da peça" erro={erroDe("nome")} autoFocus required />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">

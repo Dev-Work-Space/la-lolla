@@ -8,13 +8,19 @@ import { indicadoresFinanceiro } from "@/modules/financeiro/financeiro.service";
 import { PainelCaixa } from "@/modules/financeiro/components/painel-caixa";
 import { PainelContas } from "@/modules/financeiro/components/painel-contas";
 import { PainelCarteiras } from "@/modules/financeiro/components/painel-carteiras";
+import { PainelCartoes } from "@/modules/financeiro/components/painel-cartoes";
+import { ResumoCartoes } from "@/modules/financeiro/components/resumo-cartoes";
+import { PainelAgenda } from "@/modules/financeiro/components/painel-agenda";
+import { PainelPrevisao } from "@/modules/financeiro/components/painel-previsao";
+import { mesDaUrl } from "@/modules/financeiro/agenda.service";
+import { cartoesComLimite } from "@/modules/financeiro/cartao.service";
 import type { FiltroConta } from "@/modules/financeiro/financeiro.service";
 
 export const runtime = "nodejs";
 
 export const metadata = { title: "Financeiro · LaLolla" };
 
-type Aba = "caixa" | "pagar" | "receber" | "carteiras";
+type Aba = "caixa" | "pagar" | "receber" | "agenda" | "previsao" | "carteiras";
 
 /*
  * Financeiro em quatro sub-abas. No app antigo isto era espalhado por cinco
@@ -32,13 +38,21 @@ type Aba = "caixa" | "pagar" | "receber" | "carteiras";
 export default async function FinanceiroPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string; filtro?: string; de?: string; ate?: string }>;
+  searchParams: Promise<{
+    aba?: string;
+    filtro?: string;
+    de?: string;
+    ate?: string;
+    mes?: string;
+  }>;
 }) {
   const sessao = await exigirPermissao("financeiro", "ver");
   if (!sessao.ok) notFound();
 
-  const { aba, filtro, de, ate } = await searchParams;
-  const qual: Aba = (["pagar", "receber", "carteiras"] as const).includes(aba as never)
+  const { aba, filtro, de, ate, mes } = await searchParams;
+  const qual: Aba = (
+    ["pagar", "receber", "agenda", "previsao", "carteiras"] as const
+  ).includes(aba as never)
     ? (aba as Aba)
     : "caixa";
 
@@ -59,10 +73,15 @@ export default async function FinanceiroPage({
 
       <div className="mt-5">
         <Segmentado
+          /* As seis sub-abas do app antigo, na mesma ordem: o caixa de hoje,
+             o que se deve, o que se tem a receber, o calendário do mês, a
+             projeção e onde o dinheiro está. */
           opcoes={[
             ["caixa", "Caixa"],
             ["pagar", "A pagar"],
             ["receber", "A receber"],
+            ["agenda", "Agenda"],
+            ["previsao", "Previsão"],
             ["carteiras", "Carteiras"],
           ]}
           atual={qual}
@@ -72,7 +91,7 @@ export default async function FinanceiroPage({
 
       <div className="mt-5">
         <Suspense
-          key={`${qual}:${filtro ?? ""}:${de ?? ""}:${ate ?? ""}`}
+          key={`${qual}:${filtro ?? ""}:${de ?? ""}:${ate ?? ""}:${mes ?? ""}`}
           fallback={
             <div className="space-y-4">
               <div className="h-10 animate-pulse rounded bg-muted" />
@@ -80,7 +99,7 @@ export default async function FinanceiroPage({
             </div>
           }
         >
-          <PainelDaAba qual={qual} filtro={filtro} de={de} ate={ate} pode={pode} />
+          <PainelDaAba qual={qual} filtro={filtro} de={de} ate={ate} mes={mes} pode={pode} />
         </Suspense>
       </div>
     </main>
@@ -140,22 +159,43 @@ async function PainelDaAba({
   filtro,
   de,
   ate,
+  mes,
   pode,
 }: {
   qual: Aba;
   filtro?: string;
   de?: string;
   ate?: string;
+  mes?: string;
   pode: { criar: boolean; editar: boolean; excluir: boolean };
 }) {
   const ind = await indicadoresFinanceiro();
 
   if (qual === "caixa") {
-    return <PainelCaixa de={de} ate={ate} carteiras={ind.carteiras} pode={pode} />;
-  }
-  if (qual === "carteiras") {
+    /* O cartão aparece no Caixa, como no app antigo: quem abre o Financeiro
+       quer ver o dinheiro que tem E quanto ainda dá para gastar. A ficha
+       completa continua na aba Carteiras. */
+    const cartoes = await cartoesComLimite();
     return (
-      <PainelCarteiras carteiras={ind.carteiras} naoAtribuido={ind.naoAtribuido} pode={pode} />
+      <div className="space-y-4">
+        <PainelCaixa de={de} ate={ate} carteiras={ind.carteiras} pode={pode} />
+        <ResumoCartoes cartoes={cartoes} carteiras={ind.carteiras} pode={pode} />
+      </div>
+    );
+  }
+  if (qual === "agenda") return <PainelAgenda mes={mesDaUrl(mes)} />;
+  if (qual === "previsao") return <PainelPrevisao />;
+
+  if (qual === "carteiras") {
+    /* Cartão vem junto das carteiras, como no app antigo: quem abre esta aba
+       está perguntando "onde está o meu dinheiro", e o limite do cartão faz
+       parte da resposta — pelo avesso. */
+    const cartoes = await cartoesComLimite();
+    return (
+      <div className="space-y-6">
+        <PainelCarteiras carteiras={ind.carteiras} naoAtribuido={ind.naoAtribuido} pode={pode} />
+        <PainelCartoes cartoes={cartoes} carteiras={ind.carteiras} pode={pode} />
+      </div>
     );
   }
   return (

@@ -29,10 +29,12 @@ async function main() {
   }
 
   // ── Carteiras ───────────────────────────────────────────────
+  // O "cofrinho" sim-ou-não virou `tipo` na migração de 16/09; o seed tinha
+  // ficado para trás e quebrava num banco novo.
   const carteiras = [
-    { nome: "Caixa", cofrinho: false, ordem: 0 },
-    { nome: "Banco", cofrinho: false, ordem: 1 },
-    { nome: "Cofrinho", cofrinho: true, ordem: 2 },
+    { nome: "Caixa", tipo: "ESPECIE" as const, ordem: 0 },
+    { nome: "Banco", tipo: "CONTA" as const, ordem: 1 },
+    { nome: "Cofrinho", tipo: "RESERVA" as const, ordem: 2 },
   ];
   for (const c of carteiras) {
     await prisma.carteira.upsert({ where: { nome: c.nome }, update: {}, create: c });

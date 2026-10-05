@@ -3,7 +3,6 @@ import { mascaraDoc, mascaraTelefone } from "@/lib/documento";
 import {
   BlocoVazio,
   Indicador,
-  Indicadores,
   Linha,
   Lista,
   Pilula,

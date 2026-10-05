@@ -65,7 +65,6 @@ async function medirTela(nome, fn) {
   const t0 = performance.now();
   await fn();
   const total = performance.now() - t0;
-  const espera = total - tempoBanco;
   console.log(
     `  ${nome.padEnd(22)} ${String(consultas).padStart(3)} consultas · ` +
       `${ms(total).padStart(8)} total · ${ms(tempoBanco).padStart(8)} no banco`,
