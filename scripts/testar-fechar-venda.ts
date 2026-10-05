@@ -5,7 +5,7 @@
  * Cria a peça, fecha a venda, confere os números e limpa tudo.
  */
 import { prisma } from "../src/lib/prisma";
-import { fecharVenda, cancelarVenda, devolverItem } from "../src/modules/vendas/venda.fechar";
+import { fecharVenda, cancelarVenda, registrarDevolucao } from "../src/modules/vendas/venda.fechar";
 import { buscarVenda } from "../src/modules/vendas/venda.service";
 
 const MARCA = "ZZQA ";
@@ -68,9 +68,20 @@ async function main() {
   conferir("estoque 10 − 2 = 8", saldo._sum.delta === 8, String(saldo._sum.delta));
 
   console.log("\n=== DEVOLVER 1 ===");
-  await devolverItem(f.itens[0].id, 1);
+  /* Peça de 100 numa venda com 40 em aberto e 150 já pagos: 40 abatem as
+     parcelas e 60 voltam em dinheiro. Por isso a resolução é DEVOLVER. */
+  const dev = await registrarDevolucao({
+    vendaId: v.id,
+    itens: [{ itemVendaId: f.itens[0].id, quantidade: 1 }],
+    motivo: "teste",
+    resolucao: "DEVOLVER",
+  });
+  conferir("abateu os 40 em aberto", dev.abatido === 40, String(dev.abatido));
+  conferir("60 voltam em dinheiro", dev.emDinheiro === 60, String(dev.emDinheiro));
   const f2 = await buscarVenda(v.id, true);
   conferir("total caiu para 90", f2.total === 90, String(f2.total));
+  conferir("a venda ficou sem saldo a receber", f2.saldo === 0, String(f2.saldo));
+  conferir("as parcelas canceladas somem da ficha", f2.parcelas.length === 0, String(f2.parcelas.length));
   conferir("custo caiu para 40", "custo" in f2 && f2.custo === 40, String((f2 as never)["custo"]));
   const saldo2 = await prisma.movimentoEstoque.aggregate({ where: { pecaId }, _sum: { delta: true } });
   conferir("estoque voltou para 9", saldo2._sum.delta === 9, String(saldo2._sum.delta));
@@ -94,6 +105,16 @@ main()
     console.log("\n=== LIMPEZA ===");
     try {
       if (vendaId) {
+        /* A devolução em dinheiro cria um lançamento de saída no caixa. Ele
+           não some com a venda (é dinheiro que se moveu), então o teste tem de
+           apagar o dele — senão deixa −60 no caixa de verdade. */
+        const devs = await prisma.devolucao.findMany({
+          where: { vendaId },
+          select: { lancamentoId: true },
+        });
+        const lancs = devs.map((d) => d.lancamentoId).filter((x): x is string => !!x);
+        await prisma.devolucao.deleteMany({ where: { vendaId } });
+        if (lancs.length) await prisma.lancamento.deleteMany({ where: { id: { in: lancs } } });
         await prisma.conta.deleteMany({ where: { vendaId } });
         await prisma.pagamento.deleteMany({ where: { vendaId } });
         await prisma.itemVenda.deleteMany({ where: { vendaId } });

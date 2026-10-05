@@ -1,12 +1,12 @@
 "use server";
 
 import { recarregar } from "@/lib/recarregar";
-import { z } from "zod";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
 import { gravarAjuste } from "./ajustes.service";
 import { AJUSTES_PADRAO } from "./ajustes.tipos";
+import { ajustesSchema } from "./ajustes.schemas";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
   const out: ErrosDeCampo = {};
@@ -14,29 +14,13 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
   return out;
 }
 
-const numeroBr = z
-  .union([z.string(), z.number()])
-  .transform((v) =>
-    typeof v === "number" ? v : Number(String(v).replace(/\./g, "").replace(",", ".")),
-  )
-  .refine((n) => Number.isFinite(n), { message: "Valor inválido" });
-
-const schema = z.object({
-  fator: numeroBr.refine((n) => n > 0, "O multiplicador precisa ser maior que zero"),
-  meta: numeroBr.refine((n) => n >= 0, "A meta não pode ser negativa"),
-  diasParado: z.coerce.number().int().min(1, "Informe pelo menos 1 dia").max(3650),
-  descontoVista: numeroBr.refine((n) => n >= 0 && n <= 100, "O desconto vai de 0 a 100"),
-  urlApp: z.union([z.literal(""), z.string().trim().url("Endereço inválido")]),
-  categorias: z.string().trim().max(2000),
-});
-
 export async function salvarAjustesAction(formData: FormData): Promise<Result<{ ok: true }>> {
   // Ajustes mexem em regra de cálculo do app inteiro: exige a permissão da
   // área "ajustes", que o Vendedor não tem.
   const sessao = await exigirPermissao("ajustes", "editar");
   if (!sessao.ok) return sessao;
 
-  const parsed = schema.safeParse(Object.fromEntries(formData));
+  const parsed = ajustesSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return fail("DADOS_INVALIDOS", "Confira os campos destacados.", campos(parsed.error));
   }
@@ -60,6 +44,9 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
       gravarAjuste("descontoVista", d.descontoVista),
       gravarAjuste("urlApp", d.urlApp),
       gravarAjuste("categorias", categorias.length > 0 ? categorias : AJUSTES_PADRAO.categorias),
+      gravarAjuste("etiquetaLargura", d.etiquetaLargura),
+      gravarAjuste("etiquetaAltura", d.etiquetaAltura),
+      gravarAjuste("etiquetaDobrada", d.etiquetaDobrada),
     ]);
 
     // Os ajustes entram em quase toda conta do app.

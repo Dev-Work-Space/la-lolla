@@ -4,12 +4,14 @@ import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NaoEncontrado } from "@/lib/errors";
-import { fimDoDia } from "@/lib/dia";
+import { fimDoDia, fimDoMes, inicioDoMes, somaMeses } from "@/lib/dia";
 import {
   CATEGORIAS_FORA_DA_DESPESA,
   type CarteiraSaldo,
+  type CategoriaGasto,
   type ContaLinha,
   type FiltroConta,
+  type MesResumo,
   type MovimentoCaixa,
 } from "./financeiro.tipos";
 
@@ -195,6 +197,96 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
   return linhas.sort((a, b) => b.quando.getTime() - a.quando.getTime());
 }
 
+/* ─────────────────────── o caixa em perspectiva ─────────────────────── */
+
+/**
+ * Entradas e saídas dos últimos N meses, para o gráfico do Caixa.
+ *
+ * Uma consulta só para a janela inteira, separada por mês na memória: seis
+ * meses × três fontes dariam dezoito viagens ao banco para desenhar uma
+ * figura que cabe num cartão.
+ *
+ * Transferência NÃO entra: ela move dinheiro de um bolso para o outro da
+ * mesma loja. Somá-la como saída faria o gráfico mostrar despesa onde não
+ * houve nenhuma.
+ */
+export async function resumoMensal(meses = 6): Promise<MesResumo[]> {
+  const fim = fimDoMes(new Date());
+  const inicio = inicioDoMes(somaMeses(new Date(), -(meses - 1)));
+
+  const [lancs, pagos] = await Promise.all([
+    prisma.lancamento.findMany({
+      where: { data: { gte: inicio, lte: fim } },
+      select: { valor: true, data: true },
+    }),
+    prisma.pagamento.findMany({
+      where: { data: { gte: inicio, lte: fim }, venda: { status: { not: "CANCELADA" } } },
+      select: { valor: true, data: true },
+    }),
+  ]);
+
+  const chave = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const caixas = new Map<string, { entradas: number; saidas: number }>();
+
+  for (let i = 0; i < meses; i++) {
+    const d = somaMeses(inicio, i);
+    caixas.set(chave(d), { entradas: 0, saidas: 0 });
+  }
+
+  for (const l of lancs) {
+    const c = caixas.get(chave(l.data));
+    if (!c) continue;
+    const v = num(l.valor);
+    if (v >= 0) c.entradas += v;
+    else c.saidas += Math.abs(v);
+  }
+  for (const p of pagos) {
+    const c = caixas.get(chave(p.data));
+    if (c) c.entradas += num(p.valor);
+  }
+
+  return [...caixas.entries()].map(([mes, v]) => {
+    const [ano, m] = mes.split("-").map(Number);
+    const quando = new Date(ano, m - 1, 1);
+    return {
+      mes,
+      rotulo: quando.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+      entradas: r2(v.entradas),
+      saidas: r2(v.saidas),
+      saldo: r2(v.entradas - v.saidas),
+    };
+  });
+}
+
+/**
+ * Para onde o dinheiro foi no período, por categoria.
+ *
+ * Só saídas, e só lançamentos: pagamento de venda é entrada, e transferência
+ * não é gasto. A lista sai do maior para o menor, que é a ordem em que a
+ * pergunta "onde está indo o dinheiro?" se responde.
+ */
+export async function saidasPorCategoria(de: Date, ate: Date): Promise<CategoriaGasto[]> {
+  const lancs = await prisma.lancamento.findMany({
+    where: { data: { gte: de, lte: ate }, valor: { lt: 0 } },
+    select: { valor: true, categoria: true },
+  });
+
+  const soma = new Map<string, number>();
+  for (const l of lancs) {
+    const k = l.categoria || "Outros";
+    soma.set(k, (soma.get(k) ?? 0) + Math.abs(num(l.valor)));
+  }
+
+  const total = [...soma.values()].reduce((s, v) => s + v, 0);
+  return [...soma.entries()]
+    .map(([categoria, valor]) => ({
+      categoria,
+      valor: r2(valor),
+      pct: total > 0 ? Math.round((valor / total) * 100) : 0,
+    }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
 /* ─────────────────────── contas ─────────────────────── */
 
 
@@ -227,6 +319,8 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
       parcela: true,
       deParcelas: true,
       vendaId: true,
+      cartaoId: true,
+      cartao: { select: { nome: true } },
       fornecedor: { select: { nome: true } },
     },
     take: 300,
@@ -247,6 +341,8 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
       fornecedor: c.fornecedor?.nome ?? null,
       vendaId: c.vendaId,
       parcela: c.parcela && c.deParcelas ? `${c.parcela}/${c.deParcelas}` : null,
+      cartaoId: c.cartaoId,
+      cartaoNome: c.cartao?.nome ?? null,
     };
   });
 }

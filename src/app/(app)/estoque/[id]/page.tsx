@@ -9,6 +9,10 @@ import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { FormMovimento } from "@/modules/pecas/components/form-movimento";
 import { ExcluirPeca } from "@/modules/pecas/components/excluir-peca";
+import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
+import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
+import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
+import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
 export const runtime = "nodejs";
 
@@ -42,6 +46,10 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   const podeExcluir = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.excluir;
   const insumo = p.tipo === "INSUMO";
   const un = insumo ? p.unidade : "un";
+  // Insumo não vai para a vitrine: etiqueta é só de peça.
+  const [paraEtiqueta, ajustes] = insumo
+    ? [[], null]
+    : await Promise.all([pecasParaEtiqueta([p.id]), lerAjustes()]);
 
   const ficha: Array<[string, string]> = [
     ["Código interno", p.sku],
@@ -70,20 +78,41 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{p.nome}</h1>
-            {insumo && <Pilula>insumo</Pilula>}
-            {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
+        <div className="flex min-w-0 items-start gap-3">
+          {/* A foto ao lado do nome, não acima: na ficha a pessoa está
+              conferindo dados, e a imagem serve para confirmar que é a peça
+              certa — não para ocupar a tela. */}
+          {p.imagens[0]?.url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={p.imagens[0].url}
+              alt={`Foto de ${p.nome}`}
+              className="size-16 shrink-0 rounded-xl border object-cover sm:size-20"
+            />
+          )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{p.nome}</h1>
+              {insumo && <Pilula>insumo</Pilula>}
+              {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {p.sku} · {p.categoria}
+              {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
+            </p>
           </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {p.sku} · {p.categoria}
-            {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {podeExcluir && (
             <ExcluirPeca pecaId={p.id} nome={p.nome} insumo={insumo} veFinanceiro={fin} />
+          )}
+          {ajustes && paraEtiqueta.length > 0 && (
+            <ImprimirEtiquetas
+              pecas={paraEtiqueta}
+              modelo={modeloDosAjustes(ajustes)}
+              podeNumerar={podeEditar}
+              rotulo="Imprimir etiqueta"
+            />
           )}
           {podeEditar && (
             <FormMovimento pecaId={p.id} nome={p.nome} saldo={p.saldo} unidade={un} />

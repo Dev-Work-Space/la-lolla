@@ -3,7 +3,7 @@
  * Só leitura e localStorage; não escreve nada no banco.
  */
 import { chromium } from "playwright-core";
-import { abrirDialogo, buscarEClicar, esperarPronto } from "./sonda-comum.mjs";
+import { esperarPronto } from "./sonda-comum.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
@@ -132,9 +132,8 @@ try {
   );
   const saud = spans.find((s) => s.id === "saudacao");
   const pend = spans.find((s) => s.id === "pendencias");
-  conferir("saudação ocupa 8 colunas", /span 8/.test(saud?.span ?? ""), saud?.span);
-  conferir("pendências ocupa 4 colunas", /span 4/.test(pend?.span ?? ""), pend?.span);
-  conferir("8 + 4 fecham a linha de 12", true);
+  conferir("saudação ocupa a linha toda", /span 12/.test(saud?.span ?? ""), saud?.span);
+  conferir("pendências vêm abaixo, também na linha toda", /span 12/.test(pend?.span ?? ""), pend?.span);
 
   /*
    * MONTAR PAINEL mudou de lugar: era um diálogo no Início e virou uma seção
@@ -285,16 +284,16 @@ try {
 
   console.log("\n=== MUDAR TAMANHO ===");
   await irAosAjustes();
-  await mexerNoPainel(() => page.locator(`button:has-text("Largura toda")`).first().click());
+  await mexerNoPainel(() => page.locator(`button:has-text("Grande")`).first().click());
   await voltarAoInicio();
-  conferir("saudação virou largura toda (12)", await esperarSpan("saudacao", 12));
+  conferir("saudação virou grande (8)", await esperarSpan("saudacao", 8));
 
   console.log("\n=== RESTAURAR PADRÃO ===");
   await irAosAjustes();
   await mexerNoPainel(() => page.click(`button:has-text("Restaurar padrão")`));
   await voltarAoInicio();
   conferir('"numeros" voltou', await esperarAparecer("numeros"));
-  conferir("saudação voltou a 8", await esperarSpan("saudacao", 8));
+  conferir("saudação voltou à linha toda (12)", await esperarSpan("saudacao", 12));
 
   console.log("\n=== CELULAR ===");
   await page.setViewportSize({ width: 390, height: 844 });

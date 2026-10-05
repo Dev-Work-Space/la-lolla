@@ -21,6 +21,10 @@ import { BuscaEstoque } from "./busca-estoque";
 import { FiltrosCatalogo } from "./filtros-catalogo";
 import { NovaPeca } from "./nova-peca";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
+import { fotosConfiguradas } from "@/lib/storage";
+import { ImprimirEtiquetas } from "./imprimir-etiquetas";
+import { LerEtiqueta } from "./ler-etiqueta";
+import { modeloDosAjustes, precosDaEtiqueta } from "../etiqueta.regras";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -112,6 +116,31 @@ export async function PainelCatalogo({
         </div>
       )}
 
+      {/*
+        A foto é OBRIGATÓRIA no cadastro, e ela precisa de um lugar para ficar.
+        Sem as chaves do Supabase, toda tentativa de cadastrar peça é recusada
+        — e descobrir isso depois de preencher o formulário inteiro é o pior
+        jeito de descobrir. O aviso vem antes, e diz exatamente o que fazer.
+      */}
+      {pode.criar && !fotosConfiguradas() && (
+        <div className="rounded-xl border border-(--ll-danger) bg-card px-4 py-3">
+          <p className="text-sm font-semibold text-destructive">
+            As fotos ainda não estão ligadas — não dá para cadastrar peça
+          </p>
+          <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs leading-relaxed text-muted-foreground">
+            <li>
+              No Supabase, <strong>Storage › New bucket</strong>, com o nome{" "}
+              <strong>pecas</strong> e marcado como <strong>privado</strong>.
+            </li>
+            <li>
+              Em <strong>Settings › API</strong>, copie a <em>anon public</em> e a{" "}
+              <em>service_role</em> para o arquivo <code>.env</code>, no lugar de PREENCHER.
+            </li>
+            <li>Reinicie o app.</li>
+          </ol>
+        </div>
+      )}
+
       {pode.criar && (
         <NovaPeca
           veFinanceiro={veFinanceiro}
@@ -125,6 +154,31 @@ export async function PainelCatalogo({
         valor={busca}
         placeholder="Buscar por nome, código, LL- ou fornecedor"
       />
+
+      {/*
+        As etiquetas saem das peças que estão NA LISTA: filtrar antes é o jeito
+        de escolher "todas as de brinco" ou "as que chegaram zeradas". Dentro
+        do painel dá para marcar e desmarcar uma a uma.
+      */}
+      <div className="flex flex-wrap gap-2">
+        <LerEtiqueta />
+        {linhas.length > 0 && (
+          <ImprimirEtiquetas
+            pecas={linhas.map((p) => ({
+              id: p.id,
+              sku: p.sku,
+              nome: p.nome,
+              tamanho: p.tamanho,
+              saldo: p.saldo,
+              ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
+            }))}
+            modelo={modeloDosAjustes(ajustes)}
+            podeNumerar={pode.editar}
+            rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
+            titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
+          />
+        )}
+      </div>
 
       <Chips
         opcoes={filtrosVisiveis(veFinanceiro)}
@@ -174,7 +228,6 @@ export async function PainelCatalogo({
 
             const sub: string[] = [p.sku];
             if (!pilulaEstoque) sub.push(`${p.saldo} un.`);
-            if (!p.foto) sub.push("sem foto");
             if (p.reservada > 0)
               sub.push(`${p.reservada} reservada${p.reservada === 1 ? "" : "s"}`);
             if (p.fornecedor) sub.push(p.fornecedor);
@@ -186,6 +239,8 @@ export async function PainelCatalogo({
               <Linha
                 key={p.id}
                 nome={p.nome}
+                foto={p.foto}
+                reservaFoto
                 pilulas={
                   <>
                     {p.aPagar && <Pilula tom="due">A pagar</Pilula>}

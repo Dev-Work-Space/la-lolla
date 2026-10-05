@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import {
   RobotIcon,
@@ -48,7 +48,6 @@ export function ChatFlutuante({ configurado }: ChatFlutuanteProps) {
   const [inputValor, setInputValor] = useState("");
   const [digitando, setDigitando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
   const tela = telaAtual(pathname);
 
