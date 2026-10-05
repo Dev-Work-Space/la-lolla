@@ -88,3 +88,34 @@ export function EsqueletoPagina({
     </main>
   );
 }
+
+/**
+ * Telas de edição (nova venda, nova compra, orçamento): a montagem à esquerda
+ * — busca e itens — e o resumo com o total à direita, que no celular desce.
+ */
+export function EsqueletoEditor() {
+  return (
+    <main className="mx-auto w-full max-w-6xl px-4 py-5">
+      <EsqueletoTitulo />
+      <div className="grid items-start gap-4 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-4">
+          <div className="space-y-3 rounded-xl border bg-card p-4">
+            <Bloco className="h-4 w-32" />
+            <Bloco className="h-10 w-full" />
+          </div>
+          <EsqueletoLista linhas={3} />
+        </div>
+        <div className="space-y-3 rounded-xl border bg-card p-4">
+          <Bloco className="h-4 w-24" />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex justify-between">
+              <Bloco className="h-3 w-20" />
+              <Bloco className="h-3 w-16" />
+            </div>
+          ))}
+          <Bloco className="mt-2 h-10 w-full" />
+        </div>
+      </div>
+    </main>
+  );
+}

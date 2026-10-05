@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /*
+   * A moldura de cada tela (cabeçalho, menu, título e esqueleto) sai pronta
+   * de antemão e aparece na hora; a sessão e o banco chegam depois, cada um
+   * no seu bloco. Sem isto o servidor só respondia depois de consultar a
+   * sessão, e o app "travava" toda vez que a Vercel o acordava. Pedido do
+   * João (05/10) — era a pendência "casca antes do banco" do HISTORICO §6.
+   */
+  cacheComponents: true,
+
+  /*
    * O Next 16 bloqueia recursos de DESENVOLVIMENTO pedidos por um host que
    * não seja o que ele considera seu. Ao subir com `-H 0.0.0.0` (para abrir
    * no celular), o acesso por 127.0.0.1 ou pelo IP da rede passa a ser

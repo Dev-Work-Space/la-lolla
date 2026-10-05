@@ -4,7 +4,6 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { EditorOrcamento } from "@/modules/orcamentos/components/editor-orcamento";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Novo orçamento · LaLolla" };
 
 export default async function NovoOrcamentoPage() {

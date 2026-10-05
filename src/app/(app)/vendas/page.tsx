@@ -26,7 +26,6 @@ import { BuscaVendas } from "@/modules/vendas/components/busca-vendas";
 import { PainelOrcamentos } from "@/modules/orcamentos/components/painel-orcamentos";
 import type { FiltroOrcamento } from "@/modules/orcamentos/orcamento.service";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Portal de vendas · LaLolla" };
 

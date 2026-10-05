@@ -141,9 +141,26 @@ pré-renderizada, bloqueando o carregamento da página" — e toda tela começa
 conferindo a sessão, que lê o cookie.
 
 Consertar isso de verdade exige ligar `cacheComponents` e mover a conferência
-de login para dentro dos Suspense. **Está pendente e depende de decisão do
-João** (a barra lateral escolhe os itens pela permissão; indo para dentro do
-Suspense, ela aparece um instante depois).
+de login para dentro dos Suspense. **Feito em 05/10, a pedido do João** ("entre
+na tela mesmo sem carregar o banco"):
+
+- `cacheComponents: true` no `next.config.ts`. Todas as telas viraram
+  pré-renderização parcial (◐ no build): a moldura sai pronta de antemão — até
+  com a Vercel acordando o app — e os dados entram depois.
+- O layout não espera mais a sessão. Cabeçalho, barra lateral e barra de baixo
+  leem a sessão cada um no seu `<Suspense>`, com esqueletos do mesmo tamanho
+  (`components/layout/molduras.tsx`); a barra lateral mostra os itens um
+  instante depois, que era o custo conhecido.
+- Toda rota tem `loading.tsx`; as telas de edição dividem o `EsqueletoEditor`.
+- Saiu o `export const runtime = "nodejs"` das telas (o padrão já é Node, e o
+  `cacheComponents` não aceita a linha). O chat de IA foi para dentro de um
+  `<Suspense>` porque lê o endereço da tela.
+- Medido no build de produção: primeira imagem em 36–108 ms, dados em
+  330–630 ms. Antes a tela ficava em branco durante tudo.
+
+Na mesma data a **região das funções da Vercel** foi para São Paulo (`gru1`),
+do lado do banco: o projeto não tinha região escolhida, e o padrão da Vercel é
+Washington.
 
 ---
 
@@ -705,9 +722,9 @@ done
   upload, três tamanhos e exibição estão prontos e testados. As duas chaves do
   Supabase Storage no `.env` continuam com o texto `PREENCHER`, e falta criar o
   bucket **privado** chamado `pecas` em Storage › New bucket. Enquanto isso,
-  cadastrar peça é recusado com a mensagem que explica exatamente esses dois
-  passos — a peça não fica pela metade.
-- **Casca antes do banco** — ver seção 6, exige decisão sobre a barra lateral.
+  a peça é cadastrada sem foto (decisão do João, 05/10) e o catálogo avisa os
+  dois passos; com as chaves, a foto volta a ser obrigatória.
+- ~~**Casca antes do banco**~~ — feito em 05/10, ver seção 6.
 - **Comprovantes (upload)** — a baixa hoje exige a carteira e a tela avisa, por
   escrito, que o anexo ainda vai ser obrigatório.
 
