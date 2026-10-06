@@ -111,10 +111,20 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
   if (semCodigo) return semCodigo;
 
   try {
-    /* Na edição a foto é OPCIONAL: sem arquivo novo, a que já está fica. Não
-       existe "remover foto" — a peça não pode ficar sem, então o caminho é
-       trocar por outra. */
-    const peca = await editarPeca(idOk.data, parsed.data, veFinanceiro(sessao.data), fotoDoFormulario(formData));
+    /* Na edição a foto nova é opcional SÓ para quem já tem uma: sem arquivo
+       novo, a que já está fica. A peça cadastrada sem foto (enquanto o
+       armazenamento estava desligado) ganha a dela na primeira edição — senão
+       ela nunca deixaria de ser a exceção. Não existe "remover foto". */
+    const foto = fotoDoFormulario(formData);
+    if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
+      const { pecaTemFoto } = await import("./peca.service");
+      if (!(await pecaTemFoto(idOk.data))) {
+        return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
+          foto: ["Esta peça ainda não tem foto. Adicione uma para salvar — é por ela que a peça é achada na venda."],
+        });
+      }
+    }
+    const peca = await editarPeca(idOk.data, parsed.data, veFinanceiro(sessao.data), foto);
     recarregar("estoque", `/estoque/${idOk.data}`);
     return ok({ id: peca.id });
   } catch (e) {

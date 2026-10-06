@@ -302,6 +302,11 @@ export async function pecaComCodigoFornecedor(codigo: number) {
   });
 }
 
+/** A peça já tem foto? A edição só deixa salvar sem foto nova quando tem. */
+export async function pecaTemFoto(pecaId: string) {
+  return (await prisma.imagemPeca.count({ where: { pecaId } })) > 0;
+}
+
 /** Os fornecedores do seletor do cadastro de peça — só o que o seletor mostra. */
 export async function fornecedoresParaPeca() {
   return prisma.fornecedor.findMany({ select: { id: true, nome: true }, orderBy: { nome: "asc" }, take: 300 });

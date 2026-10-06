@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowCounterClockwiseIcon, CameraIcon, CropIcon, MagnifyingGlassPlusIcon, TrashIcon } from "@phosphor-icons/react/ssr";
+import {
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
+  CameraIcon,
+  CropIcon,
+  FrameCornersIcon,
+  MagnifyingGlassPlusIcon,
+  TrashIcon,
+} from "@phosphor-icons/react/ssr";
 import imageCompression from "browser-image-compression";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,10 +22,11 @@ import { cn } from "@/lib/utils";
  * cliente na frente, ninguém procura peça lendo nome — procura reconhecendo a
  * imagem. Catálogo sem foto vira lista de texto que ninguém usa.
  *
- * O enquadramento é QUADRADO por padrão porque a lista, a busca da venda e a
- * etiqueta são todas quadradas: deixar a pessoa escolher o corte aqui é o que
- * evita a peça aparecer cortada pela metade lá na frente. Quem quiser mandar a
- * imagem inteira tem o botão "recorte livre".
+ * Toda foto sai no MESMO tamanho: quadrada, 1.200 × 1.200 px. A lista, a
+ * busca da venda e a ficha são quadradas, e foto em formato livre aparecia
+ * cortada pela metade lá na frente. Há dois jeitos de chegar ao quadrado:
+ * recortar (arrastar e aproximar) ou "foto inteira" — a peça toda dentro do
+ * quadrado, com fundo branco, para colar comprido não perder metade.
  *
  * Toda a redução acontece AQUI, no navegador, antes de subir: uma foto de
  * iPhone tem 4 MB e o que precisa chegar no servidor tem 300 KB. Subir os 4 MB
@@ -44,6 +53,15 @@ export const ALVO_KB = 250;
 
 /** Acima disto a tela avisa: alguma coisa deu errado na redução. */
 const TETO_AVISO_KB = 600;
+
+/* Foto de celular tem de 3 a 8 MB. Acima de 20 MB é arquivo errado (RAW,
+   panorâmica gigante), e abrir isso no navegador do celular trava a aba antes
+   de qualquer redução. */
+const TETO_ORIGINAL_MB = 20;
+
+/* Abaixo disto a foto fica borrada na ficha da peça, que mostra 720 px:
+   esticar não cria detalhe. */
+const LADO_MINIMO = 600;
 
 const kb = (bytes: number) => Math.round(bytes / 1024);
 
@@ -72,7 +90,7 @@ export function SeletorFoto({
      pedir a foto de novo. */
   const [origem, setOrigem] = useState<HTMLImageElement | null>(null);
   const [origemUrl, setOrigemUrl] = useState<string | null>(null);
-  const [livre, setLivre] = useState(false);
+  const [inteira, setInteira] = useState(false);
   const [escala, setEscala] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [processando, setProcessando] = useState(false);
@@ -100,7 +118,7 @@ export function SeletorFoto({
     const obs = new ResizeObserver(([e]) => setLado(e.contentRect.width));
     obs.observe(el);
     return () => obs.disconnect();
-  }, [origem, livre]);
+  }, [origem, inteira]);
 
   /* Revoga a URL da prévia ao trocar/desmontar: sem isso cada foto escolhida
      deixa um blob preso na memória da aba até recarregar a página. */
@@ -124,10 +142,27 @@ export function SeletorFoto({
       setAviso("Escolha uma imagem.");
       return;
     }
+    if (arq.size > TETO_ORIGINAL_MB * 1024 * 1024) {
+      setAviso(
+        `Essa imagem tem ${Math.round(arq.size / 1024 / 1024)} MB — o limite é ${TETO_ORIGINAL_MB} MB. Tire a foto de novo ou escolha outra.`,
+      );
+      return;
+    }
+    carregar(arq);
+  }
 
-    const url = URL.createObjectURL(arq);
+  function carregar(fonte: Blob) {
+    const url = URL.createObjectURL(fonte);
     const img = new Image();
     img.onload = () => {
+      const menor = Math.min(img.naturalWidth, img.naturalHeight);
+      if (menor < LADO_MINIMO) {
+        URL.revokeObjectURL(url);
+        setAviso(
+          `Foto pequena demais (${img.naturalWidth} × ${img.naturalHeight} px): ela fica borrada na ficha. Use uma com pelo menos ${LADO_MINIMO} px de lado — a câmera do celular passa disso com folga.`,
+        );
+        return;
+      }
       if (origemUrl) URL.revokeObjectURL(origemUrl);
       setOrigem(img);
       setOrigemUrl(url);
@@ -139,6 +174,24 @@ export function SeletorFoto({
       setAviso("Não consegui abrir essa imagem. Tente outra.");
     };
     img.src = url;
+  }
+
+  /* Gira 90° no sentido do relógio. A imagem girada SUBSTITUI a original:
+     assim o arrasto, o zoom e o recorte continuam com a mesma conta, sem
+     ninguém precisar pensar em rotação. */
+  async function girar() {
+    if (!origem) return;
+    const c = document.createElement("canvas");
+    c.width = origem.naturalHeight;
+    c.height = origem.naturalWidth;
+    const g = c.getContext("2d");
+    if (!g) return;
+    g.translate(c.width, 0);
+    g.rotate(Math.PI / 2);
+    g.drawImage(origem, 0, 0);
+    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/jpeg", 0.95));
+    if (!blob) return setAviso("Não consegui girar a foto. Tente de novo.");
+    carregar(blob);
   }
 
   /* A escala que faz a imagem COBRIR a moldura quadrada. É o ponto de partida:
@@ -173,7 +226,7 @@ export function SeletorFoto({
   /* ---- arrastar e pinçar ---- */
 
   function aoDescer(ev: React.PointerEvent) {
-    if (livre) return;
+    if (inteira) return;
     (ev.target as Element).setPointerCapture?.(ev.pointerId);
     pontos.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (pontos.current.size === 1) {
@@ -186,7 +239,7 @@ export function SeletorFoto({
   }
 
   function aoMover(ev: React.PointerEvent) {
-    if (livre || !pontos.current.has(ev.pointerId)) return;
+    if (inteira || !pontos.current.has(ev.pointerId)) return;
     pontos.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
     if (pontos.current.size === 2 && pinca.current) {
@@ -217,14 +270,17 @@ export function SeletorFoto({
       const ctx = tela.getContext("2d");
       if (!ctx) throw new Error("canvas");
 
-      if (livre) {
-        /* Recorte livre: manda a imagem inteira, só reduzida. Serve para peça
-           comprida — um colar esticado perde metade num quadrado. */
-        const maior = Math.max(origem.naturalWidth, origem.naturalHeight);
-        const f = Math.min(1, LADO_SAIDA / maior);
-        tela.width = Math.round(origem.naturalWidth * f);
-        tela.height = Math.round(origem.naturalHeight * f);
-        ctx.drawImage(origem, 0, 0, tela.width, tela.height);
+      if (inteira) {
+        /* Foto inteira: a peça toda dentro do quadrado, com branco nas sobras.
+           Colar esticado não perde metade, e a foto sai no tamanho padrão. */
+        tela.width = LADO_SAIDA;
+        tela.height = LADO_SAIDA;
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, LADO_SAIDA, LADO_SAIDA);
+        const f = Math.min(LADO_SAIDA / origem.naturalWidth, LADO_SAIDA / origem.naturalHeight);
+        const w = Math.round(origem.naturalWidth * f);
+        const h = Math.round(origem.naturalHeight * f);
+        ctx.drawImage(origem, Math.round((LADO_SAIDA - w) / 2), Math.round((LADO_SAIDA - h) / 2), w, h);
       } else {
         /* Quadrado: converto o que está visível na moldura para coordenadas da
            imagem original e recorto exatamente aquilo. */
@@ -301,15 +357,15 @@ export function SeletorFoto({
             onPointerMove={aoMover}
             onPointerUp={aoSubir}
             onPointerCancel={aoSubir}
-            onWheel={(e) => !livre && mudarEscala(escala - e.deltaY * 0.0015)}
+            onWheel={(e) => !inteira && mudarEscala(escala - e.deltaY * 0.0015)}
             className={cn(
               "relative mx-auto w-full max-w-72 overflow-hidden rounded-lg bg-muted",
-              livre ? "aspect-auto" : "aspect-square cursor-grab touch-none active:cursor-grabbing",
+              inteira ? "aspect-square bg-white ring-1 ring-border" : "aspect-square cursor-grab touch-none active:cursor-grabbing",
             )}
           >
-            {livre ? (
+            {inteira ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={origemUrl ?? ""} alt="" className="block w-full" />
+              <img src={origemUrl ?? ""} alt="" className="size-full object-contain" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -329,7 +385,7 @@ export function SeletorFoto({
             )}
           </div>
 
-          {!livre && (
+          {!inteira && (
             <div className="flex items-center gap-2">
               <MagnifyingGlassPlusIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <input
@@ -346,18 +402,27 @@ export function SeletorFoto({
           )}
 
           <p className="text-xs text-muted-foreground">
-            {livre
-              ? "A imagem vai inteira, do jeito que está."
-              : "Arraste para posicionar e use a barra para aproximar."}
+            {inteira
+              ? "A peça vai inteira, com fundo branco em volta — no mesmo tamanho das outras."
+              : "Arraste para posicionar e use a barra para aproximar."}{" "}
+            Sai quadrada, {LADO_SAIDA} × {LADO_SAIDA} px.
           </p>
 
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={confirmar} disabled={processando}>
               {processando ? "Preparando…" : "Usar esta foto"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setLivre((v) => !v)}>
-              <CropIcon className="mr-1.5 size-4" aria-hidden />
-              {livre ? "Recorte quadrado" : "Recorte livre"}
+            <Button type="button" variant="outline" onClick={() => setInteira((v) => !v)}>
+              {inteira ? (
+                <CropIcon className="mr-1.5 size-4" aria-hidden />
+              ) : (
+                <FrameCornersIcon className="mr-1.5 size-4" aria-hidden />
+              )}
+              {inteira ? "Recortar" : "Foto inteira"}
+            </Button>
+            <Button type="button" variant="outline" onClick={girar} disabled={processando}>
+              <ArrowClockwiseIcon className="mr-1.5 size-4" aria-hidden />
+              Girar
             </Button>
             <Button type="button" variant="ghost" onClick={escolher}>
               <ArrowCounterClockwiseIcon className="mr-1.5 size-4" aria-hidden />
@@ -426,7 +491,8 @@ export function SeletorFoto({
           <CameraIcon className="size-6 text-muted-foreground" aria-hidden />
           <span className="text-sm font-medium">Adicionar foto</span>
           <span className="text-xs text-muted-foreground">
-            Ideal: quadrada, {LADO_SAIDA} × {LADO_SAIDA} px. O app reduz sozinho para ~{ALVO_KB} KB.
+            Sai quadrada, {LADO_SAIDA} × {LADO_SAIDA} px, reduzida para ~{ALVO_KB} KB. Aceita foto de até{" "}
+            {TETO_ORIGINAL_MB} MB e com pelo menos {LADO_MINIMO} px de lado.
             <br />
             No celular dá para tirar na hora. Obrigatória: é por ela que a peça é achada na venda.
           </span>

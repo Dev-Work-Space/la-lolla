@@ -191,7 +191,7 @@ function FormPeca({
               <p className="text-xs text-muted-foreground">Foto atual. Escolha outra abaixo para trocar.</p>
             </div>
           )}
-          <SeletorFoto valor={foto} aoMudar={setFoto} obrigatoria={!editando} erro={erroDe("foto")} />
+          <SeletorFoto valor={foto} aoMudar={setFoto} obrigatoria={!peca?.fotoUrl} erro={erroDe("foto")} />
         </div>
       )}
 

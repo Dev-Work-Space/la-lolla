@@ -124,6 +124,14 @@ export async function subirImagemPeca(pecaId: string, arquivo: File): Promise<Im
      tela sai torto. */
   const base = sharp(bruto).rotate();
   const meta = await base.metadata();
+  /* O mesmo piso da tela (`LADO_MINIMO` do seletor). A tela já barra; aqui é
+     para quem chegar por outro caminho não guardar foto que sai borrada. */
+  if (Math.min(meta.width ?? 0, meta.height ?? 0) < 600) {
+    throw new ErroDominio(
+      "DADOS_INVALIDOS",
+      "Foto pequena demais: ela fica borrada na ficha. Use uma com pelo menos 600 px de lado.",
+    );
+  }
 
   const nomeBase = `${pecaId}/${Date.now()}`;
   const s = storage().storage.from(BUCKET_PECAS);
