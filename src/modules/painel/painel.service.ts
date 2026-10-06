@@ -186,17 +186,15 @@ export async function dadosDoInicio(nome: string) {
   const fatMes = soma(doMes);
   const margemAno = r2(fatAno - custoDe(doAno));
 
-  // Faturamento e margem dos últimos 6 meses — as duas linhas do gráfico do Início
-  const serie: Array<{ rotulo: string; valor: number; margem: number }> = [];
+  // Faturamento dos últimos 6 meses. O rótulo leva o ano ("abr/26"), como o
+  // gráfico do app antigo: em janeiro, "set" sozinho não diz de que ano é.
+  const serie: Array<{ rotulo: string; valor: number }> = [];
   for (let i = 5; i >= 0; i--) {
     const de = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
     const ate = new Date(agora.getFullYear(), agora.getMonth() - i + 1, 1);
-    const doMesI = noPeriodo(de, ate);
-    const valor = soma(doMesI);
     serie.push({
-      rotulo: de.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
-      valor,
-      margem: r2(valor - custoDe(doMesI)),
+      rotulo: `${de.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}/${String(de.getFullYear()).slice(2)}`,
+      valor: soma(noPeriodo(de, ate)),
     });
   }
 
