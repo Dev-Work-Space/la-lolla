@@ -23,7 +23,6 @@ import {
 } from "@/modules/compras/compra.service";
 import { BuscaCompras } from "@/modules/compras/components/busca-compras";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Portal de compras · LaLolla" };
 

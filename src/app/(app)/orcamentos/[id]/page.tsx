@@ -10,7 +10,6 @@ import { Indicador, Indicadores, Pilula } from "@/components/padrao/indicadores"
 import { AcoesOrcamento } from "@/modules/orcamentos/components/acoes-orcamento";
 import { EmitirOrcamento } from "@/modules/orcamentos/components/emitir-orcamento";
 
-export const runtime = "nodejs";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

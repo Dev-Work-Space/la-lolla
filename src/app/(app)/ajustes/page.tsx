@@ -6,7 +6,6 @@ import { FormAjustes } from "@/modules/ajustes/components/form-ajustes";
 import { MontarPainel } from "@/modules/painel/components/montar-painel";
 import { EscolhaDeTema } from "@/components/layout/tema";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Ajustes · LaLolla" };
 
 /*

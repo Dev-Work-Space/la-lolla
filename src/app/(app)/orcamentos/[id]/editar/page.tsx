@@ -6,7 +6,6 @@ import { buscarOrcamento } from "@/modules/orcamentos/orcamento.service";
 import { campoDaData } from "@/lib/dia";
 import { EditorOrcamento } from "@/modules/orcamentos/components/editor-orcamento";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Editar orçamento · LaLolla" };
 
 export default async function EditarOrcamentoPage({

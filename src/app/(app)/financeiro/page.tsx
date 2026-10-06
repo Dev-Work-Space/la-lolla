@@ -16,7 +16,6 @@ import { mesDaUrl } from "@/modules/financeiro/agenda.service";
 import { cartoesComLimite } from "@/modules/financeiro/cartao.service";
 import type { FiltroConta } from "@/modules/financeiro/financeiro.service";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Financeiro · LaLolla" };
 

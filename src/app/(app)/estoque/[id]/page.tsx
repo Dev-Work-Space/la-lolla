@@ -14,7 +14,6 @@ import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
 import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
-export const runtime = "nodejs";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -109,7 +108,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
           {ajustes && paraEtiqueta.length > 0 && (
             <ImprimirEtiquetas
               pecas={paraEtiqueta}
-              modelo={modeloDosAjustes(ajustes)}
+              personalizado={modeloDosAjustes(ajustes)}
               podeNumerar={podeEditar}
               rotulo="Imprimir etiqueta"
             />

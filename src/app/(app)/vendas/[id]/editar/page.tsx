@@ -8,7 +8,6 @@ import { saldoDasPecas } from "@/modules/pecas/catalogo.service";
 import { buscarVenda } from "@/modules/vendas/venda.service";
 import { NovaVenda, type VendaParaEditar } from "@/modules/vendas/components/nova-venda";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Editar venda · LaLolla" };
 
 export default async function EditarVendaPage({ params }: { params: Promise<{ id: string }> }) {

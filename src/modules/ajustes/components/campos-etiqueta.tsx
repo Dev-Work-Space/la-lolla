@@ -1,21 +1,20 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ETIQUETA_EXEMPLO, previaEtiqueta } from "@/modules/pecas/pdf-etiqueta";
+import { ETIQUETA_EXEMPLO } from "@/modules/pecas/pdf-etiqueta";
+import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
+import { usePreviaEtiqueta } from "@/modules/pecas/components/use-previa-etiqueta";
 import { AJUSTES_PADRAO, ROTULOS } from "../ajustes.tipos";
 
 /*
- * O tamanho da etiqueta da NIIMBOT, com a etiqueta desenhada ao lado.
- *
- * As medidas do app antigo não ficaram registradas — o João acerta aqui na
- * primeira impressão. Por isso a prévia muda enquanto ele digita: é o mesmo
- * desenho que vai para o PDF, então o que aparece aqui é o que sai na fita.
+ * Um tamanho de rolo da NIIMBOT fora da lista de mercado, com a etiqueta
+ * desenhada ao lado. Ele aparece por último no "Modelo de etiqueta" do painel
+ * de impressão. A prévia muda enquanto o João digita: é o mesmo desenho que
+ * vai para o PDF, então o que aparece aqui é o que sai na fita.
  */
-/* Canvas e câmera só existem no navegador. No servidor (e na hidratação) isto
-   é falso; logo depois vira verdadeiro — sem estado mudado dentro de efeito. */
-const assinarNada = () => () => {};
+const OPCOES_EXEMPLO = { preco: true, qr: true };
 
 export function CamposEtiqueta({
   largura,
@@ -32,7 +31,6 @@ export function CamposEtiqueta({
   const [larg, setLarg] = useState(br(largura));
   const [alt, setAlt] = useState(br(altura));
   const [dobrada, setDobrada] = useState(dobradaInicial);
-  const noNavegador = useSyncExternalStore(assinarNada, () => true, () => false);
   const [ultimaValida, setUltimaValida] = useState({ l: largura, a: altura });
 
   const l = Number(larg.replace(",", "."));
@@ -41,21 +39,20 @@ export function CamposEtiqueta({
   const valida = l >= 10 && l <= 120 && a >= 8 && a <= 50;
   if (valida && (ultimaValida.l !== l || ultimaValida.a !== a)) setUltimaValida({ l, a });
 
-  const previa = useMemo(
-    () =>
-      noNavegador
-        ? previaEtiqueta(ETIQUETA_EXEMPLO, { largura: ultimaValida.l, altura: ultimaValida.a, dobrada })
-        : null,
-    [noNavegador, ultimaValida, dobrada],
+  const previa = usePreviaEtiqueta(
+    ETIQUETA_EXEMPLO,
+    modeloDosAjustes({ etiquetaLargura: ultimaValida.l, etiquetaAltura: ultimaValida.a, etiquetaDobrada: dobrada }),
+    OPCOES_EXEMPLO,
   );
 
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium">Etiqueta da NIIMBOT</p>
+        <p className="text-sm font-medium">Etiqueta da NIIMBOT · tamanho próprio</p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          Tamanho da área que imprime. Padrão: {br(AJUSTES_PADRAO.etiquetaLargura)} ×{" "}
-          {br(AJUSTES_PADRAO.etiquetaAltura)} mm, de joia. Confira na caixa do rolo e numa impressão de teste.
+          Só para um rolo que não esteja na lista de modelos da impressão — ele entra no fim dela. Padrão:{" "}
+          {br(AJUSTES_PADRAO.etiquetaLargura)} × {br(AJUSTES_PADRAO.etiquetaAltura)} mm. Confira na caixa do
+          rolo e numa impressão de teste.
         </p>
       </div>
 

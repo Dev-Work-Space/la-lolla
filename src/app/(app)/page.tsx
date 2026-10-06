@@ -4,7 +4,6 @@ import { veFinanceiro } from "@/lib/auth/guard";
 import { dadosDoInicio } from "@/modules/painel/painel.service";
 import { PainelInicio } from "@/modules/painel/components/painel-inicio";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Início · LaLolla" };
 

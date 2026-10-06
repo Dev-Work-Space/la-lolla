@@ -4,7 +4,6 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { NovaCompra } from "@/modules/compras/components/nova-compra";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Nova compra · LaLolla" };
 
 export default async function NovaCompraPage() {

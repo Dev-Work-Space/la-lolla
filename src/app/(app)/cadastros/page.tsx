@@ -7,7 +7,6 @@ import { PainelClientes } from "@/modules/pessoas/components/painel-clientes";
 import { PainelFornecedores } from "@/modules/pessoas/components/painel-fornecedores";
 import type { FiltroCliente } from "@/modules/pessoas/pessoa.schema";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Cadastros · LaLolla" };
 

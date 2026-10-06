@@ -7,7 +7,6 @@ import { PainelCatalogo } from "@/modules/pecas/components/painel-catalogo";
 import { PainelInsumos } from "@/modules/pecas/components/painel-insumos";
 import type { FiltroPeca } from "@/modules/pecas/catalogo.service";
 
-export const runtime = "nodejs";
 
 export const metadata = { title: "Estoque · LaLolla" };
 

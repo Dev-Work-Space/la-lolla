@@ -7,7 +7,6 @@ import { buscarOrcamento } from "@/modules/orcamentos/orcamento.service";
 import { saldoDasPecas } from "@/modules/pecas/catalogo.service";
 import { NovaVenda, type VendaDeOrcamento } from "@/modules/vendas/components/nova-venda";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Nova venda · LaLolla" };
 
 export default async function NovaVendaPage({
