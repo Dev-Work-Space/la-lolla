@@ -36,33 +36,29 @@ const primeiroNome = (n: string) => n.trim().split(/\s+/)[0] ?? "";
 /* ─────────────────────────── saudação ─────────────────────────── */
 
 function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
-  const dataLonga = ctx.agora.toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  // "Quinta · 03/09/2026", como no app antigo: o dia da semana sem o "-feira".
+  const diaSemana = ctx.agora.toLocaleDateString("pt-BR", { weekday: "long" }).split("-")[0];
+  const data = `${diaSemana.charAt(0).toUpperCase()}${diaSemana.slice(1)} · ${ctx.agora.toLocaleDateString("pt-BR")}`;
   const temVendas = ctx.fatAno > 0;
 
   return (
     /*
-     * O "herói" do app antigo: fundo com um brilho dourado no canto e o
-     * degradê suave da marca, o nome em dourado, a margem numa caixinha e a
-     * linha dos 6 meses. O João pediu de volta o "gráfico bonitinho" — e
-     * depois, o gráfico GRANDE, com o resto das informações em cima dele.
+     * O "herói" do app antigo, no mesmo arranjo — o João mandou o print de lá:
+     * saudação com a margem numa caixinha ao lado, o faturado do ano GRANDE,
+     * os chips, o gráfico na largura toda e os botões embaixo. O fundo tem o
+     * brilho dourado no canto e o degradê suave da marca.
      */
     <Card
       as="section"
-      className="block overflow-hidden border-(--ll-accent-line) p-5 text-base"
+      className="block overflow-hidden border-(--ll-accent-line) px-5 pt-6 pb-5 text-base shadow-sm sm:px-6"
       style={{
         background:
           "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ll-accent) 14%, transparent) 0%, transparent 58%), linear-gradient(168deg, var(--ll-accent-soft) 0%, var(--card) 55%)",
       }}
     >
-      <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
-        {/* ── quem é você ── */}
-        <div className="min-w-0 lg:col-span-5">
-          <p className="text-lg font-bold tracking-tight">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xl font-bold tracking-tight">
             {saudacao(ctx.agora)}
             {ctx.nome && (
               <>
@@ -70,76 +66,73 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
               </>
             )}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground first-letter:uppercase">{dataLonga}</p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {/* nativeButton={false}: o Base UI avisa (com razão) que trocar o
-                <button> por <a> tira a semântica nativa. Aqui é intencional —
-                são links de navegação com aparência de botão. */}
-            <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
-              Nova venda
-            </Button>
-            <Button nativeButton={false} variant="outline" className="bg-card/80" render={<Link href="/estoque" />}>
-              Nova peça
-            </Button>
-            <Button nativeButton={false} variant="outline" className="bg-card/80" render={<Link href="/financeiro" />}>
-              Faturamento
-            </Button>
+          <p className="mt-0.5 text-sm text-muted-foreground">{data}</p>
+        </div>
+        {temVendas && veFinanceiro && (
+          <div className="shrink-0 rounded-md border border-(--ll-accent-line) bg-card/70 px-3.5 py-2 text-center">
+            <span className="block text-2xl leading-none font-extrabold tracking-tight text-(--ll-accent) tabular-nums">
+              {ctx.margemPct}%
+            </span>
+            <span className="mt-1 block text-[10px] uppercase tracking-wide text-muted-foreground">margem</span>
           </div>
-        </div>
-
-        {/* ── quanto faturou, e a margem ao lado ── */}
-        <div className="flex min-w-0 items-start justify-between gap-4 lg:col-span-7 lg:border-l lg:border-(--ll-accent-line) lg:pl-6">
-          {temVendas ? (
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                Faturado em {ctx.ano}
-              </p>
-              <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-extrabold tracking-tight tabular-nums">
-                {brl(ctx.fatAno)}
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {veFinanceiro && <Chip>{brl(ctx.margemAno)} de margem bruta</Chip>}
-                {/* O lucro de verdade do ano: margem menos o que a loja gastou. */}
-                {veFinanceiro && (
-                  <Chip tom={ctx.resultadoAno >= 0 ? "ok" : "ruim"}>{brl(ctx.resultadoAno)} de resultado</Chip>
-                )}
-                <Chip>
-                  {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
-                </Chip>
-                <Chip>ticket {brl(ctx.ticketAno)}</Chip>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                Primeiro passo
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
-                preenche sozinho.
-              </p>
-            </div>
-          )}
-          {temVendas && veFinanceiro && (
-            <div className="shrink-0 rounded-md border border-(--ll-accent-line) bg-card/70 px-3 py-2 text-center">
-              <span className="block text-2xl leading-none font-extrabold tracking-tight text-(--ll-accent) tabular-nums">
-                {ctx.margemPct}%
-              </span>
-              <span className="mt-1 block text-[10px] uppercase tracking-wide text-muted-foreground">margem</span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* ── como vem indo: o gráfico, grande, embaixo de tudo. Sem linha
-          separando: o espaço já separa, e a linha pesava (pedido do João). ── */}
-      {temVendas && (
-        <div className="mt-7">
-          <Grafico serie={serie} comMargem={veFinanceiro} />
-        </div>
-      )}
+      <div className="mt-6">
+        {temVendas ? (
+          <>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Faturado em {ctx.ano}
+            </p>
+            <p className="mt-1 text-[clamp(30px,8.4vw,52px)] leading-none font-extrabold tracking-tight tabular-nums">
+              {brl(ctx.fatAno)}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {/* O lucro de verdade do ano: margem menos o que a loja gastou. */}
+              {veFinanceiro && (
+                <Chip tom={ctx.resultadoAno >= 0 ? "ok" : "ruim"}>
+                  {brl(ctx.resultadoAno)} de {ctx.resultadoAno >= 0 ? "lucro" : "prejuízo"}
+                </Chip>
+              )}
+              <Chip>
+                {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
+              </Chip>
+              <Chip>ticket {brl(ctx.ticketAno)}</Chip>
+            </div>
+
+            <div className="mt-6">
+              <Grafico serie={serie} comMargem={veFinanceiro} />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Primeiro passo</p>
+            <p className="mt-1 max-w-[44ch] text-base leading-relaxed text-muted-foreground">
+              Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
+              preenche sozinho.
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Os botões fecham o bloco, grandes, como no app antigo. nativeButton={false}:
+          são links de navegação com aparência de botão, de propósito. */}
+      <div className="mt-6 flex flex-wrap gap-2 sm:max-w-md [&>*]:h-11 [&>*]:flex-[1_1_128px]">
+        <Button
+          nativeButton={false}
+          className="bg-foreground font-semibold text-background hover:bg-foreground/90"
+          render={<Link href="/vendas/nova" />}
+        >
+          Nova venda
+        </Button>
+        <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/estoque" />}>
+          Nova peça
+        </Button>
+        <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/financeiro" />}>
+          Faturamento
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -245,7 +238,7 @@ function Grafico({
         </div>
       </div>
 
-      <div className="relative mt-4 h-44 sm:h-52">
+      <div className="relative mt-3 h-36 sm:h-44">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="none"
