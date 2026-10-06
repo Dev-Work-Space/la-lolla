@@ -37,10 +37,8 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
     diasParado: numero(CHAVES.diasParado, AJUSTES_PADRAO.diasParado) || AJUSTES_PADRAO.diasParado,
     descontoVista: numero(CHAVES.descontoVista, AJUSTES_PADRAO.descontoVista),
     urlApp: typeof bruto.get(CHAVES.urlApp) === "string" ? String(bruto.get(CHAVES.urlApp)) : "",
-    categorias:
-      Array.isArray(cats) && cats.length > 0
-        ? cats.map(String)
-        : AJUSTES_PADRAO.categorias,
+    // Lista vazia é escolha de quem excluiu todas; só a AUSÊNCIA da linha cai na de fábrica.
+    categorias: Array.isArray(cats) ? cats.map(String) : AJUSTES_PADRAO.categorias,
     etiquetaLargura:
       numero(CHAVES.etiquetaLargura, AJUSTES_PADRAO.etiquetaLargura) || AJUSTES_PADRAO.etiquetaLargura,
     etiquetaAltura:
@@ -49,22 +47,6 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
     etiquetaDobrada: bruto.get(CHAVES.etiquetaDobrada) !== false,
   };
 });
-
-/*
- * Quantas peças usam cada categoria.
- *
- * Serve ao editor de categorias dos Ajustes. Sem esse número, tirar uma
- * categoria da lista é um tiro no escuro: as peças continuariam apontando
- * para algo que não existe mais e sumiriam dos filtros sem ninguém perceber.
- */
-export async function usoDasCategorias(): Promise<Record<string, number>> {
-  const linhas = await prisma.peca.groupBy({
-    by: ["categoria"],
-    where: { tipo: "PECA", arquivada: false },
-    _count: true,
-  });
-  return Object.fromEntries(linhas.map((l) => [l.categoria, l._count]));
-}
 
 export async function gravarAjuste(chave: keyof typeof CHAVES, valor: unknown) {
   return prisma.config.upsert({

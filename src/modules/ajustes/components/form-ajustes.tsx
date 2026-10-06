@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarAjustesAction } from "../ajustes.actions";
-import { EditorCategorias } from "./editor-categorias";
 import { CamposEtiqueta } from "./campos-etiqueta";
 import { AJUSTES_PADRAO, ROTULOS, type Ajustes } from "../ajustes.tipos";
 import type { ErrosDeCampo } from "@/lib/result";
@@ -19,14 +18,7 @@ import type { ErrosDeCampo } from "@/lib/result";
  * diz isso. O multiplicador é o caso: alterá-lo NÃO recalcula peças já
  * cadastradas, e quem não souber disso vai achar que o app está errado.
  */
-export function FormAjustes({
-  atuais,
-  usoCategorias,
-}: {
-  atuais: Ajustes;
-  /** Quantas peças usam cada categoria — o editor usa para não deixar apagar categoria em uso. */
-  usoCategorias: Record<string, number>;
-}) {
+export function FormAjustes({ atuais }: { atuais: Ajustes }) {
   const router = useRouter();
   const [erros, setErros] = useState<ErrosDeCampo>({});
   const [aviso, setAviso] = useState<string | null>(null);
@@ -77,12 +69,6 @@ export function FormAjustes({
           erro={erros.descontoVista?.[0]}
           inputMode="decimal"
           sufixo="%"
-        />
-
-        <EditorCategorias
-          iniciais={atuais.categorias}
-          usos={usoCategorias}
-          erro={erros.categorias?.[0]}
         />
       </Card>
 

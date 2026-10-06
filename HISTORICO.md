@@ -613,6 +613,35 @@ criar o bucket `pecas` (privado), copiar as duas chaves, reiniciar.
 > Supabase**, e a solução para "não estourar" é teto de tamanho, não outro
 > lugar de guardar.
 
+### 06/10 · A peça volta a ter as opções do app antigo
+
+O João pediu a peça "com as mesmas opções do app antigo". Comparando
+`assistentePeca`/`editarProduto`/`painelMovimento` com o app novo:
+
+**Não existia tela de editar peça.** A action estava pronta e ninguém a
+chamava. Agora a ficha tem **Editar peça**, com o mesmo formulário do
+cadastro: foto, código do fornecedor × multiplicador (custo e margem na hora),
+nome, categoria, tamanho, **fornecedor (obrigatório)**, preço sugerido,
+**preço promocional**, **estoque mínimo**, e o aviso "código já cadastrado em
+X — use Nova compra" para não duplicar peça.
+
+**Peça só entra pela compra** (decisão do João). O "Mexer no estoque" deixava
+gravar "Compra de fornecedor" sem compra nenhuma: estoque subia sem
+fornecedor, nota ou dinheiro saindo. Agora ele tem os três botões do antigo:
+**Entrada** abre a Nova compra com a peça já escolhida; **Devolução ao
+fornecedor** (com crédito no caixa opcional); **Ajuste de inventário**
+(baixa ou acréscimo, motivo obrigatório). O saldo negativo passou a ser
+recusado aqui também, dentro da transação — antes este caminho só avisava.
+
+> "Total recebido" voltou à regra do antigo (`qtdEntrada`): sobe na compra,
+> desce na devolução ao fornecedor. Ajuste não mexe mais nele.
+
+**Categorias saíram dos Ajustes** para **Estoque › Categorias**, como o
+"Mais › Categorias" do antigo: criar, renomear (leva as peças junto), excluir
+(as peças ficam "sem categoria", nenhuma é apagada) e restaurar a lista de
+fábrica. A permissão continua a de Ajustes. A lista da loja foi trocada pela
+do antigo a pedido do João; só Anéis tinha peça, nada ficou órfão.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

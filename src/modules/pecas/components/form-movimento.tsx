@@ -1,9 +1,9 @@
 "use client";
 
-import { Seletor } from "@/components/padrao/seletor";
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLineDownIcon, ArrowLineUpIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLineDownIcon, ArrowUUpLeftIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,39 +15,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { movimentarAction, saldoAtualAction } from "../peca.actions";
 import type { ErrosDeCampo } from "@/lib/result";
 
 /*
- * Mexer no estoque. Três modos, e a diferença entre eles importa:
+ * Mexer no estoque — o `painelMovimento` do app antigo, com os mesmos três
+ * botões:
  *
- *   Entrada    — chegou peça (compra, devolução do cliente)
- *   Saída      — saiu peça sem ser venda (perda, uso, brinde)
- *   Inventário — contei a prateleira e o número é ESTE
+ *   Entrada      — leva à Nova compra com a peça já escolhida. Peça só entra
+ *                  pela compra: é lá que passam fornecedor, nota e pagamento
+ *                  (decisão do João, 06/10/2026). Antes daqui saía uma
+ *                  "entrada de compra" sem compra nenhuma.
+ *   Devolução    — a peça volta ao fornecedor; opcionalmente o dinheiro volta
+ *                  ao caixa.
+ *   Ajuste       — corrigir divergência de contagem, para baixo ou para cima,
+ *                  sempre com motivo escrito.
  *
- * Nos dois primeiros a pessoa informa QUANTAS unidades. No inventário informa
- * o TOTAL contado, e o app grava a diferença — assim o histórico continua
- * explicando de onde saiu cada unidade, em vez de um saldo sobrescrito.
- *
- * Este é o ponto em que a regra "estoque só muda por movimento" vira tela:
- * não existe campo "saldo" editável em lugar nenhum do app.
+ * Não existe campo "saldo" editável em lugar nenhum: a regra "estoque só muda
+ * por movimento" vira tela aqui.
  */
 
-type Modo = "entrada" | "saida" | "inventario";
+type Modo = "devolucao" | "ajuste";
+type Sentido = "baixa" | "acrescimo";
 
-const MOTIVOS: Record<Modo, Array<[string, string]>> = {
-  entrada: [
-    ["COMPRA", "Compra de fornecedor"],
-    ["DEVOLUCAO", "Devolução de cliente"],
-    ["AJUSTE", "Ajuste"],
-  ],
-  saida: [
-    ["PERDA", "Perda, quebra ou roubo"],
-    ["AJUSTE", "Ajuste"],
-    ["VENDA", "Venda fora do app"],
-  ],
-  inventario: [["INVENTARIO", "Contagem de prateleira"]],
+const hojeIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
 export function FormMovimento({
@@ -55,36 +50,46 @@ export function FormMovimento({
   nome,
   saldo: saldoInicial,
   unidade = "un",
+  linkCompra,
+  custo,
 }: {
   pecaId: string;
   nome: string;
   saldo: number;
   unidade?: string;
+  /** Nova compra com a peça escolhida — nulo para quem não pode lançar compra. */
+  linkCompra: string | null;
+  /** Custo unitário, só para quem vê o financeiro: ele é o valor do crédito na devolução. */
+  custo?: number | null;
 }) {
   // O saldo da prop é o do último render do servidor. Ao abrir, buscamos o
   // de agora — ver o comentário de `saldoAtualAction`.
   const [saldo, setSaldo] = useState(saldoInicial);
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
-  const [modo, setModo] = useState<Modo>("entrada");
+  const [modo, setModo] = useState<Modo>("devolucao");
+  const [sentido, setSentido] = useState<Sentido>("baixa");
   const [quantidade, setQuantidade] = useState("");
+  const [dia, setDia] = useState("");
+  const [credito, setCredito] = useState(false);
   const [erros, setErros] = useState<ErrosDeCampo>({});
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
-  const n = Number(quantidade.replace(",", ".")) || 0;
-  const novoSaldo =
-    modo === "inventario" ? n : modo === "entrada" ? saldo + n : saldo - n;
-  const diferenca = novoSaldo - saldo;
+  const n = Number(quantidade) || 0;
+  const delta = modo === "ajuste" && sentido === "acrescimo" ? n : -n;
+  const novoSaldo = saldo + delta;
+  const veCusto = custo !== undefined;
 
   function enviar(fd: FormData) {
     fd.set("pecaId", pecaId);
     fd.set("tipo", modo);
+    if (modo === "ajuste") fd.set("sentido", sentido);
+    fd.set("credito", String(modo === "devolucao" && credito));
     salvar(async () => {
       const r = await movimentarAction(fd);
       if (r.ok) {
         setAberto(false);
-        setQuantidade("");
         router.refresh();
         return;
       }
@@ -93,11 +98,17 @@ export function FormMovimento({
     });
   }
 
-  const MODOS: Array<[Modo, string, typeof ArrowLineDownIcon]> = [
-    ["entrada", "Entrada", ArrowLineDownIcon],
-    ["saida", "Saída", ArrowLineUpIcon],
-    ["inventario", "Inventário", ListChecksIcon],
-  ];
+  function trocar(m: Modo) {
+    setModo(m);
+    setErros({});
+    setAviso(null);
+  }
+
+  const botao = (ativo: boolean) =>
+    cn(
+      "h-auto border-0 p-0 whitespace-normal flex flex-col items-center gap-1 rounded-md px-2 py-2 text-xs font-medium",
+      ativo ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+    );
 
   return (
     <Dialog
@@ -105,8 +116,11 @@ export function FormMovimento({
       onOpenChange={(v) => {
         setAberto(v);
         if (v) {
-          setModo("entrada");
+          setModo("devolucao");
+          setSentido("baixa");
           setQuantidade("");
+          setDia(hojeIso());
+          setCredito(false);
           setErros({});
           setAviso(null);
           setSaldo(saldoInicial);
@@ -118,7 +132,7 @@ export function FormMovimento({
     >
       <DialogTrigger render={<Button />}>Mexer no estoque</DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Mexer no estoque</DialogTitle>
           <DialogDescription>
@@ -128,74 +142,143 @@ export function FormMovimento({
 
         <form action={enviar} className="space-y-4">
           <div className="grid grid-cols-3 gap-1 rounded-lg border p-1">
-            {MODOS.map(([valor, rotulo, Icone]) => (
-              <Button
-                variant="ghost"
-                key={valor}
-                type="button"
-                aria-pressed={modo === valor}
-                onClick={() => {
-                  setModo(valor);
+            {linkCompra ? (
+              <Button variant="ghost" className={botao(false)} render={<Link href={linkCompra} />} nativeButton={false}>
+                <ArrowLineDownIcon weight="regular" className="size-4" aria-hidden />
+                Entrada
+              </Button>
+            ) : (
+              <Button variant="ghost" type="button" disabled className={botao(false)}>
+                <ArrowLineDownIcon weight="regular" className="size-4" aria-hidden />
+                Entrada
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              type="button"
+              aria-pressed={modo === "devolucao"}
+              onClick={() => trocar("devolucao")}
+              className={botao(modo === "devolucao")}
+            >
+              <ArrowUUpLeftIcon weight="regular" className="size-4" aria-hidden />
+              Devolução
+            </Button>
+            <Button
+              variant="ghost"
+              type="button"
+              aria-pressed={modo === "ajuste"}
+              onClick={() => trocar("ajuste")}
+              className={botao(modo === "ajuste")}
+            >
+              <ListChecksIcon weight="regular" className="size-4" aria-hidden />
+              Ajuste
+            </Button>
+          </div>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {linkCompra
+              ? "Entrada de peça é sempre uma compra: o botão abre a Nova compra com esta peça, para registrar fornecedor e pagamento."
+              : "Entrada de peça é sempre uma compra, e lançar compra é com quem cuida do financeiro."}
+          </p>
+
+          <h3 className="text-sm font-semibold">
+            {modo === "devolucao" ? "Devolução ao fornecedor" : "Ajuste de inventário"}
+          </h3>
+
+          {modo === "ajuste" && (
+            <>
+              <p className="rounded-lg border bg-muted/30 p-3 text-sm">
+                Use apenas para corrigir divergência de contagem. Toda correção fica registrada no histórico.
+              </p>
+              <div className="space-y-1.5">
+                <Label>Sentido</Label>
+                <div className="grid grid-cols-2 gap-1 rounded-lg border p-1">
+                  {(
+                    [
+                      ["baixa", "Baixa"],
+                      ["acrescimo", "Acréscimo"],
+                    ] as const
+                  ).map(([v, r]) => (
+                    <Button
+                      key={v}
+                      variant="ghost"
+                      type="button"
+                      aria-pressed={sentido === v}
+                      onClick={() => setSentido(v)}
+                      className={botao(sentido === v)}
+                    >
+                      {r}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="quantidade">Quantidade</Label>
+              <Input
+                id="quantidade"
+                name="quantidade"
+                inputMode="numeric"
+                value={quantidade}
+                onChange={(e) => {
+                  setQuantidade(e.target.value.replace(/\D/g, ""));
+                  setErros({});
                   setAviso(null);
                 }}
-                className={cn(
-                  "h-auto border-0 p-0 whitespace-normal flex flex-col items-center gap-1 rounded-md px-2 py-2 text-xs font-medium",
-                  modo === valor
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icone weight="regular" className="size-4" aria-hidden />
-                {rotulo}
-              </Button>
-            ))}
+                placeholder="0"
+                autoFocus
+                aria-invalid={!!erros.quantidade}
+                className="text-base"
+              />
+              {erros.quantidade && <p className="text-sm text-destructive">{erros.quantidade[0]}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="data">Data</Label>
+              <Input
+                id="data"
+                name="data"
+                type="date"
+                value={dia}
+                onChange={(e) => setDia(e.target.value)}
+                className="text-base"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="quantidade">
-              {modo === "inventario" ? "Quantas você contou" : "Quantas unidades"}
-            </Label>
-            <Input
-              id="quantidade"
-              name="quantidade"
-              inputMode="numeric"
-              value={quantidade}
-              onChange={(e) => {
-                setQuantidade(e.target.value.replace(/\D/g, ""));
-                setErros({});
-                setAviso(null);
-              }}
-              placeholder="0"
-              autoFocus
-              aria-invalid={!!erros.quantidade}
-              className="text-base"
-            />
-            {erros.quantidade && (
-              <p className="text-sm text-destructive">{erros.quantidade[0]}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="motivo">Motivo</Label>
-            <Seletor
-              id="motivo"
-              name="motivo"
-              className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
-              defaultValue={MOTIVOS[modo][0][0]}
-              key={modo}
-              opcoes={MOTIVOS[modo].map(([v, r]) => ({ value: v, label: r }))}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="observacao">Observação</Label>
+            <Label htmlFor="observacao">Motivo{modo === "ajuste" ? "" : " (opcional)"}</Label>
             <Input
               id="observacao"
               name="observacao"
-              placeholder="opcional"
+              placeholder={modo === "devolucao" ? "ex.: peça com defeito" : "ex.: divergência de contagem"}
+              maxLength={200}
+              aria-invalid={!!erros.observacao}
               className="text-base"
             />
+            {erros.observacao && <p className="text-sm text-destructive">{erros.observacao[0]}</p>}
           </div>
+
+          {modo === "devolucao" && veCusto && (
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={credito}
+                onChange={(e) => setCredito(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-primary"
+              />
+              <span className="text-sm">
+                Registrar crédito no caixa
+                <span className="block text-xs leading-relaxed text-muted-foreground">
+                  {custo
+                    ? `Entrada de ${brl(custo)} por unidade devolvida, se o fornecedor devolver o valor.`
+                    : "Esta peça está sem custo cadastrado — sem ele não dá para calcular o crédito."}
+                </span>
+              </span>
+            </label>
+          )}
 
           {/* Mostra o resultado ANTES de gravar: o número que vai ficar. */}
           {quantidade !== "" && (
@@ -204,16 +287,9 @@ export function FormMovimento({
               <strong className={cn("tabular-nums", novoSaldo < 0 && "text-destructive")}>
                 {novoSaldo} {unidade}
               </strong>
-              {modo === "inventario" && diferenca !== 0 && (
-                <span className="text-muted-foreground">
-                  {" "}
-                  ({diferenca > 0 ? "+" : ""}
-                  {diferenca} de diferença)
-                </span>
-              )}
               {novoSaldo < 0 && (
                 <p className="mt-1 text-xs text-destructive">
-                  Vai ficar negativo. Confira a quantidade.
+                  Saldo insuficiente: há {saldo} {unidade} em estoque.
                 </p>
               )}
             </div>
@@ -229,8 +305,8 @@ export function FormMovimento({
             <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={salvando || n <= 0}>
-              {salvando ? "Gravando…" : "Gravar movimento"}
+            <Button type="submit" disabled={salvando || n <= 0 || novoSaldo < 0}>
+              {salvando ? "Gravando…" : "Confirmar"}
             </Button>
           </div>
         </form>

@@ -31,7 +31,7 @@ import type { CarteiraSaldo } from "@/modules/financeiro/financeiro.tipos";
  * conferência, porque é assim que o custo nasce no cadastro.
  */
 
-type Item = {
+export type ItemCompra = {
   id: string;
   sku: string;
   nome: string;
@@ -43,22 +43,29 @@ type Item = {
   saldo: number;
 };
 
-type NoCarrinho = Item & { quantidade: number; custoUnit: number };
+type NoCarrinho = ItemCompra & { quantidade: number; custoUnit: number };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const paraNumero = (s: string) => Number(s.replace(/\./g, "").replace(",", ".")) || 0;
 
-export function NovaCompra() {
+export function NovaCompra({
+  inicial,
+}: {
+  /** A peça que veio escolhida pelo botão Entrada da ficha, e o fornecedor dela. */
+  inicial?: { item: ItemCompra; fornecedorId: string | null } | null;
+}) {
   const router = useRouter();
 
   const [fornecedores, setFornecedores] = useState<Array<{ id: string; nome: string }>>([]);
-  const [fornecedorId, setFornecedorId] = useState("");
+  const [fornecedorId, setFornecedorId] = useState(inicial?.fornecedorId ?? "");
   const [carteiras, setCarteiras] = useState<CarteiraSaldo[]>([]);
 
   const [termo, setTermo] = useState("");
-  const [achados, setAchados] = useState<Item[]>([]);
+  const [achados, setAchados] = useState<ItemCompra[]>([]);
   const [buscando, buscar] = useTransition();
-  const [itens, setItens] = useState<NoCarrinho[]>([]);
+  const [itens, setItens] = useState<NoCarrinho[]>(() =>
+    inicial ? [{ ...inicial.item, quantidade: 1, custoUnit: inicial.item.custo }] : [],
+  );
   const [observacao, setObservacao] = useState("");
 
   const [forma, setForma] = useState<"avista" | "prazo">("avista");
@@ -78,7 +85,7 @@ export function NovaCompra() {
     buscarFornecedoresAction().then((r) => {
       if (r.ok) {
         setFornecedores(r.data);
-        if (r.data.length === 1) setFornecedorId(r.data[0].id);
+        if (r.data.length === 1) setFornecedorId((atual) => atual || r.data[0].id);
       }
     });
     buscarCarteirasAction().then((r) => {
@@ -113,7 +120,7 @@ export function NovaCompra() {
     [itens],
   );
 
-  function adicionar(p: Item) {
+  function adicionar(p: ItemCompra) {
     setItens((a) => {
       const ja = a.find((x) => x.id === p.id);
       if (ja) return a.map((x) => (x.id === p.id ? { ...x, quantidade: x.quantidade + 1 } : x));

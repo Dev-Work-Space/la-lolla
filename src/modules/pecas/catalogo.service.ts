@@ -286,7 +286,9 @@ export async function opcoesDeFiltro() {
       .map((f) => ({ id: f.fornecedorId!, nome: mapa.get(f.fornecedorId!) ?? "?", qtd: f._count }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
     semFornecedor,
+    // "Sem categoria" (vazio) não vira opção: o filtro por categoria vazia não filtraria nada.
     categorias: porCategoria
+      .filter((c) => c.categoria !== "")
       .map((c) => ({ nome: c.categoria, qtd: c._count }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
   };
@@ -387,6 +389,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       unidade: true,
       minimo: true,
       precoTabela: true,
+      precoPromocional: true,
       codigoFornecedor: true,
       fator: true,
       custo: true,
@@ -441,6 +444,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
     unidade: unidadeDe(p.unidade),
     minimo: p.minimo,
     precoTabela: preco,
+    precoPromocional: dec(p.precoPromocional),
     fornecedor: p.fornecedor,
     /* Assinadas aqui: a ficha mostra a imagem média, e o caminho cru do
        bucket não é endereço que o navegador saiba abrir. */

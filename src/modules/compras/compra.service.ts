@@ -43,6 +43,44 @@ export type CompraEntrada = {
     | { tipo: "prazo"; parcelas: number; intervalo: Intervalo; primeiroVencimento: Date };
 };
 
+/**
+ * A peça que chega já escolhida na Nova compra — pelo botão Entrada da ficha.
+ * Mesmo formato da busca de itens da tela, e o fornecedor da peça para vir
+ * marcado. Peça arquivada não volta: não se compra o que saiu do catálogo.
+ */
+export async function itemParaCompra(pecaId: string) {
+  const p = await prisma.peca.findFirst({
+    where: { id: pecaId, arquivada: false },
+    select: {
+      id: true,
+      sku: true,
+      nome: true,
+      tipo: true,
+      unidade: true,
+      custo: true,
+      codigoFornecedor: true,
+      fator: true,
+      fornecedorId: true,
+      movimentos: { select: { delta: true } },
+    },
+  });
+  if (!p) return null;
+  return {
+    fornecedorId: p.fornecedorId,
+    item: {
+      id: p.id,
+      sku: p.sku,
+      nome: p.nome,
+      insumo: p.tipo === "INSUMO",
+      unidade: p.unidade ?? "un",
+      custo: num(p.custo),
+      codigoFornecedor: p.codigoFornecedor ? Number(p.codigoFornecedor) : null,
+      fator: p.fator ? Number(p.fator) : null,
+      saldo: p.movimentos.reduce((s, m) => s + m.delta, 0),
+    },
+  };
+}
+
 export async function registrarCompra(entrada: CompraEntrada) {
   if (entrada.itens.length === 0) {
     throw new ErroDominio("REGRA_NEGOCIO", "Adicione ao menos um item à compra.");

@@ -20,10 +20,12 @@ import {
 import { BuscaEstoque } from "./busca-estoque";
 import { FiltrosCatalogo } from "./filtros-catalogo";
 import { NovaPeca } from "./nova-peca";
+import { fornecedoresParaPeca } from "../peca.service";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 import { fotosConfiguradas } from "@/lib/storage";
 import { ImprimirEtiquetas } from "./imprimir-etiquetas";
 import { LerEtiqueta } from "./ler-etiqueta";
+import { Button } from "@/components/ui/button";
 import { modeloDosAjustes, precosDaEtiqueta } from "../etiqueta.regras";
 
 /*
@@ -48,13 +50,14 @@ export async function PainelCatalogo({
   fornecedorId?: string;
   categoria?: string;
   veFinanceiro: boolean;
-  pode: { criar: boolean; editar: boolean };
+  pode: { criar: boolean; editar: boolean; categorias?: boolean };
 }) {
-  const [ind, { linhas, totalCatalogo }, opcoes, ajustes] = await Promise.all([
+  const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
     listarCatalogo({ busca, filtro, fornecedorId, categoria, veFinanceiro }),
     opcoesDeFiltro(),
     lerAjustes(),
+    pode.criar ? fornecedoresParaPeca() : [],
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -147,6 +150,7 @@ export async function PainelCatalogo({
           veFinanceiro={veFinanceiro}
           fator={ajustes.fator}
           categorias={ajustes.categorias}
+          fornecedores={fornecedores}
         />
       )}
 
@@ -163,6 +167,11 @@ export async function PainelCatalogo({
       */}
       <div className="flex flex-wrap gap-2">
         <LerEtiqueta />
+        {pode.categorias && (
+          <Button variant="outline" nativeButton={false} render={<Link href="/estoque/categorias" />}>
+            Categorias
+          </Button>
+        )}
         {linhas.length > 0 && (
           <ImprimirEtiquetas
             pecas={linhas.map((p) => ({
@@ -276,6 +285,7 @@ export async function PainelCatalogo({
                   rotulo="Lançar a primeira peça"
                   fator={ajustes.fator}
                   categorias={ajustes.categorias}
+                  fornecedores={fornecedores}
                 />
               ) : undefined
             }

@@ -196,6 +196,8 @@ async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean)
         tipo: dados.tipo,
         tamanho: dados.tamanho || null,
         precoTabela: dados.precoTabela ?? null,
+        precoPromocional: dados.precoPromocional ?? null,
+        minimo: dados.minimo,
         fornecedorId: dados.fornecedorId || null,
         // Sem permissão de financeiro os três campos ficam de fora: a peça
         // nasce SEM custo, em vez de nascer com custo errado.
@@ -273,6 +275,8 @@ export async function editarPeca(
       tipo: dados.tipo,
       tamanho: dados.tamanho || null,
       precoTabela: dados.precoTabela ?? null,
+      precoPromocional: dados.precoPromocional ?? null,
+      minimo: dados.minimo,
       fornecedorId: dados.fornecedorId || null,
       ...(gravaCusto
         ? {
@@ -284,6 +288,23 @@ export async function editarPeca(
     },
     select: { id: true, sku: true },
   });
+}
+
+/**
+ * A peça que já usa este código do fornecedor. No app antigo o cadastro
+ * avisava: "se for a mesma peça, use Nova compra para repor o estoque em vez
+ * de cadastrar de novo" — peça duplicada parte o estoque em dois.
+ */
+export async function pecaComCodigoFornecedor(codigo: number) {
+  return prisma.peca.findFirst({
+    where: { codigoFornecedor: codigo, tipo: "PECA", arquivada: false },
+    select: { id: true, nome: true, categoria: true },
+  });
+}
+
+/** Os fornecedores do seletor do cadastro de peça — só o que o seletor mostra. */
+export async function fornecedoresParaPeca() {
+  return prisma.fornecedor.findMany({ select: { id: true, nome: true }, orderBy: { nome: "asc" }, take: 300 });
 }
 
 /** Saldo atual = soma dos movimentos. Uma consulta, sem carregar a lista. */
@@ -298,6 +319,9 @@ export async function saldoDe(pecaId: string): Promise<number> {
 /**
  * Regra 2.4: estoque só muda por movimento. Não existe "editar o saldo" —
  * existe registrar entrada ou saída, e o saldo é consequência.
+ *
+ * Tudo numa transação: o saldo é relido aqui dentro, então saldo negativo é
+ * recusado mesmo que a tela estivesse velha (documentação, seção 15).
  */
 export async function movimentarEstoque(entrada: {
   pecaId: string;
@@ -305,32 +329,76 @@ export async function movimentarEstoque(entrada: {
   motivo: "COMPRA" | "VENDA" | "DEVOLUCAO" | "AJUSTE" | "INVENTARIO" | "PERDA";
   origem?: string;
   observacao?: string;
+  /** O dia em que aconteceu: a peça voltou ao fornecedor na terça, o app foi aberto na quinta. */
+  data?: Date;
+  /** Devolução ao fornecedor que devolve o dinheiro: entra no caixa o custo das unidades. */
+  creditoNoCaixa?: boolean;
 }) {
   if (entrada.delta === 0) {
     throw new ErroDominio("DADOS_INVALIDOS", "O movimento não pode ser zero.");
   }
+  const { creditoNoCaixa, ...movimento } = entrada;
 
   return prisma.$transaction(async (tx) => {
-    const m = await tx.movimentoEstoque.create({ data: entrada, select: { id: true } });
+    const peca = await tx.peca.findUnique({
+      where: { id: entrada.pecaId },
+      select: { nome: true, custo: true, totalRecebido: true, arquivada: true },
+    });
+    if (!peca || peca.arquivada) throw new NaoEncontrado("Peça");
+
+    const agg = await tx.movimentoEstoque.aggregate({
+      where: { pecaId: entrada.pecaId },
+      _sum: { delta: true },
+    });
+    const atual = agg._sum.delta ?? 0;
+    if (atual + entrada.delta < 0) {
+      throw new ErroDominio(
+        "REGRA_NEGOCIO",
+        `Saldo insuficiente: há ${atual} un. de ${peca.nome} em estoque. Confira a quantidade.`,
+      );
+    }
+
+    await tx.movimentoEstoque.create({ data: movimento, select: { id: true } });
 
     /*
-     * "Total recebido" sobe em TODA entrada vinda do fornecedor, não só na
-     * compra registrada no Portal — a documentação (seção 15) diz que ele
-     * sobe "na entrada" e desce na devolução ao fornecedor.
-     *
-     * Sem isso, uma peça que entrou por movimento manual continuaria
-     * marcada como "nunca comprada" mesmo com 10 unidades na prateleira.
-     *
-     * Venda, perda e inventário NÃO mexem nele: não vieram do fornecedor.
+     * "Total recebido" é o que veio do fornecedor: sobe na compra e desce na
+     * devolução AO FORNECEDOR (a única devolução com delta negativo — a do
+     * cliente põe a peça de volta). Ajuste, venda e perda não mexem nele: é
+     * como o app antigo fazia com o `qtdEntrada`.
      */
-    if (entrada.delta > 0 && (entrada.motivo === "COMPRA" || entrada.motivo === "AJUSTE")) {
+    if (entrada.motivo === "COMPRA" && entrada.delta > 0) {
       await tx.peca.update({
         where: { id: entrada.pecaId },
         data: { totalRecebido: { increment: entrada.delta } },
       });
     }
+    if (entrada.motivo === "DEVOLUCAO" && entrada.delta < 0) {
+      await tx.peca.update({
+        where: { id: entrada.pecaId },
+        data: { totalRecebido: Math.max(0, peca.totalRecebido + entrada.delta) },
+      });
+    }
 
-    return m;
+    if (creditoNoCaixa) {
+      const custo = peca.custo ? Number(peca.custo) : 0;
+      if (custo <= 0) {
+        throw new ErroDominio(
+          "REGRA_NEGOCIO",
+          "Esta peça não tem custo cadastrado, então não dá para calcular o crédito. Desmarque o crédito ou cadastre o código do fornecedor na peça.",
+        );
+      }
+      await tx.lancamento.create({
+        data: {
+          descricao: `Crédito por devolução · ${peca.nome}`,
+          valor: Math.round(custo * Math.abs(entrada.delta) * 100) / 100,
+          categoria: "Outros",
+          ...(entrada.data ? { data: entrada.data } : {}),
+        },
+        select: { id: true },
+      });
+    }
+
+    return { saldo: atual + entrada.delta };
   });
 }
 
