@@ -33,7 +33,9 @@ export const AJUSTES_PADRAO: Ajustes = {
   diasParado: 60,
   descontoVista: 5,
   urlApp: "",
-  categorias: ["Anéis", "Brincos", "Colares", "Pulseiras", "Correntes", "Pingentes", "Conjuntos"],
+  /* A lista de fábrica do app antigo (CATEGORIAS_PADRAO). É o que volta no
+     "Restaurar lista de fábrica" da tela de Categorias. */
+  categorias: ["Anéis", "Brincos", "Colares", "Pulseiras", "Conjuntos", "Tornozeleiras", "Piercings", "Berloques", "Outros"],
   /* As medidas da etiqueta do app antigo não ficaram registradas. Estes são
      os de uma etiqueta de joia comum da D110 (30 × 15 mm, dobrada ao meio);
      o João confere na primeira impressão e acerta aqui. */
@@ -78,7 +80,7 @@ export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
   },
   categorias: {
     nome: "Categorias de peça",
-    ajuda: "As opções que aparecem no cadastro. Uma por linha.",
+    ajuda: "As opções que aparecem no cadastro. Ficam em Estoque › Categorias.",
   },
   etiquetaLargura: {
     nome: "Comprimento",

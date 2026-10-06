@@ -4,6 +4,7 @@ import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { Segmentado } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { PainelCatalogo } from "@/modules/pecas/components/painel-catalogo";
+import { podeFazer } from "@/modules/usuarios/permissoes";
 import { PainelInsumos } from "@/modules/pecas/components/painel-insumos";
 import type { FiltroPeca } from "@/modules/pecas/catalogo.service";
 
@@ -46,6 +47,8 @@ export default async function EstoquePage({
   const pode = {
     criar: admin || sessao.data.permissoes.pecas.criar,
     editar: admin || sessao.data.permissoes.pecas.editar,
+    // A lista de categorias é ajuste da loja: a mesma permissão de quando morava nos Ajustes.
+    categorias: admin || podeFazer(sessao.data.permissoes, "ajustes", "editar"),
   };
 
   return (

@@ -13,6 +13,10 @@ import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas
 import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
 import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
+import { EditarPeca } from "@/modules/pecas/components/nova-peca";
+import { fornecedoresParaPeca } from "@/modules/pecas/peca.service";
+import { podeFazer } from "@/modules/usuarios/permissoes";
+import { fotosConfiguradas } from "@/lib/storage";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -41,23 +45,28 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   if (!p) notFound();
 
   const podeEditar = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.editar;
+  // A Nova compra pede as duas permissões: mexe em estoque E em dinheiro.
+  const podeComprar =
+    sessao.data.papel !== "VENDEDOR" ||
+    (podeFazer(sessao.data.permissoes, "pecas", "criar") && podeFazer(sessao.data.permissoes, "financeiro", "criar"));
   // Excluir é caixa própria na grade de permissões, não um apêndice de editar.
   const podeExcluir = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.excluir;
   const insumo = p.tipo === "INSUMO";
   const un = insumo ? p.unidade : "un";
   // Insumo não vai para a vitrine: etiqueta é só de peça.
-  const [paraEtiqueta, ajustes] = insumo
-    ? [[], null]
-    : await Promise.all([pecasParaEtiqueta([p.id]), lerAjustes()]);
+  const [paraEtiqueta, ajustes, fornecedores] = insumo
+    ? [[], null, []]
+    : await Promise.all([pecasParaEtiqueta([p.id]), lerAjustes(), podeEditar ? fornecedoresParaPeca() : []]);
 
   const ficha: Array<[string, string]> = [
     ["Código interno", p.sku],
-    ["Categoria", p.categoria],
+    ["Categoria", p.categoria || "Sem categoria"],
   ];
   if (p.tamanho) ficha.push(["Tamanho", p.tamanho]);
   if (p.fornecedor) ficha.push(["Fornecedor", p.fornecedor.nome]);
   if (p.minimo) ficha.push(["Estoque mínimo", `${p.minimo} ${un}`]);
-  if (p.precoTabela) ficha.push(["Preço de tabela", brl(p.precoTabela)]);
+  if (p.precoTabela) ficha.push(["Preço sugerido", brl(p.precoTabela)]);
+  if (p.precoPromocional) ficha.push(["Preço promocional", brl(p.precoPromocional)]);
   if (fin && "codigoFornecedor" in p && p.codigoFornecedor) {
     ficha.push(["Código do fornecedor", String(p.codigoFornecedor)]);
     ficha.push(["Fator", String(p.fator)]);
@@ -96,7 +105,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
               {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {p.sku} · {p.categoria}
+              {p.sku} · {p.categoria || "sem categoria"}
               {p.tamanho ? ` · tam. ${p.tamanho}` : ""}
             </p>
           </div>
@@ -113,8 +122,37 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
               rotulo="Imprimir etiqueta"
             />
           )}
+          {podeEditar && ajustes && (
+            <EditarPeca
+              veFinanceiro={fin}
+              fotosLigadas={fotosConfiguradas()}
+              fator={ajustes.fator}
+              categorias={ajustes.categorias}
+              fornecedores={fornecedores}
+              peca={{
+                id: p.id,
+                sku: p.sku,
+                nome: p.nome,
+                categoria: p.categoria,
+                tamanho: p.tamanho,
+                precoTabela: p.precoTabela,
+                precoPromocional: p.precoPromocional,
+                minimo: p.minimo,
+                fornecedorId: p.fornecedor?.id ?? null,
+                fotoUrl: p.imagens[0]?.url ?? null,
+                ...("codigoFornecedor" in p ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator } : {}),
+              }}
+            />
+          )}
           {podeEditar && (
-            <FormMovimento pecaId={p.id} nome={p.nome} saldo={p.saldo} unidade={un} />
+            <FormMovimento
+              pecaId={p.id}
+              nome={p.nome}
+              saldo={p.saldo}
+              unidade={un}
+              linkCompra={podeComprar ? `/compras/nova?peca=${p.id}` : null}
+              {...(fin && "custo" in p ? { custo: p.custo } : {})}
+            />
           )}
         </div>
       </div>
@@ -206,7 +244,13 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
-                      {ROTULO_MOTIVO[m.motivo] ?? m.motivo}
+                      {/* Devolução com sinal de menos é a peça voltando ao fornecedor;
+                          com sinal de mais, a cliente devolvendo. */}
+                      {m.motivo === "DEVOLUCAO"
+                        ? m.delta < 0
+                          ? "Devolução ao fornecedor"
+                          : "Devolução de cliente"
+                        : (ROTULO_MOTIVO[m.motivo] ?? m.motivo)}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {dataHora(m.quando)}
@@ -225,8 +269,8 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <div className="px-6 py-12 text-center">
               <p className="font-medium">Nenhum movimento ainda</p>
               <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Esta peça nunca teve entrada nem saída. Use <strong>Mexer no estoque</strong> para
-                registrar a primeira chegada.
+                Esta peça nunca teve entrada nem saída. A primeira chegada entra por uma{" "}
+                <strong>compra</strong>: em <strong>Mexer no estoque</strong>, toque em Entrada.
               </p>
             </div>
           )}

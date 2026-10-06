@@ -4,8 +4,14 @@ import { recarregar } from "@/lib/recarregar";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type Result } from "@/lib/result";
-import { z } from "zod";
-import { criarPecaSchema, insumoSchema } from "./peca.schema";
+import {
+  codigoFornecedorSchema,
+  criarPecaSchema,
+  idPecaSchema,
+  insumoSchema,
+  movimentoSchema,
+  type CriarPecaDados,
+} from "./peca.schema";
 import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
 import { fotosConfiguradas } from "@/lib/storage";
 
@@ -22,6 +28,18 @@ import { fotosConfiguradas } from "@/lib/storage";
  */
 
 type PecaCriada = { id: string; sku: string; nome: string };
+
+/*
+ * Quem vê o custo cadastra o custo: no app antigo a peça não salvava sem o
+ * código do fornecedor quando a pessoa enxergava o financeiro. Quem não vê
+ * cadastra sem, e a peça nasce sem custo — nunca com custo inventado.
+ */
+function faltaCodigo(d: CriarPecaDados, financeiro: boolean) {
+  if (!financeiro || d.tipo !== "PECA" || d.codigoFornecedor !== undefined) return null;
+  return fail("DADOS_INVALIDOS", "Confira os campos destacados.", {
+    codigoFornecedor: ["Informe o código do fornecedor — é dele que sai o custo."],
+  });
+}
 
 /*
  * A foto viaja no mesmo FormData, mas FORA do schema do Zod.
@@ -47,6 +65,9 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
       z4Fields(parsed.error),
     );
   }
+
+  const semCodigo = faltaCodigo(parsed.data, veFinanceiro(sessao.data));
+  if (semCodigo) return semCodigo;
 
   const foto = fotoDoFormulario(formData);
 
@@ -79,20 +100,55 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
   const sessao = await exigirPermissao("pecas", "editar");
   if (!sessao.ok) return sessao;
 
+  const idOk = idPecaSchema.safeParse(id);
+  if (!idOk.success) return fail("DADOS_INVALIDOS", "Peça não informada. Atualize a tela e tente de novo.");
+
   const parsed = criarPecaSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return fail("DADOS_INVALIDOS", "Confira os campos destacados.", z4Fields(parsed.error));
   }
+  const semCodigo = faltaCodigo(parsed.data, veFinanceiro(sessao.data));
+  if (semCodigo) return semCodigo;
 
   try {
-    /* Na edição a foto é OPCIONAL: sem arquivo novo, a que já está fica. Não
-       existe "remover foto" — a peça não pode ficar sem, então o caminho é
-       trocar por outra. */
-    const peca = await editarPeca(id, parsed.data, veFinanceiro(sessao.data), fotoDoFormulario(formData));
-    recarregar("estoque", `/estoque/${id}`);
+    /* Na edição a foto nova é opcional SÓ para quem já tem uma: sem arquivo
+       novo, a que já está fica. A peça cadastrada sem foto (enquanto o
+       armazenamento estava desligado) ganha a dela na primeira edição — senão
+       ela nunca deixaria de ser a exceção. Não existe "remover foto". */
+    const foto = fotoDoFormulario(formData);
+    if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
+      const { pecaTemFoto } = await import("./peca.service");
+      if (!(await pecaTemFoto(idOk.data))) {
+        return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
+          foto: ["Esta peça ainda não tem foto. Adicione uma para salvar — é por ela que a peça é achada na venda."],
+        });
+      }
+    }
+    const peca = await editarPeca(idOk.data, parsed.data, veFinanceiro(sessao.data), foto);
+    recarregar("estoque", `/estoque/${idOk.data}`);
     return ok({ id: peca.id });
   } catch (e) {
     return tratarErro(e, "editarPecaAction");
+  }
+}
+
+/* O código do fornecedor é dado de financeiro: quem não vê custo nem digita
+   código, e a busca responde "nada" em vez de revelar que o código existe. */
+export async function pecaComCodigoAction(
+  codigo: string,
+): Promise<Result<{ id: string; nome: string; categoria: string } | null>> {
+  const sessao = await exigirPermissao("pecas", "criar");
+  if (!sessao.ok) return sessao;
+  if (!veFinanceiro(sessao.data)) return ok(null);
+
+  const parsed = codigoFornecedorSchema.safeParse(codigo);
+  if (!parsed.success) return ok(null);
+
+  try {
+    const { pecaComCodigoFornecedor } = await import("./peca.service");
+    return ok(await pecaComCodigoFornecedor(parsed.data));
+  } catch (e) {
+    return tratarErro(e, "pecaComCodigoAction");
   }
 }
 
@@ -118,22 +174,13 @@ export async function salvarInsumoAction(
 }
 
 /*
- * Movimento de estoque. Regra 2.4: não existe "editar o saldo" — existe
- * registrar entrada ou saída, e o saldo é consequência. Por isso o formulário
- * pergunta QUANTAS unidades e POR QUÊ, nunca "qual é o novo saldo".
+ * Movimento de estoque feito à mão. Regra 2.4: não existe "editar o saldo" —
+ * existe registrar o que aconteceu, e o saldo é consequência.
  *
- * A exceção é o inventário: aí a pessoa conta a prateleira e informa o total.
- * Mesmo assim o que é gravado é a DIFERENÇA, com motivo INVENTARIO — o
- * histórico continua explicando de onde veio cada unidade.
+ * São os dois do app antigo: devolução ao fornecedor e ajuste de inventário.
+ * Entrada de peça não passa por aqui: é a compra que põe peça na prateleira,
+ * com fornecedor e pagamento (decisão do João, 06/10/2026).
  */
-const movimentoSchema = z.object({
-  pecaId: z.string().min(1),
-  tipo: z.enum(["entrada", "saida", "inventario"]),
-  quantidade: z.coerce.number().int().positive("Informe uma quantidade maior que zero"),
-  motivo: z.enum(["COMPRA", "VENDA", "DEVOLUCAO", "AJUSTE", "INVENTARIO", "PERDA"]),
-  observacao: z.union([z.literal(""), z.string().trim().max(200)]).optional(),
-});
-
 export async function movimentarAction(formData: FormData): Promise<Result<{ saldo: number }>> {
   const sessao = await exigirPermissao("pecas", "editar");
   if (!sessao.ok) return sessao;
@@ -144,31 +191,26 @@ export async function movimentarAction(formData: FormData): Promise<Result<{ sal
   }
   const d = parsed.data;
 
+  // O crédito é dinheiro entrando no caixa: pede a permissão do financeiro.
+  if (d.credito) {
+    const fin = await exigirPermissao("financeiro", "criar");
+    if (!fin.ok) return fin;
+  }
+
   try {
-    const { movimentarEstoque, saldoDe } = await import("./peca.service");
-    const atual = await saldoDe(d.pecaId);
-
-    // No inventário o número digitado é o TOTAL contado; gravamos a diferença.
-    const delta =
-      d.tipo === "inventario"
-        ? d.quantidade - atual
-        : d.tipo === "entrada"
-          ? d.quantidade
-          : -d.quantidade;
-
-    if (delta === 0) {
-      return fail("REGRA_NEGOCIO", "A contagem bate com o saldo atual. Nada a ajustar.");
-    }
-
-    await movimentarEstoque({
+    const { movimentarEstoque } = await import("./peca.service");
+    const r = await movimentarEstoque({
       pecaId: d.pecaId,
-      delta,
-      motivo: d.tipo === "inventario" ? "INVENTARIO" : d.motivo,
+      delta: d.tipo === "ajuste" && d.sentido === "acrescimo" ? d.quantidade : -d.quantidade,
+      motivo: d.tipo === "devolucao" ? "DEVOLUCAO" : "AJUSTE",
       observacao: d.observacao || undefined,
+      data: d.data || undefined,
+      creditoNoCaixa: d.credito,
     });
 
     recarregar("estoque", `/estoque/${d.pecaId}`);
-    return ok({ saldo: atual + delta });
+    if (d.credito) recarregar("financeiro");
+    return ok({ saldo: r.saldo });
   } catch (e) {
     return tratarErro(e, "movimentarAction");
   }

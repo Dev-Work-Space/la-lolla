@@ -39,6 +39,8 @@ const base: CriarPecaDados = {
   codigoFornecedor: 25,
   fator: 4.5,
   precoTabela: 189.9,
+  precoPromocional: undefined,
+  minimo: 0,
   fornecedorId: "",
 };
 

@@ -57,7 +57,7 @@ export function PecaLista({ pecas }: { pecas: PecaVisivel[] }) {
                 </span>
               </td>
 
-              <td className="text-muted-foreground">{p.categoria}</td>
+              <td className="text-muted-foreground">{p.categoria || "—"}</td>
 
               <td className="text-right tabular-nums">
                 <span className={p.saldo <= 0 ? "text-destructive" : undefined}>{p.saldo}</span>

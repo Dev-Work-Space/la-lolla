@@ -5,7 +5,6 @@ import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
 import { gravarAjuste } from "./ajustes.service";
-import { AJUSTES_PADRAO } from "./ajustes.tipos";
 import { ajustesSchema } from "./ajustes.schemas";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
@@ -26,16 +25,6 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
   }
   const d = parsed.data;
 
-  // Uma categoria por linha, sem vazias e sem repetidas.
-  const categorias = [
-    ...new Set(
-      d.categorias
-        .split(/\r?\n/)
-        .map((c) => c.trim())
-        .filter(Boolean),
-    ),
-  ];
-
   try {
     await Promise.all([
       gravarAjuste("fator", d.fator),
@@ -43,7 +32,6 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
       gravarAjuste("diasParado", d.diasParado),
       gravarAjuste("descontoVista", d.descontoVista),
       gravarAjuste("urlApp", d.urlApp),
-      gravarAjuste("categorias", categorias.length > 0 ? categorias : AJUSTES_PADRAO.categorias),
       gravarAjuste("etiquetaLargura", d.etiquetaLargura),
       gravarAjuste("etiquetaAltura", d.etiquetaAltura),
       gravarAjuste("etiquetaDobrada", d.etiquetaDobrada),
