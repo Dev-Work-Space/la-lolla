@@ -146,33 +146,73 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
 }
 
 /*
- * A linha dos 6 meses — o `sparkline` do app antigo (linha dourada, área em
- * degradê, ponto no mês atual), crescido: agora ocupa a largura do bloco e
- * cada mês mostra o valor em cima do ponto.
+ * Curva lisa pelos pontos (spline "monótona", de Fritsch–Carlson).
+ *
+ * Uma curva comum (Catmull-Rom, Bézier livre) passa ABAIXO de zero entre um
+ * mês zerado e um mês bom — o desenho mostraria faturamento negativo que nunca
+ * existiu. A monótona nunca ultrapassa o vizinho: entre dois pontos, ela só
+ * sobe ou só desce, e um trecho plano continua plano.
+ */
+function curvaLisa(pts: Array<{ x: number; y: number }>) {
+  const n = pts.length;
+  const d = pts.slice(0, -1).map((p, i) => (pts[i + 1].y - p.y) / (pts[i + 1].x - p.x));
+  const m = pts.map((_, i) =>
+    i === 0 ? d[0] : i === n - 1 ? d[n - 2] : d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2,
+  );
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+    const a = m[i] / d[i];
+    const b = m[i + 1] / d[i];
+    const h = a * a + b * b;
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h);
+      m[i] = t * a * d[i];
+      m[i + 1] = t * b * d[i];
+    }
+  }
+  let caminho = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = (pts[i + 1].x - pts[i].x) / 3;
+    caminho +=
+      ` C${(pts[i].x + h).toFixed(1)} ${(pts[i].y + m[i] * h).toFixed(1)}` +
+      ` ${(pts[i + 1].x - h).toFixed(1)} ${(pts[i + 1].y - m[i + 1] * h).toFixed(1)}` +
+      ` ${pts[i + 1].x.toFixed(1)} ${pts[i + 1].y.toFixed(1)}`;
+  }
+  return caminho;
+}
+
+/*
+ * O gráfico dos 6 meses: a linha dourada do `sparkline` do app antigo, com a
+ * área em degradê e o ponto no mês atual — crescida e LISA, como o João pediu,
+ * e com as linhas-guia dos gráficos de lá (zero, metade e topo, com o valor
+ * escrito na ponta).
  *
  * Cada mês ocupa uma coluna igual e o ponto fica no MEIO dela: assim o mês
  * escrito embaixo cai exatamente sob o ponto, em qualquer largura de tela.
  *
- * O SVG estica (preserveAspectRatio="none"), então pontos e valores moram FORA
+ * O SVG estica (preserveAspectRatio="none"), então pontos e textos moram FORA
  * dele, em HTML: dentro, o círculo viraria elipse e o texto sairia achatado.
  */
 function Grafico({ serie }: { serie: Array<{ rotulo: string; valor: number }> }) {
   const W = 600;
   const H = 200;
-  // Folga em cima para o valor escrito sobre o ponto mais alto.
-  const topo = 34;
-  const base = 8;
+  const topo = 14;
+  const base = 2;
   const n = serie.length;
   if (n < 2) return null;
 
   const valores = serie.map((s) => s.valor);
   const max = Math.max(...valores, 1);
-  const pts = valores.map((v, i) => ({
-    x: ((i + 0.5) / n) * W,
-    y: topo + (H - topo - base) * (1 - v / max),
-  }));
-  const linha = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const yDe = (v: number) => topo + (H - topo - base) * (1 - v / max);
+  const pts = valores.map((v, i) => ({ x: ((i + 0.5) / n) * W, y: yDe(v) }));
+  const linha = curvaLisa(pts);
   const area = `${linha} L${pts[n - 1].x.toFixed(1)} ${H} L${pts[0].x.toFixed(1)} ${H} Z`;
+  const guias = [1, 0.5, 0].map((f) => ({ y: yDe(max * f), valor: max * f }));
+  const fim = pts[n - 1];
 
   return (
     <div className="mt-3">
@@ -186,12 +226,22 @@ function Grafico({ serie }: { serie: Array<{ rotulo: string; valor: number }> })
         >
           <defs>
             <linearGradient id="inicio-grafico" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--ll-accent)" stopOpacity={0.24} />
+              <stop offset="0%" stopColor="var(--ll-accent)" stopOpacity={0.26} />
               <stop offset="100%" stopColor="var(--ll-accent)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          {/* A linha do zero, bem clara: dá chão ao desenho sem virar eixo. */}
-          <line x1={0} y1={H - 0.5} x2={W} y2={H - 0.5} stroke="var(--ll-accent-line)" vectorEffect="non-scaling-stroke" />
+          {guias.map((g) => (
+            <line
+              key={g.y}
+              x1={0}
+              y1={g.y}
+              x2={W}
+              y2={g.y}
+              stroke="var(--ll-accent-line)"
+              strokeDasharray={g.valor === 0 ? undefined : "4 4"}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
           <path d={area} fill="url(#inicio-grafico)" stroke="none" />
           <path
             d={linha}
@@ -204,37 +254,31 @@ function Grafico({ serie }: { serie: Array<{ rotulo: string; valor: number }> })
           />
         </svg>
 
-        {pts.map((p, i) => {
-          const atual = i === n - 1;
-          return (
-            <div
-              key={i}
+        {/* O valor de cada linha-guia, na ponta esquerda, em cima dela. */}
+        {guias
+          .filter((g) => g.valor > 0)
+          .map((g) => (
+            <span
+              key={g.y}
               aria-hidden
-              className="pointer-events-none absolute"
-              style={{ left: `${(p.x / W) * 100}%`, top: `${(p.y / H) * 100}%` }}
+              className="pointer-events-none absolute left-0 -translate-y-full pb-0.5 text-[10px] text-muted-foreground tabular-nums"
+              style={{ top: `${(g.y / H) * 100}%` }}
             >
-              <span
-                className={cn(
-                  "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-(--ll-accent)",
-                  atual ? "size-3.5" : "size-2.5",
-                )}
-              />
-              {/* Mês zerado não escreve "R$ 0": o ponto no chão já diz isso, e
-                  seis zeros enfileirados viram ruído. O fundo claro deixa o
-                  valor legível quando a linha passa por trás dele. */}
-              {serie[i].valor > 0 && (
-                <span
-                  className={cn(
-                    "absolute bottom-2.5 -translate-x-1/2 whitespace-nowrap rounded bg-card/85 px-1 text-[11px] tabular-nums",
-                    atual ? "font-bold text-(--ll-accent)" : "text-muted-foreground",
-                  )}
-                >
-                  {brlCompacto(serie[i].valor)}
-                </span>
-              )}
-            </div>
-          );
-        })}
+              {brlCompacto(g.valor)}
+            </span>
+          ))}
+
+        {/* Só o mês atual ganha ponto e valor, como no app antigo. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute"
+          style={{ left: `${(fim.x / W) * 100}%`, top: `${(fim.y / H) * 100}%` }}
+        >
+          <span className="absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-(--ll-accent)" />
+          <span className="absolute bottom-3 -translate-x-1/2 whitespace-nowrap rounded bg-card/85 px-1 text-[11px] font-bold text-(--ll-accent) tabular-nums">
+            {brl(serie[n - 1].valor)}
+          </span>
+        </div>
 
         {/* Uma faixa por mês, invisível, para o valor exato aparecer ao apontar. */}
         <div className="absolute inset-0 flex">
