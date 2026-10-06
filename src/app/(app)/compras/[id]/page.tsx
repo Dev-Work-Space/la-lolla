@@ -76,7 +76,7 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
             <ImprimirEtiquetas
               pecas={paraEtiqueta}
               quantidades={entrou}
-              modelo={modeloDosAjustes(ajustes)}
+              personalizado={modeloDosAjustes(ajustes)}
               podeNumerar={podeNumerar}
               rotulo="Etiquetas desta compra"
               titulo={`Etiquetas da compra #${c.numero}`}

@@ -173,7 +173,7 @@ export async function PainelCatalogo({
               saldo: p.saldo,
               ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
             }))}
-            modelo={modeloDosAjustes(ajustes)}
+            personalizado={modeloDosAjustes(ajustes)}
             podeNumerar={pode.editar}
             rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
             titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
