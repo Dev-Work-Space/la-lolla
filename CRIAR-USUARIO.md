@@ -1,5 +1,35 @@
 # Como criar ou atualizar um usuário
 
+## Pela área Usuários do aplicativo
+
+Acesse **Usuários** no menu. Somente **ADMIN** e **SUPER_ADMIN** podem criar
+ou gerenciar contas pela interface e pelas Server Actions, mesmo que um vendedor
+receba permissões personalizadas de criação ou edição na área de usuários.
+A permissão `usuarios.ver` permite consultar a listagem.
+
+- Use **Novo usuário** para informar nome, login (usuário ou e-mail), perfil e
+  permissões. O login é normalizado para minúsculas e deve ser único.
+- Contas novas definem sua senha no primeiro acesso, conforme explicado abaixo.
+  Combine esse primeiro acesso com a pessoa: não há convite por e-mail.
+- **Editar** altera os dados e permissões. Administradores têm todas as
+  permissões; o mapa personalizado é aplicado a vendedores. Editar outra
+  conta encerra suas sessões, exigindo novo login.
+- **Desativar** bloqueia o login e encerra sessões, preservando o histórico.
+  **Reativar** libera o acesso e mantém a senha cadastrada.
+- **Redefinir senha** define uma nova senha e encerra todas as sessões. A senha
+  segue as regras do primeiro acesso e o limite de 72 bytes do bcrypt. Ao
+  redefinir sua própria senha, você volta para o login.
+
+Somente superadministradores podem criar outros superadministradores ou editar
+suas contas. Superadministradores (incluindo os logins reservados `joao` e
+`hemily`) não podem ser desativados ou rebaixados, nem ter o login alterado.
+Ninguém pode desativar a própria conta ou alterar o próprio perfil.
+Não há exclusão de usuários pela interface.
+
+## Pelo terminal
+
+O procedimento abaixo continua disponível para administração direta.
+
 O script `scripts/criar-usuario.ts` grava diretamente no banco configurado em
 `DATABASE_URL`. Execute os comandos na raiz do projeto. O servidor Next.js
 não precisa estar rodando para executar o script.

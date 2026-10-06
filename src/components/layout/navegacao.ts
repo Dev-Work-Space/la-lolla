@@ -1,5 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import { HouseIcon, ShoppingBagIcon, ShoppingCartIcon, PackageIcon, WalletIcon, UsersIcon, GearIcon } from "@phosphor-icons/react/ssr";
+import { HouseIcon, ShoppingBagIcon, ShoppingCartIcon, PackageIcon, WalletIcon, UsersIcon, UserGearIcon, GearIcon } from "@phosphor-icons/react/ssr";
 import type { Papel } from "@prisma/client";
 import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
 
@@ -31,6 +31,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/estoque", nome: "Estoque", curto: "Estoque", icone: PackageIcon, area: "pecas" },
   { href: "/financeiro", nome: "Financeiro", curto: "Caixa", icone: WalletIcon, area: "financeiro" },
   { href: "/cadastros", nome: "Cadastros", curto: "Clientes", icone: UsersIcon, area: "pessoas" },
+  { href: "/usuarios", nome: "Usuários", curto: "Usuários", icone: UserGearIcon, area: "usuarios" },
   /*
    * Ajustes fica por último e só aparece para quem pode editá-lo. O ponto de
    * atenção 5 da documentação diz que hoje a engrenagem abre para qualquer
