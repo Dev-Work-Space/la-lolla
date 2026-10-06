@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { brl, brlCompacto } from "@/lib/formato";
+import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { ContextoInicio, Pendencia } from "../painel.service";
@@ -18,7 +18,8 @@ import type { IdWidget } from "../widgets";
 
 export type DadosPainel = {
   ctx: ContextoInicio;
-  serie: Array<{ rotulo: string; valor: number }>;
+  /** `margem` só aparece na tela de quem vê o financeiro. */
+  serie: Array<{ rotulo: string; valor: number; margem: number }>;
   ritmo: Array<{ dia: string; data: string; valor: number; vendas: number }>;
   mais: Array<{ id: string; nome: string; sku: string; qtd: number; valor: number }>;
   pend: Pendencia[];
@@ -132,13 +133,11 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
         </div>
       </div>
 
-      {/* ── como vem indo: o gráfico, grande, embaixo de tudo ── */}
+      {/* ── como vem indo: o gráfico, grande, embaixo de tudo. Sem linha
+          separando: o espaço já separa, e a linha pesava (pedido do João). ── */}
       {temVendas && (
-        <div className="mt-5 border-t border-(--ll-accent-line) pt-4">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Faturamento dos últimos 6 meses
-          </p>
-          <Grafico serie={serie} />
+        <div className="mt-7">
+          <Grafico serie={serie} comMargem={veFinanceiro} />
         </div>
       )}
     </Card>
@@ -186,111 +185,128 @@ function curvaLisa(pts: Array<{ x: number; y: number }>) {
 }
 
 /*
- * O gráfico dos 6 meses: a linha dourada do `sparkline` do app antigo, com a
- * área em degradê e o ponto no mês atual — crescida e LISA, como o João pediu,
- * e com as linhas-guia dos gráficos de lá (zero, metade e topo, com o valor
- * escrito na ponta).
+ * O gráfico dos 6 meses: faturamento e margem, as duas linhas do gráfico
+ * "Faturamento e margem bruta" do app antigo, no estilo que o João mostrou —
+ * linhas grossas e lisas, sem linha-guia, sem eixo, sem área: só o desenho.
+ * O valor exato do mês atual fica na ponta de cada linha; os outros meses
+ * aparecem ao apontar.
+ *
+ * A margem é dinheiro de custo: quem não vê o financeiro recebe só a linha do
+ * faturamento.
  *
  * Cada mês ocupa uma coluna igual e o ponto fica no MEIO dela: assim o mês
  * escrito embaixo cai exatamente sob o ponto, em qualquer largura de tela.
- *
  * O SVG estica (preserveAspectRatio="none"), então pontos e textos moram FORA
  * dele, em HTML: dentro, o círculo viraria elipse e o texto sairia achatado.
  */
-function Grafico({ serie }: { serie: Array<{ rotulo: string; valor: number }> }) {
+function Grafico({
+  serie,
+  comMargem,
+}: {
+  serie: Array<{ rotulo: string; valor: number; margem: number }>;
+  comMargem: boolean;
+}) {
   const W = 600;
   const H = 200;
-  const topo = 14;
-  const base = 2;
+  const topo = 16;
+  const base = 10;
   const n = serie.length;
   if (n < 2) return null;
 
-  const valores = serie.map((s) => s.valor);
-  const max = Math.max(...valores, 1);
-  const yDe = (v: number) => topo + (H - topo - base) * (1 - v / max);
-  const pts = valores.map((v, i) => ({ x: ((i + 0.5) / n) * W, y: yDe(v) }));
-  const linha = curvaLisa(pts);
-  const area = `${linha} L${pts[n - 1].x.toFixed(1)} ${H} L${pts[0].x.toFixed(1)} ${H} Z`;
-  const guias = [1, 0.5, 0].map((f) => ({ y: yDe(max * f), valor: max * f }));
-  const fim = pts[n - 1];
+  const linhas = [
+    { nome: "Faturamento", cor: "var(--ll-accent)", valores: serie.map((s) => s.valor) },
+    ...(comMargem ? [{ nome: "Margem", cor: "var(--ll-ok)", valores: serie.map((s) => s.margem) }] : []),
+  ];
+  const todos = linhas.flatMap((l) => l.valores);
+  const max = Math.max(...todos, 1);
+  // Margem negativa (vendeu abaixo do custo) desce abaixo do zero em vez de sumir.
+  const min = Math.min(...todos, 0);
+  const yDe = (v: number) => topo + (H - topo - base) * (1 - (v - min) / (max - min));
+  const xDe = (i: number) => ((i + 0.5) / n) * W;
+
+  const desenhos = linhas.map((l) => {
+    const pts = l.valores.map((v, i) => ({ x: xDe(i), y: yDe(v) }));
+    return { ...l, pts, caminho: curvaLisa(pts), fim: pts[n - 1], ultimo: l.valores[n - 1] };
+  });
+  // Os dois rótulos do mês atual não podem se cobrir: o de cima sobe, o de baixo desce.
+  const ordem = [...desenhos].sort((a, b) => a.fim.y - b.fim.y);
 
   return (
-    <div className="mt-3">
-      <div className="relative h-44 sm:h-52">
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Últimos 6 meses</p>
+        <div className="flex gap-4 text-xs text-muted-foreground">
+          {desenhos.map((l) => (
+            <span key={l.nome} className="inline-flex items-center gap-1.5">
+              <span className="h-1 w-4 rounded-full" style={{ background: l.cor }} aria-hidden />
+              {l.nome}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mt-4 h-44 sm:h-52">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="none"
           role="img"
-          aria-label={`Faturamento dos últimos 6 meses: ${serie.map((s) => `${s.rotulo} ${brl(s.valor)}`).join(", ")}`}
+          aria-label={`Últimos 6 meses: ${serie
+            .map((s) => `${s.rotulo} faturamento ${brl(s.valor)}${comMargem ? `, margem ${brl(s.margem)}` : ""}`)
+            .join("; ")}`}
           className="block size-full overflow-visible"
         >
-          <defs>
-            <linearGradient id="inicio-grafico" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--ll-accent)" stopOpacity={0.26} />
-              <stop offset="100%" stopColor="var(--ll-accent)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          {guias.map((g) => (
-            <line
-              key={g.y}
-              x1={0}
-              y1={g.y}
-              x2={W}
-              y2={g.y}
-              stroke="var(--ll-accent-line)"
-              strokeDasharray={g.valor === 0 ? undefined : "4 4"}
+          {desenhos.map((l) => (
+            <path
+              key={l.nome}
+              d={l.caminho}
+              fill="none"
+              stroke={l.cor}
+              strokeWidth={3.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
           ))}
-          <path d={area} fill="url(#inicio-grafico)" stroke="none" />
-          <path
-            d={linha}
-            fill="none"
-            stroke="var(--ll-accent)"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
         </svg>
 
-        {/* O valor de cada linha-guia, na ponta esquerda, em cima dela. */}
-        {guias
-          .filter((g) => g.valor > 0)
-          .map((g) => (
+        {ordem.map((l, k) => (
+          <div
+            key={l.nome}
+            aria-hidden
+            className="pointer-events-none absolute"
+            style={{ left: `${(l.fim.x / W) * 100}%`, top: `${(l.fim.y / H) * 100}%` }}
+          >
             <span
-              key={g.y}
-              aria-hidden
-              className="pointer-events-none absolute left-0 -translate-y-full pb-0.5 text-[10px] text-muted-foreground tabular-nums"
-              style={{ top: `${(g.y / H) * 100}%` }}
+              className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card"
+              style={{ background: l.cor }}
+            />
+            <span
+              className={cn(
+                "absolute right-2 whitespace-nowrap rounded bg-card/85 px-1 text-[11px] font-bold tabular-nums",
+                k === 0 ? "bottom-1.5" : "top-1.5",
+              )}
+              style={{ color: l.cor }}
             >
-              {brlCompacto(g.valor)}
+              {brl(l.ultimo)}
             </span>
-          ))}
+          </div>
+        ))}
 
-        {/* Só o mês atual ganha ponto e valor, como no app antigo. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute"
-          style={{ left: `${(fim.x / W) * 100}%`, top: `${(fim.y / H) * 100}%` }}
-        >
-          <span className="absolute size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-(--ll-accent)" />
-          <span className="absolute bottom-3 -translate-x-1/2 whitespace-nowrap rounded bg-card/85 px-1 text-[11px] font-bold text-(--ll-accent) tabular-nums">
-            {brl(serie[n - 1].valor)}
-          </span>
-        </div>
-
-        {/* Uma faixa por mês, invisível, para o valor exato aparecer ao apontar. */}
+        {/* Uma faixa por mês, invisível, para os valores exatos aparecerem ao apontar. */}
         <div className="absolute inset-0 flex">
           {serie.map((mes, i) => (
-            <span key={i} className="flex-1" title={`${mes.rotulo}: ${brl(mes.valor)}`} />
+            <span
+              key={i}
+              className="flex-1"
+              title={`${mes.rotulo}: faturamento ${brl(mes.valor)}${comMargem ? ` · margem ${brl(mes.margem)}` : ""}`}
+            />
           ))}
         </div>
       </div>
 
       <div className="mt-2 flex text-[11px] uppercase tracking-wide text-muted-foreground">
         {serie.map((mes, i) => (
-          <span key={i} className={cn("flex-1 text-center", i === n - 1 && "font-bold text-(--ll-accent)")}>
+          <span key={i} className={cn("flex-1 text-center", i === n - 1 && "font-bold text-foreground")}>
             {mes.rotulo}
           </span>
         ))}

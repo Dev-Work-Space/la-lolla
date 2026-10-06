@@ -186,14 +186,17 @@ export async function dadosDoInicio(nome: string) {
   const fatMes = soma(doMes);
   const margemAno = r2(fatAno - custoDe(doAno));
 
-  // Faturamento dos últimos 6 meses
-  const serie: Array<{ rotulo: string; valor: number }> = [];
+  // Faturamento e margem dos últimos 6 meses — as duas linhas do gráfico do Início
+  const serie: Array<{ rotulo: string; valor: number; margem: number }> = [];
   for (let i = 5; i >= 0; i--) {
     const de = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
     const ate = new Date(agora.getFullYear(), agora.getMonth() - i + 1, 1);
+    const doMesI = noPeriodo(de, ate);
+    const valor = soma(doMesI);
     serie.push({
       rotulo: de.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
-      valor: soma(noPeriodo(de, ate)),
+      valor,
+      margem: r2(valor - custoDe(doMesI)),
     });
   }
 
