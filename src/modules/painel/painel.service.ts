@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 /* O saldo em caixa vem do MESMO lugar que o Financeiro usa — uma conta só
    para uma pergunta só. */
 import { carteirasComSaldo, naoAtribuido } from "@/modules/financeiro/financeiro.service";
+import { CATEGORIAS_FORA_DA_DESPESA } from "@/modules/financeiro/financeiro.tipos";
 
 /*
  * Dados do Início.
@@ -57,7 +58,7 @@ export async function dadosDoInicio(nome: string) {
      dinheiro. Documentação, seção 05. */
   const em2 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 2, 23, 59, 59, 999);
 
-  const [vendas, caixa, config, pendencias] = await Promise.all([
+  const [vendas, caixa, config, pendencias, saidasAno] = await Promise.all([
     // 1) as vendas do período, com o que basta para TODOS os números da tela
     prisma.venda.findMany({
       where: { status: { not: "CANCELADA" }, data: { gte: desde } },
@@ -129,6 +130,15 @@ export async function dadosDoInicio(nome: string) {
           ) <= 0
       `,
     ]),
+
+    /* 5) o que saiu do caixa no ano, para o "resultado" do Início: margem
+       bruta menos despesas, como o `resultAno` do app antigo. Mercadoria e
+       Retirada não são despesa — a peça já está no custo da margem, e
+       retirada é do dono, não da loja. */
+    prisma.lancamento.findMany({
+      where: { data: { gte: ano0, lt: new Date(agora.getFullYear() + 1, 0, 1) }, valor: { lt: 0 } },
+      select: { valor: true, categoria: true },
+    }),
   ]);
 
   /* ── daqui para baixo é tudo soma em memória ── */
@@ -285,6 +295,14 @@ export async function dadosDoInicio(nome: string) {
       fatAno,
       margemAno,
       margemPct: fatAno > 0 ? Math.round((margemAno / fatAno) * 100) : 0,
+      resultadoAno: r2(
+        margemAno -
+          Math.abs(
+            saidasAno
+              .filter((l) => !CATEGORIAS_FORA_DA_DESPESA.includes(l.categoria ?? ""))
+              .reduce((soma, l) => soma + num(l.valor), 0),
+          ),
+      ),
       ticketAno: (() => {
         const comValor = doAno.filter((v) => faturadoDe(v) > 0.005).length;
         return comValor ? r2(fatAno / comValor) : 0;

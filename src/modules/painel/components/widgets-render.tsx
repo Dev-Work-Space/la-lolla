@@ -42,16 +42,24 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
     year: "numeric",
   });
   const temVendas = ctx.fatAno > 0;
-  const maior = Math.max(...serie.map((s) => s.valor), 1);
 
   return (
     /*
-     * Largura toda, em três colunas no monitor: quem é você · quanto faturou ·
-     * como vem indo. Antes o bloco tinha 8 de 12 colunas e empilhava tudo numa
-     * coluna só, deixando metade da faixa vazia — o João pediu que ele
-     * completasse a linha, e completar não é esticar: é usar o espaço.
+     * O "herói" do app antigo: fundo com um brilho dourado no canto e o
+     * degradê suave da marca, o nome em dourado, a margem numa caixinha e a
+     * linha dos 6 meses. O João pediu de volta o "gráfico bonitinho".
+     *
+     * Largura toda, em três colunas no monitor — quem é você · quanto faturou
+     * · como vem indo —, como ele pediu antes para o bloco completar a linha.
      */
-    <Card as="section" className="block overflow-visible p-5 text-base">
+    <Card
+      as="section"
+      className="block overflow-hidden border-(--ll-accent-line) p-5 text-base"
+      style={{
+        background:
+          "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ll-accent) 14%, transparent) 0%, transparent 58%), linear-gradient(168deg, var(--ll-accent-soft) 0%, var(--card) 55%)",
+      }}
+    >
       <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
         {/* ── quem é você ── */}
         <div className="min-w-0 lg:col-span-4">
@@ -59,7 +67,7 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
             {saudacao(ctx.agora)}
             {ctx.nome && (
               <>
-                , <span className="font-extrabold">{primeiroNome(ctx.nome)}</span>
+                , <span className="font-extrabold text-(--ll-accent)">{primeiroNome(ctx.nome)}</span>
               </>
             )}
           </p>
@@ -72,28 +80,32 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
             <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
               Nova venda
             </Button>
-            <Button nativeButton={false} variant="secondary" render={<Link href="/estoque" />}>
+            <Button nativeButton={false} variant="outline" className="bg-card/80" render={<Link href="/estoque" />}>
               Nova peça
             </Button>
-            <Button nativeButton={false} variant="ghost" render={<Link href="/financeiro" />}>
+            <Button nativeButton={false} variant="outline" className="bg-card/80" render={<Link href="/financeiro" />}>
               Faturamento
             </Button>
           </div>
         </div>
 
         {/* ── quanto faturou ── */}
-        <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
+        <div className="min-w-0 lg:col-span-4 lg:border-l lg:border-(--ll-accent-line) lg:pl-6">
           {temVendas ? (
             <>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 Faturado em {ctx.ano}
               </p>
-              <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-bold tabular-nums">
+              <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-extrabold tracking-tight tabular-nums">
                 {brl(ctx.fatAno)}
               </p>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {veFinanceiro && <Chip>{brl(ctx.margemAno)} de margem bruta</Chip>}
+                {/* O lucro de verdade do ano: margem menos o que a loja gastou. */}
+                {veFinanceiro && (
+                  <Chip tom={ctx.resultadoAno >= 0 ? "ok" : "ruim"}>{brl(ctx.resultadoAno)} de resultado</Chip>
+                )}
                 <Chip>
                   {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
                 </Chip>
@@ -102,7 +114,7 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
             </>
           ) : (
             <>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 Primeiro passo
               </p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -115,43 +127,23 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
 
         {/* ── como vem indo ── */}
         {temVendas && (
-          <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="min-w-0 lg:col-span-4 lg:border-l lg:border-(--ll-accent-line) lg:pl-6">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 Últimos 6 meses
               </p>
               {veFinanceiro && (
-                <p className="text-right">
-                  <span className="text-2xl font-bold tabular-nums">{ctx.margemPct}%</span>{" "}
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <div className="shrink-0 rounded-md border border-(--ll-accent-line) bg-card/70 px-2.5 py-1.5 text-center">
+                  <span className="block text-lg leading-none font-extrabold tracking-tight text-(--ll-accent) tabular-nums">
+                    {ctx.margemPct}%
+                  </span>
+                  <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-muted-foreground">
                     margem
                   </span>
-                </p>
+                </div>
               )}
             </div>
-
-            {/* Mini-gráfico dos 6 meses, em CSS puro — sem biblioteca. */}
-            <div className="mt-3">
-              <div className="flex h-16 items-end gap-1.5">
-                {serie.map((mes, i) => (
-                  <div
-                    key={i}
-                    title={`${mes.rotulo}: ${brl(mes.valor)}`}
-                    className="flex-1 rounded-sm bg-foreground/15"
-                    style={{ height: `${Math.max(4, (mes.valor / maior) * 100)}%` }}
-                  />
-                ))}
-              </div>
-              {/* Um rótulo por barra: com só o primeiro e o último, ninguém
-                  sabia de que mês era a barra do meio. */}
-              <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
-                {serie.map((mes, i) => (
-                  <span key={i} className="flex-1 truncate text-center first-letter:uppercase">
-                    {mes.rotulo}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <Sparkline serie={serie} />
           </div>
         )}
       </div>
@@ -159,9 +151,97 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
   );
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
+/*
+ * A linha dos 6 meses — `sparkline` do app antigo: linha dourada, área em
+ * degradê embaixo e um ponto no mês atual. Sem eixo de valor de propósito: o
+ * número exato está ao lado; aqui interessa a forma ("a coisa vem subindo?").
+ *
+ * O SVG estica na largura (preserveAspectRatio="none"), então o ponto final
+ * mora FORA dele, em HTML: dentro, o círculo viraria uma elipse esticada.
+ * Passar o dedo ou o mouse num mês mostra o valor dele.
+ */
+function Sparkline({ serie }: { serie: Array<{ rotulo: string; valor: number }> }) {
+  const W = 260;
+  const H = 64;
+  const pad = 4;
+  const n = serie.length;
+  if (n < 2) return null;
+
+  const valores = serie.map((s) => s.valor);
+  let max = Math.max(...valores);
+  let min = Math.min(...valores);
+  if (max === min) {
+    max = max || 1;
+    min = 0;
+  }
+  const pts = valores.map((v, i) => ({
+    x: pad + ((W - pad * 2) * i) / (n - 1),
+    y: pad + (H - pad * 2) - ((H - pad * 2) * (v - min)) / (max - min),
+  }));
+  const linha = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `${linha} L${pts[n - 1].x.toFixed(1)} ${H - pad} L${pts[0].x.toFixed(1)} ${H - pad} Z`;
+  const fim = pts[n - 1];
+
   return (
-    <Badge variant="outline" className="h-auto rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+    <div className="mt-3">
+      <div className="relative h-16">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`Faturamento dos últimos 6 meses: ${serie.map((s) => `${s.rotulo} ${brl(s.valor)}`).join(", ")}`}
+          className="block size-full overflow-visible"
+        >
+          <defs>
+            <linearGradient id="inicio-spark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--ll-accent)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--ll-accent)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={area} fill="url(#inicio-spark)" stroke="none" />
+          <path
+            d={linha}
+            fill="none"
+            stroke="var(--ll-accent)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        <span
+          aria-hidden
+          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-(--ll-accent)"
+          style={{ left: `${(fim.x / W) * 100}%`, top: `${(fim.y / H) * 100}%` }}
+        />
+        {/* Uma faixa por mês, invisível, só para o valor aparecer ao apontar. */}
+        <div className="absolute inset-0 flex">
+          {serie.map((mes, i) => (
+            <span key={i} className="flex-1" title={`${mes.rotulo}: ${brl(mes.valor)}`} />
+          ))}
+        </div>
+      </div>
+      {/* Um rótulo por mês: com só o primeiro e o último, ninguém sabia de
+          que mês era o ponto do meio. */}
+      <div className="mt-1 flex justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+        {serie.map((mes, i) => (
+          <span key={i}>{mes.rotulo}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Chip({ children, tom }: { children: React.ReactNode; tom?: "ok" | "ruim" }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "h-auto rounded-full bg-card/70 px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground",
+        tom === "ok" && "border-(--ll-ok)/30 text-(--ll-ok)",
+        tom === "ruim" && "border-(--ll-danger)/30 text-(--ll-danger)",
+      )}
+    >
       {children}
     </Badge>
   );
