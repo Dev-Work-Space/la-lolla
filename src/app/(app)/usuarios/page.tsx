@@ -2,7 +2,6 @@ import { exigirPermissao } from "@/lib/auth/guard";
 import { listarUsuarios } from "@/modules/usuarios/usuario.service";
 import { GestaoUsuarios } from "@/modules/usuarios/components/gestao-usuarios";
 
-export const runtime = "nodejs";
 export const metadata = { title: "Usuários · LaLolla" };
 
 export default async function UsuariosPage() {
