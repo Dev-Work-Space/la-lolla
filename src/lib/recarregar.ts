@@ -23,7 +23,7 @@ import { revalidatePath } from "next/cache";
  * fluxo APARECE, mesmo que só como número, em outra tela.
  */
 
-type Fluxo = "venda" | "orcamento" | "compra" | "estoque" | "financeiro" | "pessoas" | "ajustes";
+type Fluxo = "venda" | "orcamento" | "compra" | "estoque" | "financeiro" | "pessoas" | "ajustes" | "usuarios";
 
 const AFETA: Record<Fluxo, string[]> = {
   /*
@@ -92,6 +92,7 @@ const AFETA: Record<Fluxo, string[]> = {
    * coisas que aparecem em quase toda tela. Vai no layout inteiro.
    */
   ajustes: [],
+  usuarios: ["/usuarios"],
 };
 
 /**
