@@ -74,6 +74,15 @@ export const insumoSchema = z.object({
 
 export type InsumoDados = z.output<typeof insumoSchema>;
 
+/* Movimento de estoque. Ver `movimentarAction` para o porquê de cada tipo. */
+export const movimentoSchema = z.object({
+  pecaId: z.string().min(1),
+  tipo: z.enum(["entrada", "saida", "inventario"]),
+  quantidade: z.coerce.number().int().positive("Informe uma quantidade maior que zero"),
+  motivo: z.enum(["COMPRA", "VENDA", "DEVOLUCAO", "AJUSTE", "INVENTARIO", "PERDA"]),
+  observacao: z.union([z.literal(""), z.string().trim().max(200)]).optional(),
+});
+
 /*
  * SAÍDA. Duas formas deliberadamente diferentes:
  * quem não vê financeiro recebe um objeto em que `custo` NÃO EXISTE — não é

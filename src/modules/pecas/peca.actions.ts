@@ -4,8 +4,7 @@ import { recarregar } from "@/lib/recarregar";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type Result } from "@/lib/result";
-import { z } from "zod";
-import { criarPecaSchema, insumoSchema } from "./peca.schema";
+import { criarPecaSchema, insumoSchema, movimentoSchema } from "./peca.schema";
 import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
 import { fotosConfiguradas } from "@/lib/storage";
 
@@ -126,14 +125,6 @@ export async function salvarInsumoAction(
  * Mesmo assim o que é gravado é a DIFERENÇA, com motivo INVENTARIO — o
  * histórico continua explicando de onde veio cada unidade.
  */
-const movimentoSchema = z.object({
-  pecaId: z.string().min(1),
-  tipo: z.enum(["entrada", "saida", "inventario"]),
-  quantidade: z.coerce.number().int().positive("Informe uma quantidade maior que zero"),
-  motivo: z.enum(["COMPRA", "VENDA", "DEVOLUCAO", "AJUSTE", "INVENTARIO", "PERDA"]),
-  observacao: z.union([z.literal(""), z.string().trim().max(200)]).optional(),
-});
-
 export async function movimentarAction(formData: FormData): Promise<Result<{ saldo: number }>> {
   const sessao = await exigirPermissao("pecas", "editar");
   if (!sessao.ok) return sessao;
