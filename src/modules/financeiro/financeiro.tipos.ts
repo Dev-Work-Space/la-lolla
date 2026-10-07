@@ -39,15 +39,26 @@ export const CATEGORIAS_ENTRADA = ["Venda", "Aporte", "Depósito", "Outros"];
 /** A opção que destrava o campo livre, nas duas listas. */
 export const CATEGORIA_LIVRE = "Outros";
 
+/* "Esta semana" saiu daqui e virou atalho da barra de período — era um
+   período disfarçado de situação. O valor continua aceito no serviço, para os
+   links antigos não quebrarem. */
 export const FILTROS_CONTA = [
   ["abertas", "Em aberto"],
   ["vencidas", "Vencidas"],
-  ["semana", "Esta semana"],
   ["pagas", "Baixadas"],
   ["todas", "Todas"],
 ] as const;
 
-export type FiltroConta = (typeof FILTROS_CONTA)[number][0];
+export type OrdemConta = "vencimento" | "vencimento-desc" | "valor-desc" | "valor";
+
+export const ORDENS_CONTA: ReadonlyArray<readonly [OrdemConta, string]> = [
+  ["vencimento", "Vencimento (mais perto primeiro)"],
+  ["vencimento-desc", "Vencimento (mais longe primeiro)"],
+  ["valor-desc", "Maior valor primeiro"],
+  ["valor", "Menor valor primeiro"],
+];
+
+export type FiltroConta = (typeof FILTROS_CONTA)[number][0] | "semana";
 
 /* Onde o dinheiro está. Espelha o enum do banco; fica aqui repetido porque
    este módulo é neutro e o formulário é Client Component — importar o enum
@@ -88,6 +99,8 @@ export type MovimentoCaixa = {
   origem: "lancamento" | "venda" | "transferencia";
   href?: string;
   temComprovante: boolean;
+  /** As carteiras da linha — duas na transferência — para o filtro por carteira. */
+  carteiraIds: string[];
 };
 
 export type ContaLinha = {
@@ -101,6 +114,8 @@ export type ContaLinha = {
   vencida: boolean;
   diasAteVencer: number;
   fornecedor: string | null;
+  /** Quem deve, na conta a receber de venda — a busca e a planilha usam. */
+  cliente: string | null;
   vendaId: string | null;
   parcela: string | null;
   /* Compra no crédito: a conta pertence a uma FATURA, e fatura se paga

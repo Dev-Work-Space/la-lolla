@@ -4,56 +4,83 @@ import { exigirPermissao } from "@/lib/auth/guard";
 import { brl } from "@/lib/formato";
 import { Indicador, Indicadores, Segmentado } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
-import { indicadoresFinanceiro } from "@/modules/financeiro/financeiro.service";
+import { indicadoresFinanceiro, movimentoPorCarteira } from "@/modules/financeiro/financeiro.service";
+import { datasDaBarra, paramsDoPeriodo, periodoDaUrl, rotuloDoPeriodo } from "@/modules/financeiro/periodo";
+import { FiltroPeriodo } from "@/modules/financeiro/components/filtro-periodo";
 import { PainelCaixa } from "@/modules/financeiro/components/painel-caixa";
 import { PainelContas } from "@/modules/financeiro/components/painel-contas";
 import { PainelCarteiras } from "@/modules/financeiro/components/painel-carteiras";
 import { PainelCartoes } from "@/modules/financeiro/components/painel-cartoes";
-import { ResumoCartoes } from "@/modules/financeiro/components/resumo-cartoes";
+import { PainelVisaoGeral } from "@/modules/financeiro/components/painel-visao-geral";
 import { PainelAgenda } from "@/modules/financeiro/components/painel-agenda";
 import { PainelPrevisao } from "@/modules/financeiro/components/painel-previsao";
-import { mesDaUrl } from "@/modules/financeiro/agenda.service";
 import { cartoesComLimite } from "@/modules/financeiro/cartao.service";
-import type { FiltroConta } from "@/modules/financeiro/financeiro.service";
 
 
 export const metadata = { title: "Financeiro · LaLolla" };
 
-type Aba = "caixa" | "pagar" | "receber" | "agenda" | "previsao" | "carteiras";
+type Aba = "geral" | "contas" | "fluxo" | "carteiras";
+type TipoContas = "receber" | "pagar" | "calendario";
 
 /*
- * Financeiro em quatro sub-abas. No app antigo isto era espalhado por cinco
- * telas (viewCaixa, viewMovimento, viewPagar, viewReceber, viewPrevisao) e
- * os quatro números de cima não apareciam juntos em lugar nenhum.
+ * Financeiro em QUATRO abas, reorganizado a pedido do João (07/10/2026), que
+ * achou as seis de antes "bem desorganizadas":
+ *
+ *   Visão geral — o que está atrasado, o que entra e sai nos próximos 30
+ *                 dias, para onde o caixa vai e onde o dinheiro está;
+ *   Contas      — a pagar e a receber agrupadas por urgência, e o calendário
+ *                 do mês (a antiga Agenda);
+ *   Fluxo       — o extrato do que já aconteceu e a previsão do que vem;
+ *   Carteiras   — onde o dinheiro está, com os cartões.
  *
  * Os indicadores ficam FORA das abas de propósito: "quanto tenho" e "quanto
  * devo" são a pergunta de abertura, independente do que se vá fazer depois.
  *
- * A página devolve na hora o título e as abas — o que não depende do banco —
- * e entrega os indicadores e o painel em dois blocos separados. Eles chegam
- * quando ficam prontos, cada um por si: quem olha "quanto tenho em caixa"
- * não precisa esperar a lista de contas carregar para ler o número.
+ * Os endereços antigos (?aba=caixa, pagar, receber, agenda, previsao)
+ * continuam valendo: caem na aba nova equivalente. Link salvo e aviso do
+ * Início não quebram.
  */
+function abaDaUrl(aba?: string, tipo?: string, ver?: string): { qual: Aba; tipo: TipoContas; ver: string } {
+  const tipoOk: TipoContas = tipo === "pagar" || tipo === "calendario" ? tipo : "receber";
+  switch (aba) {
+    case "contas":
+      return { qual: "contas", tipo: tipoOk, ver: "" };
+    case "pagar":
+    case "receber":
+      return { qual: "contas", tipo: aba, ver: "" };
+    case "agenda":
+      return { qual: "contas", tipo: "calendario", ver: "" };
+    case "fluxo":
+    case "caixa":
+      return { qual: "fluxo", tipo: tipoOk, ver: ver === "previsto" ? "previsto" : "realizado" };
+    case "previsao":
+      return { qual: "fluxo", tipo: tipoOk, ver: "previsto" };
+    case "carteiras":
+      return { qual: "carteiras", tipo: tipoOk, ver: "" };
+    default:
+      return { qual: "geral", tipo: tipoOk, ver: "" };
+  }
+}
+
 export default async function FinanceiroPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    aba?: string;
-    filtro?: string;
-    de?: string;
-    ate?: string;
-    mes?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sessao = await exigirPermissao("financeiro", "ver");
   if (!sessao.ok) notFound();
 
-  const { aba, filtro, de, ate, mes } = await searchParams;
-  const qual: Aba = (
-    ["pagar", "receber", "agenda", "previsao", "carteiras"] as const
-  ).includes(aba as never)
-    ? (aba as Aba)
-    : "caixa";
+  /* Todos os filtros da URL, só os de texto, já com a aba no nome novo: as
+     barras de filtro de cada aba recebem isto e preservam o que não mexem. */
+  const crus = await searchParams;
+  const params: Record<string, string> = {};
+  for (const [k, v] of Object.entries(crus)) if (typeof v === "string" && v) params[k] = v;
+  const { qual, tipo, ver } = abaDaUrl(params.aba, params.tipo, params.ver);
+  params.aba = qual;
+  if (qual === "contas") params.tipo = tipo;
+  else delete params.tipo;
+  if (qual === "fluxo" && ver === "previsto") params.ver = ver;
+  else delete params.ver;
 
   const admin = sessao.data.papel !== "VENDEDOR";
   const pode = {
@@ -70,27 +97,45 @@ export default async function FinanceiroPage({
         <IndicadoresDoCaixa />
       </Suspense>
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         <Segmentado
-          /* As seis sub-abas do app antigo, na mesma ordem: o caixa de hoje,
-             o que se deve, o que se tem a receber, o calendário do mês, a
-             projeção e onde o dinheiro está. */
           opcoes={[
-            ["caixa", "Caixa"],
-            ["pagar", "A pagar"],
-            ["receber", "A receber"],
-            ["agenda", "Agenda"],
-            ["previsao", "Previsão"],
+            ["geral", "Visão geral"],
+            ["contas", "Contas"],
+            ["fluxo", "Fluxo de caixa"],
             ["carteiras", "Carteiras"],
           ]}
           atual={qual}
-          href={(v) => `/financeiro?aba=${v}`}
+          href={(v) => (v === "geral" ? "/financeiro" : `/financeiro?aba=${v}`)}
         />
+        {/* O segundo nível fica ao lado, na mesma linha: a pessoa vê de uma vez
+            em que aba está e qual recorte dela. */}
+        {qual === "contas" && (
+          <Segmentado
+            opcoes={[
+              ["receber", "A receber"],
+              ["pagar", "A pagar"],
+              ["calendario", "Calendário"],
+            ]}
+            atual={tipo}
+            href={(v) => `/financeiro?aba=contas&tipo=${v}`}
+          />
+        )}
+        {qual === "fluxo" && (
+          <Segmentado
+            opcoes={[
+              ["realizado", "Extrato"],
+              ["previsto", "Previsão"],
+            ]}
+            atual={ver}
+            href={(v) => (v === "previsto" ? "/financeiro?aba=fluxo&ver=previsto" : "/financeiro?aba=fluxo")}
+          />
+        )}
       </div>
 
       <div className="mt-5">
         <Suspense
-          key={`${qual}:${filtro ?? ""}:${de ?? ""}:${ate ?? ""}:${mes ?? ""}`}
+          key={new URLSearchParams(params).toString()}
           fallback={
             <div className="space-y-4">
               <div className="h-10 animate-pulse rounded bg-muted" />
@@ -98,7 +143,7 @@ export default async function FinanceiroPage({
             </div>
           }
         >
-          <PainelDaAba qual={qual} filtro={filtro} de={de} ate={ate} mes={mes} pode={pode} />
+          <PainelDaAba qual={qual} tipo={tipo} ver={ver} params={params} pode={pode} />
         </Suspense>
       </div>
     </main>
@@ -155,54 +200,55 @@ async function IndicadoresDoCaixa() {
  */
 async function PainelDaAba({
   qual,
-  filtro,
-  de,
-  ate,
-  mes,
+  tipo,
+  ver,
+  params,
   pode,
 }: {
   qual: Aba;
-  filtro?: string;
-  de?: string;
-  ate?: string;
-  mes?: string;
+  tipo: TipoContas;
+  ver: string;
+  params: Record<string, string>;
   pode: { criar: boolean; editar: boolean; excluir: boolean };
 }) {
+  if (qual === "geral") return <PainelVisaoGeral pode={pode} />;
+
   const ind = await indicadoresFinanceiro();
 
-  if (qual === "caixa") {
-    /* O cartão aparece no Caixa, como no app antigo: quem abre o Financeiro
-       quer ver o dinheiro que tem E quanto ainda dá para gastar. A ficha
-       completa continua na aba Carteiras. */
-    const cartoes = await cartoesComLimite();
-    return (
-      <div className="space-y-4">
-        <PainelCaixa de={de} ate={ate} carteiras={ind.carteiras} pode={pode} />
-        <ResumoCartoes cartoes={cartoes} carteiras={ind.carteiras} pode={pode} />
-      </div>
-    );
+  if (qual === "contas") {
+    if (tipo === "calendario") return <PainelAgenda params={params} />;
+    return <PainelContas tipo={tipo === "pagar" ? "PAGAR" : "RECEBER"} params={params} carteiras={ind.carteiras} pode={pode} />;
   }
-  if (qual === "agenda") return <PainelAgenda mes={mesDaUrl(mes)} />;
-  if (qual === "previsao") return <PainelPrevisao />;
 
-  if (qual === "carteiras") {
-    /* Cartão vem junto das carteiras, como no app antigo: quem abre esta aba
-       está perguntando "onde está o meu dinheiro", e o limite do cartão faz
-       parte da resposta — pelo avesso. */
-    const cartoes = await cartoesComLimite();
-    return (
-      <div className="space-y-6">
-        <PainelCarteiras carteiras={ind.carteiras} naoAtribuido={ind.naoAtribuido} pode={pode} />
-        <PainelCartoes cartoes={cartoes} carteiras={ind.carteiras} pode={pode} />
-      </div>
-    );
+  if (qual === "fluxo") {
+    if (ver === "previsto") return <PainelPrevisao params={params} />;
+    return <PainelCaixa params={params} carteiras={ind.carteiras} pode={pode} />;
   }
+
+  /* Cartão vem junto das carteiras, como no app antigo: quem abre esta aba
+     está perguntando "onde está o meu dinheiro", e o limite do cartão faz
+     parte da resposta — pelo avesso. O saldo é o de hoje; o período só muda
+     o "entrou / saiu" de cada carteira. */
+  const periodo = periodoDaUrl(params, "mes", { ateHoje: true });
+  const [cartoes, noPeriodo] = await Promise.all([cartoesComLimite(), movimentoPorCarteira(periodo.de, periodo.ate)]);
+  const extratoDa = (id: string) =>
+    `/financeiro?${new URLSearchParams({ aba: "fluxo", carteira: id, ...paramsDoPeriodo(periodo) }).toString()}`;
   return (
-    <PainelContas
-      tipo={qual === "pagar" ? "PAGAR" : "RECEBER"}
-      filtro={(filtro as FiltroConta) ?? "abertas"}
-      carteiras={ind.carteiras}
-      pode={pode}
-    />
+    <div className="space-y-6">
+      <FiltroPeriodo
+        params={params}
+        {...datasDaBarra(periodo)}
+        atalhos={["hoje", "semana", "mes", "mes-passado", "ultimos-30", "ano", "tudo"]}
+      />
+      <PainelCarteiras
+        carteiras={ind.carteiras}
+        naoAtribuido={ind.naoAtribuido}
+        pode={pode}
+        noPeriodo={noPeriodo}
+        rotuloPeriodo={rotuloDoPeriodo(periodo)}
+        extratoDa={extratoDa}
+      />
+      <PainelCartoes cartoes={cartoes} carteiras={ind.carteiras} pode={pode} />
+    </div>
   );
 }

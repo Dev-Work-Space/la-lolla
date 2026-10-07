@@ -29,17 +29,22 @@ const num = (v: Prisma.Decimal | null | undefined) => (v == null ? 0 : Number(v)
  * app poderia prestar.
  */
 export async function compromissosDoMes(mes: Date): Promise<CompromissoAgenda[]> {
-  const inicio = inicioDoMes(mes);
-  const fim = fimDoMes(mes);
+  return compromissosEntre(inicioDoMes(mes), fimDoMes(mes));
+}
+
+/**
+ * O mesmo para qualquer período — a visão de semana usa. Se o período inclui
+ * hoje, tudo que venceu antes dele sobe junto; olhando outro período, só a
+ * janela dele.
+ */
+export async function compromissosEntre(inicio: Date, fim: Date): Promise<CompromissoAgenda[]> {
   const hoje = inicioDoDia(new Date());
-  const ehMesCorrente = inicio.getMonth() === hoje.getMonth() && inicio.getFullYear() === hoje.getFullYear();
+  const incluiHoje = inicio <= hoje && fim >= hoje;
 
   const contas = await prisma.conta.findMany({
     where: {
       status: "ABERTA",
-      /* No mês corrente, tudo que vence até o fim do mês — inclusive o que
-         venceu antes. Nos outros meses, só a janela do mês. */
-      vencimento: ehMesCorrente ? { lte: fim } : { gte: inicio, lte: fim },
+      vencimento: incluiHoje ? { lte: fim } : { gte: inicio, lte: fim },
     },
     orderBy: [{ vencimento: "asc" }],
     select: {
@@ -70,13 +75,18 @@ export async function compromissosDoMes(mes: Date): Promise<CompromissoAgenda[]>
 }
 
 /**
- * As próximas 12 semanas de caixa.
+ * O caixa daqui para frente: parte do saldo de hoje e vai somando o que entra
+ * e tirando o que sai, semana a semana (ou mês a mês). Venda futura NÃO entra:
+ * prever venda é chute, e um chute no meio de um número de caixa contamina a
+ * decisão que ele deveria ajudar a tomar.
  *
- * Parte do saldo de hoje e vai somando o que entra e tirando o que sai, semana
- * a semana. Venda futura NÃO entra: prever venda é chute, e um chute no meio
- * de um número de caixa contamina a decisão que ele deveria ajudar a tomar.
+ * Cada pedaço é [início, início do próximo) — fim EXCLUSIVO. Antes o fim era a
+ * meia-noite do 7º dia, e uma conta que vencia nele ao meio-dia caía fora das
+ * duas semanas: sumia da previsão.
  */
-export async function previsao(semanas = 12): Promise<{
+export async function previsao(
+  opcoes: number | { semanas?: number; meses?: number; agrupar?: "semana" | "mes" } = 12,
+): Promise<{
   saldoHoje: number;
   linhas: SemanaPrevista[];
   totalEntra: number;
@@ -85,17 +95,30 @@ export async function previsao(semanas = 12): Promise<{
   atrasadoPagar: number;
   pior: SemanaPrevista | null;
 }> {
+  const o = typeof opcoes === "number" ? { semanas: opcoes } : opcoes;
+  const agrupar = o.agrupar ?? "semana";
   const hoje = inicioDoDia(new Date());
-  const fim = somaDias(hoje, semanas * 7);
+
+  /* Os cortes: de hoje em diante, semanas de 7 dias ou meses de calendário
+     (o primeiro mês começa hoje e vai até o dia 1º do seguinte). */
+  const cortes: Date[] = [hoje];
+  if (agrupar === "mes") {
+    const meses = o.meses ?? Math.max(1, Math.round((o.semanas ?? 12) / 4.345));
+    for (let i = 1; i <= meses; i++) cortes.push(new Date(hoje.getFullYear(), hoje.getMonth() + i, 1));
+  } else {
+    const semanas = o.semanas ?? Math.max(1, Math.round((o.meses ?? 3) * 4.345));
+    for (let i = 1; i <= semanas; i++) cortes.push(somaDias(hoje, i * 7));
+  }
+  const fim = cortes[cortes.length - 1];
 
   const [carteiras, aReceber, aPagar, atrasadas] = await Promise.all([
     carteirasComSaldo(),
     prisma.conta.findMany({
-      where: { tipo: "RECEBER", status: "ABERTA", vencimento: { gte: hoje, lte: fim } },
+      where: { tipo: "RECEBER", status: "ABERTA", vencimento: { gte: hoje, lt: fim } },
       select: { valor: true, vencimento: true },
     }),
     prisma.conta.findMany({
-      where: { tipo: "PAGAR", status: "ABERTA", vencimento: { gte: hoje, lte: fim } },
+      where: { tipo: "PAGAR", status: "ABERTA", vencimento: { gte: hoje, lt: fim } },
       select: { valor: true, vencimento: true },
     }),
     prisma.conta.findMany({
@@ -108,17 +131,14 @@ export async function previsao(semanas = 12): Promise<{
 
   let acumulado = saldoHoje;
   const linhas: SemanaPrevista[] = [];
-  for (let i = 0; i < semanas; i++) {
-    const ini = somaDias(hoje, i * 7);
-    const f = somaDias(hoje, i * 7 + 6);
-    const entra = r2(
-      aReceber.filter((c) => c.vencimento >= ini && c.vencimento <= f).reduce((s, c) => s + num(c.valor), 0),
-    );
-    const sai = r2(
-      aPagar.filter((c) => c.vencimento >= ini && c.vencimento <= f).reduce((s, c) => s + num(c.valor), 0),
-    );
+  for (let i = 0; i < cortes.length - 1; i++) {
+    const ini = cortes[i];
+    const prox = cortes[i + 1];
+    const dentro = (c: { vencimento: Date }) => c.vencimento >= ini && c.vencimento < prox;
+    const entra = r2(aReceber.filter(dentro).reduce((s, c) => s + num(c.valor), 0));
+    const sai = r2(aPagar.filter(dentro).reduce((s, c) => s + num(c.valor), 0));
     acumulado = r2(acumulado + entra - sai);
-    linhas.push({ inicio: ini, fim: f, entra, sai, saldo: acumulado });
+    linhas.push({ inicio: ini, fim: somaDias(prox, -1), entra, sai, saldo: acumulado });
   }
 
   const pior = linhas.reduce<SemanaPrevista | null>(

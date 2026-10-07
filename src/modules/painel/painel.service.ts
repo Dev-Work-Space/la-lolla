@@ -241,7 +241,7 @@ export async function dadosDoInicio(nome: string) {
       sub: "passaram do vencimento",
       valor: String(vencidas),
       cor: "var(--ll-danger)",
-      href: "/financeiro?aba=pagar&filtro=vencidas",
+      href: "/financeiro?aba=contas&tipo=pagar&filtro=vencidas",
     });
   if (aVencer > 0)
     pend.push({
@@ -250,7 +250,7 @@ export async function dadosDoInicio(nome: string) {
       sub: "próximos 7 dias",
       valor: String(aVencer),
       cor: "var(--ll-warn)",
-      href: "/financeiro?aba=pagar&filtro=semana",
+      href: "/financeiro?aba=contas&tipo=pagar&filtro=semana",
     });
   if (zeradas > 0)
     pend.push({

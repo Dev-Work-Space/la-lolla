@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { PiggyBankIcon, WalletIcon } from "@phosphor-icons/react/ssr";
 import { brl } from "@/lib/formato";
@@ -14,15 +15,27 @@ import { FormCarteira } from "./form-carteira";
  * A RESERVA (o antigo "cofrinho") conta no total, mas o João sabe que não
  * deve gastar de lá. O CARTÃO não aparece aqui: ele não guarda dinheiro, e
  * tem bloco próprio com limite e fatura.
+ *
+ * O SALDO é sempre o de hoje. O período da barra só muda o "entrou / saiu"
+ * de cada carteira — é a pergunta "quanto passou por aqui em março?", e o
+ * link leva ao extrato só dela, no mesmo período.
  */
 export function PainelCarteiras({
   carteiras,
   naoAtribuido,
   pode,
+  noPeriodo,
+  rotuloPeriodo,
+  extratoDa,
 }: {
   carteiras: CarteiraSaldo[];
   naoAtribuido: number;
   pode: { criar: boolean; editar: boolean; excluir: boolean };
+  /** Entrou e saiu de cada carteira no período escolhido. */
+  noPeriodo?: Record<string, { entradas: number; saidas: number }>;
+  rotuloPeriodo?: string;
+  /** O endereço do extrato filtrado por uma carteira. */
+  extratoDa?: (id: string) => string;
 }) {
   const total = carteiras.reduce((s, c) => s + c.saldo, 0);
 
@@ -85,22 +98,50 @@ export function PainelCarteiras({
                   {brl(c.saldo)}
                 </p>
 
+                <p className="text-[11px] text-muted-foreground">saldo de hoje</p>
+
                 <dl className="mt-3 space-y-1 border-t pt-2.5 text-xs">
+                  {noPeriodo ? (
+                    <>
+                      <p className="pb-0.5 font-medium text-muted-foreground first-letter:uppercase">
+                        {rotuloPeriodo}
+                      </p>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Entrou</dt>
+                        <dd className="tabular-nums text-emerald-700 dark:text-emerald-400">
+                          + {brl(noPeriodo[c.id]?.entradas ?? 0)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Saiu</dt>
+                        <dd className="tabular-nums text-destructive">− {brl(noPeriodo[c.id]?.saidas ?? 0)}</dd>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Entrou</dt>
+                        <dd className="tabular-nums text-emerald-700 dark:text-emerald-400">+ {brl(c.entradas)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Saiu</dt>
+                        <dd className="tabular-nums text-destructive">− {brl(c.saidas)}</dd>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Saldo inicial</dt>
                     <dd className="tabular-nums">{brl(c.saldoInicial)}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Entrou</dt>
-                    <dd className="tabular-nums text-emerald-700 dark:text-emerald-400">
-                      + {brl(c.entradas)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Saiu</dt>
-                    <dd className="tabular-nums text-destructive">− {brl(c.saidas)}</dd>
-                  </div>
                 </dl>
+                {extratoDa && (
+                  <Link
+                    href={extratoDa(c.id)}
+                    className="mt-2 inline-block text-xs font-medium text-(--ll-accent) hover:underline"
+                  >
+                    Ver extrato desta carteira →
+                  </Link>
+                )}
               </Card>
             ))}
           </div>

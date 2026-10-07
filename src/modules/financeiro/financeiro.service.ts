@@ -13,6 +13,7 @@ import {
   type FiltroConta,
   type MesResumo,
   type MovimentoCaixa,
+  type OrdemConta,
 } from "./financeiro.tipos";
 
 // Reexporta para quem já importava daqui — mas quem é Client Component deve
@@ -97,6 +98,43 @@ export async function carteirasComSaldo(): Promise<CarteiraSaldo[]> {
   });
 }
 
+/**
+ * Quanto entrou e saiu de cada carteira num período — a aba Carteiras mostra
+ * ao lado do saldo, que continua sendo o de HOJE. Transferência conta dos dois
+ * lados: sai de uma, entra na outra.
+ */
+export async function movimentoPorCarteira(
+  de: Date | null,
+  ate: Date | null,
+): Promise<Record<string, { entradas: number; saidas: number }>> {
+  const janela = { ...(de ? { gte: de } : {}), ...(ate ? { lte: ate } : {}) };
+  const [lancs, pagos, transfs] = await Promise.all([
+    prisma.lancamento.findMany({ where: { data: janela, carteiraId: { not: null } }, select: { carteiraId: true, valor: true } }),
+    prisma.pagamento.findMany({
+      where: { data: janela, carteiraId: { not: null }, venda: { status: { not: "CANCELADA" } } },
+      select: { carteiraId: true, valor: true },
+    }),
+    prisma.transferencia.findMany({ where: { data: janela }, select: { origemId: true, destinoId: true, valor: true } }),
+  ]);
+
+  const out: Record<string, { entradas: number; saidas: number }> = {};
+  const soma = (id: string, entrada: number, saida: number) => {
+    const c = (out[id] ??= { entradas: 0, saidas: 0 });
+    c.entradas = r2(c.entradas + entrada);
+    c.saidas = r2(c.saidas + saida);
+  };
+  for (const l of lancs) {
+    const v = num(l.valor);
+    soma(l.carteiraId!, v > 0 ? v : 0, v < 0 ? -v : 0);
+  }
+  for (const p of pagos) soma(p.carteiraId!, num(p.valor), 0);
+  for (const t of transfs) {
+    soma(t.origemId, 0, num(t.valor));
+    soma(t.destinoId, num(t.valor), 0);
+  }
+  return out;
+}
+
 /** Entrada e saída que ainda não foram atribuídas a nenhuma carteira. */
 export async function naoAtribuido() {
   const [lanc, pagos] = await Promise.all([
@@ -117,8 +155,9 @@ export async function naoAtribuido() {
  * linha do tempo. No app antigo esses três viviam em listas separadas e o
  * João tinha de somar de cabeça para saber o que entrou no dia.
  */
-export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<MovimentoCaixa[]> {
-  const janela = { gte: de, lte: ate };
+export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Promise<MovimentoCaixa[]> {
+  // "Ver tudo" chega sem uma das pontas: a janela fica aberta daquele lado.
+  const janela = { ...(de ? { gte: de } : {}), ...(ate ? { lte: ate } : {}) };
 
   const [lancs, pagos, transfs] = await Promise.all([
     prisma.lancamento.findMany({
@@ -130,6 +169,7 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
         valor: true,
         data: true,
         comprovanteId: true,
+        carteiraId: true,
         carteira: { select: { nome: true } },
       },
     }),
@@ -141,6 +181,8 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
         valor: true,
         data: true,
         comprovanteId: true,
+        carteiraId: true,
+        parcelas: true,
         carteira: { select: { nome: true } },
         venda: { select: { id: true, numero: true, cliente: { select: { nome: true } } } },
       },
@@ -151,6 +193,8 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
         id: true,
         valor: true,
         data: true,
+        origemId: true,
+        destinoId: true,
         origem: { select: { nome: true } },
         destino: { select: { nome: true } },
       },
@@ -168,18 +212,20 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
       quando: l.data,
       origem: "lancamento",
       temComprovante: !!l.comprovanteId,
+      carteiraIds: l.carteiraId ? [l.carteiraId] : [],
     })),
     ...pagos.map<MovimentoCaixa>((p) => ({
       id: p.id,
       tipo: "entrada",
       descricao: `Venda #${p.venda.numero}${p.venda.cliente ? ` · ${p.venda.cliente.nome}` : ""}`,
-      categoria: p.forma,
+      categoria: p.forma === "CREDITO" && p.parcelas > 1 ? `CREDITO ${p.parcelas}x` : p.forma,
       valor: num(p.valor),
       carteira: p.carteira?.nome ?? null,
       quando: p.data,
       origem: "venda",
       href: `/vendas/${p.venda.id}`,
       temComprovante: !!p.comprovanteId,
+      carteiraIds: p.carteiraId ? [p.carteiraId] : [],
     })),
     ...transfs.map<MovimentoCaixa>((t) => ({
       id: t.id,
@@ -191,6 +237,7 @@ export async function movimentoDoPeriodo(de: Date, ate: Date): Promise<Movimento
       quando: t.data,
       origem: "transferencia",
       temComprovante: true,
+      carteiraIds: [t.origemId, t.destinoId],
     })),
   ];
 
@@ -291,13 +338,42 @@ export async function saidasPorCategoria(de: Date, ate: Date): Promise<Categoria
 
 
 
-export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroConta = "abertas") {
+export async function listarContas(
+  tipo: "PAGAR" | "RECEBER",
+  filtro: FiltroConta = "abertas",
+  opcoes: { de?: Date | null; ate?: Date | null; busca?: string; ordem?: OrdemConta } = {},
+) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const em7 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 7);
+  const { de = null, ate = null, busca = "", ordem = "vencimento" } = opcoes;
+
+  /*
+   * O período é pelo VENCIMENTO. Mas conta vencida não some com o filtro:
+   * se o período inclui hoje, o que venceu antes dele e continua em aberto
+   * aparece junto (a tela avisa). Olhando um período que já passou, ela não
+   * aparece — ali a pergunta é "o que vencia naquela época".
+   */
+  const incluiHoje = (!de || de <= new Date()) && (!ate || ate >= hoje);
+  const noPeriodo: Prisma.ContaWhereInput =
+    de || ate ? { vencimento: { ...(de ? { gte: de } : {}), ...(ate ? { lte: ate } : {}) } } : {};
+  const periodo: Prisma.ContaWhereInput =
+    de && incluiHoje ? { OR: [noPeriodo, { status: "ABERTA", vencimento: { lt: de } }] } : noPeriodo;
+
+  const termo = busca.trim();
+  const buscando: Prisma.ContaWhereInput = termo
+    ? {
+        OR: [
+          { descricao: { contains: termo, mode: "insensitive" } },
+          { fornecedor: { nome: { contains: termo, mode: "insensitive" } } },
+          { venda: { cliente: { nome: { contains: termo, mode: "insensitive" } } } },
+        ],
+      }
+    : {};
 
   const where: Prisma.ContaWhereInput = {
     tipo,
+    AND: [periodo, buscando],
     ...(filtro === "abertas" ? { status: "ABERTA" } : {}),
     ...(filtro === "pagas" ? { status: "PAGA" } : {}),
     ...(filtro === "vencidas" ? { status: "ABERTA", vencimento: { lt: hoje } } : {}),
@@ -306,9 +382,18 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
       : {}),
   };
 
+  const orderBy: Prisma.ContaOrderByWithRelationInput[] =
+    ordem === "vencimento-desc"
+      ? [{ vencimento: "desc" }]
+      : ordem === "valor-desc"
+        ? [{ valor: "desc" }, { vencimento: "asc" }]
+        : ordem === "valor"
+          ? [{ valor: "asc" }, { vencimento: "asc" }]
+          : [{ vencimento: "asc" }];
+
   const contas = await prisma.conta.findMany({
     where,
-    orderBy: [{ vencimento: "asc" }],
+    orderBy,
     select: {
       id: true,
       tipo: true,
@@ -322,8 +407,9 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
       cartaoId: true,
       cartao: { select: { nome: true } },
       fornecedor: { select: { nome: true } },
+      venda: { select: { cliente: { select: { nome: true } } } },
     },
-    take: 300,
+    take: 500,
   });
 
   return contas.map<ContaLinha>((c) => {
@@ -339,6 +425,7 @@ export async function listarContas(tipo: "PAGAR" | "RECEBER", filtro: FiltroCont
       vencida: c.status === "ABERTA" && dias < 0,
       diasAteVencer: dias,
       fornecedor: c.fornecedor?.nome ?? null,
+      cliente: c.venda?.cliente?.nome ?? null,
       vendaId: c.vendaId,
       parcela: c.parcela && c.deParcelas ? `${c.parcela}/${c.deParcelas}` : null,
       cartaoId: c.cartaoId,
