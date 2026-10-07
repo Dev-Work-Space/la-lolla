@@ -35,133 +35,197 @@ const primeiroNome = (n: string) => n.trim().split(/\s+/)[0] ?? "";
 /* ─────────────────────────── saudação ─────────────────────────── */
 
 function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
-  const dataLonga = ctx.agora.toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  // "Quinta · 03/09/2026", como no app antigo: o dia da semana sem o "-feira".
+  const diaSemana = ctx.agora.toLocaleDateString("pt-BR", { weekday: "long" }).split("-")[0];
+  const data = `${diaSemana.charAt(0).toUpperCase()}${diaSemana.slice(1)} · ${ctx.agora.toLocaleDateString("pt-BR")}`;
   const temVendas = ctx.fatAno > 0;
-  const maior = Math.max(...serie.map((s) => s.valor), 1);
 
   return (
     /*
-     * Largura toda, em três colunas no monitor: quem é você · quanto faturou ·
-     * como vem indo. Antes o bloco tinha 8 de 12 colunas e empilhava tudo numa
-     * coluna só, deixando metade da faixa vazia — o João pediu que ele
-     * completasse a linha, e completar não é esticar: é usar o espaço.
+     * O "herói" do app antigo, no mesmo arranjo — o João mandou o print de lá:
+     * saudação com a margem numa caixinha ao lado, o faturado do ano GRANDE,
+     * os chips, o gráfico na largura toda e os botões embaixo. O fundo tem o
+     * brilho dourado no canto e o degradê suave da marca.
      */
-    <Card as="section" className="block overflow-visible p-5 text-base">
-      <div className="grid gap-5 lg:grid-cols-12 lg:gap-6">
-        {/* ── quem é você ── */}
-        <div className="min-w-0 lg:col-span-4">
-          <p className="text-lg font-bold tracking-tight">
+    <Card
+      as="section"
+      className="block overflow-hidden border-(--ll-accent-line) px-5 pt-6 pb-5 text-base shadow-sm sm:px-6"
+      style={{
+        background:
+          "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ll-accent) 14%, transparent) 0%, transparent 58%), linear-gradient(168deg, var(--ll-accent-soft) 0%, var(--card) 55%)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xl font-bold tracking-tight">
             {saudacao(ctx.agora)}
             {ctx.nome && (
               <>
-                , <span className="font-extrabold">{primeiroNome(ctx.nome)}</span>
+                , <span className="font-extrabold text-(--ll-accent)">{primeiroNome(ctx.nome)}</span>
               </>
             )}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground first-letter:uppercase">{dataLonga}</p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {/* nativeButton={false}: o Base UI avisa (com razão) que trocar o
-                <button> por <a> tira a semântica nativa. Aqui é intencional —
-                são links de navegação com aparência de botão. */}
-            <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
-              Nova venda
-            </Button>
-            <Button nativeButton={false} variant="secondary" render={<Link href="/estoque" />}>
-              Nova peça
-            </Button>
-            <Button nativeButton={false} variant="ghost" render={<Link href="/financeiro" />}>
-              Faturamento
-            </Button>
-          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">{data}</p>
         </div>
-
-        {/* ── quanto faturou ── */}
-        <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
-          {temVendas ? (
-            <>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Faturado em {ctx.ano}
-              </p>
-              <p className="mt-0.5 overflow-hidden whitespace-nowrap text-3xl font-bold tabular-nums">
-                {brl(ctx.fatAno)}
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {veFinanceiro && <Chip>{brl(ctx.margemAno)} de margem bruta</Chip>}
-                <Chip>
-                  {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
-                </Chip>
-                <Chip>ticket {brl(ctx.ticketAno)}</Chip>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Primeiro passo
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
-                preenche sozinho.
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* ── como vem indo ── */}
-        {temVendas && (
-          <div className="min-w-0 lg:col-span-4 lg:border-l lg:pl-6">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Últimos 6 meses
-              </p>
-              {veFinanceiro && (
-                <p className="text-right">
-                  <span className="text-2xl font-bold tabular-nums">{ctx.margemPct}%</span>{" "}
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    margem
-                  </span>
-                </p>
-              )}
-            </div>
-
-            {/* Mini-gráfico dos 6 meses, em CSS puro — sem biblioteca. */}
-            <div className="mt-3">
-              <div className="flex h-16 items-end gap-1.5">
-                {serie.map((mes, i) => (
-                  <div
-                    key={i}
-                    title={`${mes.rotulo}: ${brl(mes.valor)}`}
-                    className="flex-1 rounded-sm bg-foreground/15"
-                    style={{ height: `${Math.max(4, (mes.valor / maior) * 100)}%` }}
-                  />
-                ))}
-              </div>
-              {/* Um rótulo por barra: com só o primeiro e o último, ninguém
-                  sabia de que mês era a barra do meio. */}
-              <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
-                {serie.map((mes, i) => (
-                  <span key={i} className="flex-1 truncate text-center first-letter:uppercase">
-                    {mes.rotulo}
-                  </span>
-                ))}
-              </div>
-            </div>
+        {temVendas && veFinanceiro && (
+          <div className="shrink-0 rounded-md border border-(--ll-accent-line) bg-card/70 px-3.5 py-2 text-center">
+            <span className="block text-2xl leading-none font-extrabold tracking-tight text-(--ll-accent) tabular-nums">
+              {ctx.margemPct}%
+            </span>
+            <span className="mt-1 block text-[10px] uppercase tracking-wide text-muted-foreground">margem</span>
           </div>
         )}
+      </div>
+
+      <div className="mt-6">
+        {temVendas ? (
+          <>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Faturado em {ctx.ano}
+            </p>
+            <p className="mt-1 text-[clamp(30px,8.4vw,52px)] leading-none font-extrabold tracking-tight tabular-nums">
+              {brl(ctx.fatAno)}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {/* O lucro de verdade do ano: margem menos o que a loja gastou. */}
+              {veFinanceiro && (
+                <Chip tom={ctx.resultadoAno >= 0 ? "ok" : "ruim"}>
+                  {brl(ctx.resultadoAno)} de {ctx.resultadoAno >= 0 ? "lucro" : "prejuízo"}
+                </Chip>
+              )}
+              <Chip>
+                {ctx.vendasAno} {ctx.vendasAno === 1 ? "venda" : "vendas"}
+              </Chip>
+              <Chip>ticket {brl(ctx.ticketAno)}</Chip>
+            </div>
+
+            <Sparkline serie={serie} />
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Primeiro passo</p>
+            <p className="mt-1 max-w-[44ch] text-base leading-relaxed text-muted-foreground">
+              Nenhuma venda em {ctx.ano} ainda. Comece lançando a primeira — o resto do painel se
+              preenche sozinho.
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Os botões fecham o bloco, grandes, como no app antigo. nativeButton={false}:
+          são links de navegação com aparência de botão, de propósito. */}
+      <div className="mt-6 flex flex-wrap gap-2 sm:max-w-md [&>*]:h-11 [&>*]:flex-[1_1_128px]">
+        <Button
+          nativeButton={false}
+          className="bg-foreground font-semibold text-background hover:bg-foreground/90"
+          render={<Link href="/vendas/nova" />}
+        >
+          Nova venda
+        </Button>
+        <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/estoque" />}>
+          Nova peça
+        </Button>
+        <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/financeiro" />}>
+          Faturamento
+        </Button>
       </div>
     </Card>
   );
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
+/*
+ * A linha dos 6 meses — o `sparkline` do app antigo, igual: linha dourada
+ * fina, área em degradê embaixo, um ponto no mês atual e só o primeiro e o
+ * último mês escritos. Sem eixo e sem valor de propósito: o número exato está
+ * logo acima; aqui interessa só a forma ("a coisa vem subindo?").
+ *
+ * Como lá, a escala vai do menor ao maior mês (não do zero): numa loja que
+ * fatura parecido todo mês, partir do zero achataria a linha numa reta.
+ *
+ * O SVG estica na largura (preserveAspectRatio="none"), então o ponto final
+ * mora FORA dele, em HTML: dentro, o círculo viraria uma elipse esticada.
+ * Apontar um mês mostra o valor dele.
+ */
+function Sparkline({ serie }: { serie: Array<{ rotulo: string; valor: number }> }) {
+  const W = 260;
+  const H = 46;
+  const pad = 3;
+  const n = serie.length;
+  if (n < 2) return null;
+
+  const valores = serie.map((s) => s.valor);
+  let max = Math.max(...valores);
+  let min = Math.min(...valores);
+  if (max === min) {
+    max = max || 1;
+    min = 0;
+  }
+  const pts = valores.map((v, i) => ({
+    x: pad + ((W - pad * 2) * i) / (n - 1),
+    y: pad + (H - pad * 2) - ((H - pad * 2) * (v - min)) / (max - min),
+  }));
+  const linha = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `${linha} L${pts[n - 1].x.toFixed(1)} ${H - pad} L${pts[0].x.toFixed(1)} ${H - pad} Z`;
+  const fim = pts[n - 1];
+
   return (
-    <Badge variant="outline" className="h-auto rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+    <div className="mt-5">
+      <div className="relative h-[46px]">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`Faturamento dos últimos 6 meses: ${serie.map((s) => `${s.rotulo} ${brl(s.valor)}`).join(", ")}`}
+          className="block size-full overflow-visible"
+        >
+          <defs>
+            <linearGradient id="inicio-spark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--ll-accent)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--ll-accent)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={area} fill="url(#inicio-spark)" stroke="none" />
+          <path
+            d={linha}
+            fill="none"
+            stroke="var(--ll-accent)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        <span
+          aria-hidden
+          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-(--ll-accent)"
+          style={{ left: `${(fim.x / W) * 100}%`, top: `${(fim.y / H) * 100}%` }}
+        />
+        {/* Uma faixa por mês, invisível, só para o valor aparecer ao apontar. */}
+        <div className="absolute inset-0 flex">
+          {serie.map((mes, i) => (
+            <span key={i} className="flex-1" title={`${mes.rotulo}: ${brl(mes.valor)}`} />
+          ))}
+        </div>
+      </div>
+      <div className="mt-0.5 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span>{serie[0].rotulo}</span>
+        <span>{serie[n - 1].rotulo}</span>
+      </div>
+    </div>
+  );
+}
+
+function Chip({ children, tom }: { children: React.ReactNode; tom?: "ok" | "ruim" }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "h-auto rounded-full bg-card/70 px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground",
+        tom === "ok" && "border-(--ll-ok)/30 text-(--ll-ok)",
+        tom === "ruim" && "border-(--ll-danger)/30 text-(--ll-danger)",
+      )}
+    >
       {children}
     </Badge>
   );

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { CaretRightIcon } from "@phosphor-icons/react/ssr";
 import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
@@ -32,6 +34,23 @@ export default async function AjustesPage() {
 
       <div className="mt-5 space-y-5">
         <FormAjustes atuais={atuais} />
+
+        {/* A tela mora no Estoque, como no app antigo; o João procurou aqui
+            também, então os Ajustes têm a porta para ela. */}
+        <Card as="section" className="block overflow-visible py-0 text-base">
+          <Link
+            href="/estoque/categorias"
+            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Categorias de peça</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {atuais.categorias.length > 0 ? atuais.categorias.join(", ") : "Nenhuma categoria ainda"}
+              </span>
+            </span>
+            <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </Card>
         {/*
           "Montar painel" saiu do Início e veio para cá, a pedido do João. Fica
           por último de propósito: o que vale para a loja inteira vem primeiro,
