@@ -742,34 +742,35 @@ function etiquetaPequenaCanvas(
        pontilhado marca onde dobrar. */
     const meia = Math.floor(W / 2);
 
-    /* Face esquerda: só o QR, o MAIOR que a metade comporta — módulo mais
-       grosso é o que faz o leitor pegar de primeira no térmico. Desenhado 1:1:
-       redimensionar reamostra os módulos e o código sai fraco. */
-    const espL = meia - padQr * 2;
-    const caixaQR = Math.min(espL, H - padQr * 2);
-    let folgaQr = meia;
+    /* Face esquerda: só o QR, o MAIOR que cabe na metade sem encostar no
+       vinco — módulo mais grosso é o que faz o leitor pegar de primeira no
+       térmico. Desenhado 1:1: redimensionar reamostra os módulos e o código
+       sai fraco. */
+    const reservaVinco = Math.round(0.9 * PX_MM);
+    const caixaQR = Math.min(meia - padQr - reservaVinco, H - padQr * 2);
     if (opc.qr && caixaQR > Math.round(4 * PX_MM)) {
       const qt = qrTermico(p.codigo, caixaQR, 1);
       if (qt) {
         ctx.imageSmoothingEnabled = false;
-        const xq = padQr + Math.round((espL - qt.lado) / 2);
+        /* Centrado na metade, como sempre foi; só encosta para a esquerda
+           quando o centro invadiria a reserva do vinco (30 × 15). Mexer na
+           posição do 40 × 12, que já lia bem, fez o leitor falhar no teste. */
+        const xq = Math.min(padQr + Math.round((meia - padQr * 2 - qt.lado) / 2), meia - reservaVinco - qt.lado);
         ctx.drawImage(qt.cv, xq, Math.round((H - qt.lado) / 2));
-        folgaQr = meia - (xq + qt.lado);
       }
     }
 
-    /* O vinco pontilhado marca onde dobrar — mas só quando sobra branco entre
-       ele e o QR: encostado no código, o tracejado atrapalha a leitura. */
-    if (folgaQr >= Math.round(0.6 * PX_MM)) {
-      ctx.save();
-      ctx.setLineDash([Math.round(0.5 * PX_MM), Math.round(0.5 * PX_MM)]);
-      ctx.lineWidth = Math.max(2, Math.round(0.15 * PX_MM));
-      ctx.beginPath();
-      ctx.moveTo(meia, pad);
-      ctx.lineTo(meia, H - pad);
-      ctx.stroke();
-      ctx.restore();
-    }
+    /* O vinco tracejado marca onde dobrar, SEMPRE (o João sentiu falta dele
+       quando o QR do 30 × 15 ocupou a metade inteira). Por isso o QR deixa a
+       reserva acima: o tracejado colado no código atrapalha a leitura. */
+    ctx.save();
+    ctx.setLineDash([Math.round(0.5 * PX_MM), Math.round(0.5 * PX_MM)]);
+    ctx.lineWidth = Math.max(2, Math.round(0.15 * PX_MM));
+    ctx.beginPath();
+    ctx.moveTo(meia, pad);
+    ctx.lineTo(meia, H - pad);
+    ctx.stroke();
+    ctx.restore();
 
     // Face direita, de cima para baixo: assinatura, nome, código com tamanho e o preço fechando.
     const xR = meia + pad;
