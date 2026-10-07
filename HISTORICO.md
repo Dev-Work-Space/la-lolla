@@ -736,6 +736,12 @@ migration, e aparecem **primeiro** na lista de modelos da impressão (ficha,
 catálogo, compra), impressos pelo caminho da NIIMBOT. No celular, arrastar da
 paleta depende do navegador; tocar na peça da paleta sempre funciona.
 
+Com o editor no ar, o João mandou tirar o bloco antigo "Etiqueta da NIIMBOT ·
+tamanho próprio" da tela de Ajustes ("não tem mais sentido"). Saíram o bloco,
+os campos `etiquetaLargura`/`Altura`/`Dobrada` e o modelo "personalizado" da
+impressão; quem quer outro tamanho monta um modelo no editor. As linhas
+antigas dessas chaves na `Config` ficam no banco, sem uso.
+
 > **Armadilha do Prisma.** Um filtro vazio dentro de `OR` é descartado: com
 > "Ver tudo", `OR: [{ vencimento: {} }, { vencimento: { lt: hoje } }]` virava
 > só "vencidas". Sem período, não se monta o `OR`.
