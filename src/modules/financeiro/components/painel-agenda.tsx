@@ -6,7 +6,7 @@ import { ehHoje, fimDoDia, fimDoMes, inicioDoDia, inicioDoMes, somaDias, somaMes
 import { Vazio } from "@/components/padrao/indicadores";
 import { compromissosEntre, mesDaUrl, urlDoMes } from "../agenda.service";
 import type { CompromissoAgenda } from "../financeiro.tipos";
-import { diaDoIso, inicioDaSemana, isoDoDia } from "../periodo";
+import { diaDoIso, grupoDe, inicioDaSemana, isoDoDia } from "../periodo";
 import { IrParaData } from "./filtros";
 
 /*
@@ -14,8 +14,11 @@ import { IrParaData } from "./filtros";
  *
  * O app antigo tinha uma tira rolável de 21 dias que era cortada na borda da
  * tela e não deixava voltar para janeiro. A grade resolve os dois de uma vez,
- * e é a forma que qualquer pessoa já sabe ler sem instrução. Tocar num dia
- * abre a semana dele, com cada conta escrita.
+ * e é a forma que qualquer pessoa já sabe ler sem instrução.
+ *
+ * No MÊS, embaixo da grade vem a lista do mês, e tocar num dia mostra só
+ * aquele dia (pedido do João). Na SEMANA, cada dia é uma coluna com as contas
+ * escritas.
  *
  * A semana começa na SEGUNDA, como no resto do Financeiro (decisão do João).
  * As barrinhas de cada dia são proporcionais ao maior valor do período, e
@@ -39,6 +42,9 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
       : inicioDoMes(mesDaUrl(params.mes));
   const fim = vista === "semana" ? fimDoDia(somaDias(inicio, 6)) : fimDoMes(inicio);
   const contemHoje = inicio <= hoje && fim >= hoje;
+  // O dia tocado na grade do mês; fora do mês mostrado, não vale.
+  const diaEscolhido = vista === "mes" ? diaDoIso(params.dia) : null;
+  const diaSel = diaEscolhido && diaEscolhido >= inicio && diaEscolhido <= fim ? diaEscolhido : null;
 
   const todos = await compromissosEntre(inicio, fim);
   const compromissos = so ? todos.filter((c) => c.tipo === so) : todos;
@@ -58,8 +64,11 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
     }
     return `/financeiro?${p.toString()}`;
   };
-  const irMes = (d: Date) => link({ vista: null, semana: null, mes: urlDoMes(d) });
-  const irSemana = (d: Date) => link({ vista: "semana", mes: null, semana: isoDoDia(inicioDaSemana(d)) });
+  const irMes = (d: Date) => link({ vista: null, semana: null, dia: null, mes: urlDoMes(d) });
+  const irSemana = (d: Date) => link({ vista: "semana", mes: null, dia: null, semana: isoDoDia(inicioDaSemana(d)) });
+  // Tocar no dia já escolhido volta para o mês inteiro.
+  const irDia = (d: Date) =>
+    link({ dia: diaSel && isoDoDia(diaSel) === isoDoDia(d) ? null : isoDoDia(d), mes: urlDoMes(inicio) });
   const anterior = vista === "semana" ? irSemana(somaDias(inicio, -7)) : irMes(somaMeses(inicio, -1));
   const proximo = vista === "semana" ? irSemana(somaDias(inicio, 7)) : irMes(somaMeses(inicio, 1));
   const titulo = vista === "semana" ? `Semana de ${curta(inicio)} a ${curta(somaDias(inicio, 6))}` : nomeMes(inicio);
@@ -93,7 +102,7 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
             rotulo="Ver"
             opcoes={[
               ["Mês", irMes(inicio), vista === "mes"],
-              ["Semana", irSemana(contemHoje ? hoje : inicio), vista === "semana"],
+              ["Semana", irSemana(diaSel ?? (contemHoje ? hoje : inicio)), vista === "semana"],
             ]}
           />
           <Pilulas
@@ -142,14 +151,31 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
       )}
 
       {vista === "mes" ? (
-        <GradeDoMes inicio={inicio} doDia={doDiaComAtraso} irSemana={irSemana} />
+        <>
+          <GradeDoMes inicio={inicio} doDia={doDiaComAtraso} irDia={irDia} diaSel={diaSel} />
+          {diaSel ? (
+            <section className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-semibold first-letter:uppercase">{grupoDe(diaSel, "dia").rotulo}</h2>
+                <Link href={irDia(diaSel)} className="text-xs font-medium text-(--ll-accent) hover:underline">
+                  Ver o mês inteiro →
+                </Link>
+              </div>
+              {doDiaComAtraso(diaSel).length > 0 ? (
+                <ListaDoDia itens={doDiaComAtraso(diaSel)} />
+              ) : (
+                <Vazio texto="Nada marcado neste dia." />
+              )}
+            </section>
+          ) : (
+            <ListaDoMes compromissos={compromissos} inicio={inicio} atrasados={atrasados} />
+          )}
+        </>
       ) : (
         <SemanaDiaADia inicio={inicio} doDia={doDiaComAtraso} />
       )}
 
-      {compromissos.length === 0 && (
-        <Vazio texto={`Nada marcado ${vista === "semana" ? "nesta semana" : `em ${nomeMes(inicio)}`}.`} />
-      )}
+      {compromissos.length === 0 && vista === "semana" && <Vazio texto="Nada marcado nesta semana." />}
     </div>
   );
 }
@@ -180,11 +206,13 @@ function Pilulas({ rotulo, opcoes }: { rotulo: string; opcoes: Array<[string, st
 function GradeDoMes({
   inicio,
   doDia,
-  irSemana,
+  irDia,
+  diaSel,
 }: {
   inicio: Date;
   doDia: (d: Date) => CompromissoAgenda[];
-  irSemana: (d: Date) => string;
+  irDia: (d: Date) => string;
+  diaSel: Date | null;
 }) {
   const nDias = fimDoMes(inicio).getDate();
   const celulas = Array.from({ length: nDias }, (_, k) => {
@@ -220,12 +248,14 @@ function GradeDoMes({
           return (
             <Link
               key={c.dia.toISOString()}
-              href={irSemana(c.dia)}
-              aria-label={`${c.dia.getDate()} · ${quanto || "nada marcado"} · abrir a semana`}
+              href={irDia(c.dia)}
+              aria-label={`${c.dia.getDate()} · ${quanto || "nada marcado"} · ver este dia`}
+              aria-current={diaSel && diaSel.getDate() === c.dia.getDate() ? "date" : undefined}
               title={quanto || "nada marcado"}
               className={cn(
                 "flex h-14 flex-col items-center justify-between rounded-lg border px-1 py-1.5 transition-colors hover:border-foreground/40",
                 ehHoje(c.dia) ? "border-(--ll-accent) bg-(--ll-accent-soft)" : "bg-card",
+                diaSel && diaSel.getDate() === c.dia.getDate() && "border-foreground ring-2 ring-foreground",
               )}
             >
               <span className="text-[11px] tabular-nums text-muted-foreground">{c.dia.getDate()}</span>
@@ -244,7 +274,7 @@ function GradeDoMes({
         <span className="flex items-center gap-1.5">
           <i aria-hidden className="size-2 rounded-sm bg-(--ll-danger)" /> A pagar (barra da direita)
         </span>
-        <span>Toque num dia para ver a semana.</span>
+        <span>Toque num dia para ver só ele.</span>
       </p>
     </div>
   );
@@ -302,6 +332,105 @@ function SemanaDiaADia({ inicio, doDia }: { inicio: Date; doDia: (d: Date) => Co
                 ))}
               </ul>
             )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Uma conta da lista: o ponto e o sinal dizem se entra ou sai — não só a cor. */
+function LinhaCompromisso({ c }: { c: CompromissoAgenda }) {
+  return (
+    <li className="flex items-center gap-3 px-4 py-2.5">
+      <span
+        aria-hidden
+        className={cn("size-2 shrink-0 rounded-full", c.tipo === "receber" ? "bg-emerald-600" : "bg-(--ll-danger)")}
+      />
+      <span className="min-w-0 flex-1">
+        {c.href ? (
+          <Link href={c.href} className="block truncate text-sm font-medium hover:underline">
+            {c.titulo}
+          </Link>
+        ) : (
+          <span className="block truncate text-sm font-medium">{c.titulo}</span>
+        )}
+        <span className="block truncate text-xs text-muted-foreground">
+          {c.quem ? `${c.quem} · ` : ""}
+          {c.tipo === "receber" ? "a receber" : "a pagar"} · vence {fData(c.vencimento)}
+          {c.atrasado ? " · vencido" : ""}
+        </span>
+      </span>
+      <span
+        className={cn(
+          "shrink-0 text-sm font-medium tabular-nums",
+          c.tipo === "receber" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
+        )}
+      >
+        {c.tipo === "receber" ? "+" : "−"} {brl(c.valor)}
+      </span>
+    </li>
+  );
+}
+
+function ListaDoDia({ itens }: { itens: CompromissoAgenda[] }) {
+  return (
+    <ul className="divide-y rounded-xl border bg-card">
+      {itens.map((c) => (
+        <LinhaCompromisso key={c.id} c={c} />
+      ))}
+    </ul>
+  );
+}
+
+/* O mês inteiro embaixo da grade, dia a dia, com o resultado de cada dia. O
+   vencido de antes do mês vem primeiro, à parte. */
+function ListaDoMes({
+  compromissos,
+  inicio,
+  atrasados,
+}: {
+  compromissos: CompromissoAgenda[];
+  inicio: Date;
+  atrasados: CompromissoAgenda[];
+}) {
+  const doMes = compromissos.filter((c) => c.vencimento >= inicio);
+  const dias: Array<{ chave: string; rotulo: string; itens: CompromissoAgenda[] }> = [];
+  for (const c of doMes) {
+    const { chave, rotulo } = grupoDe(c.vencimento, "dia");
+    const d = dias.find((x) => x.chave === chave);
+    if (d) d.itens.push(c);
+    else dias.push({ chave, rotulo, itens: [c] });
+  }
+  const grupos = [
+    ...(atrasados.length ? [{ chave: "antes", rotulo: "Vencido antes deste mês", itens: atrasados }] : []),
+    ...dias,
+  ];
+  if (grupos.length === 0) return <Vazio texto={`Nada marcado em ${nomeMes(inicio)}.`} />;
+  return (
+    <div className="space-y-3">
+      {grupos.map((g) => {
+        const soma = g.itens.reduce((s, c) => s + (c.tipo === "receber" ? c.valor : -c.valor), 0);
+        return (
+          <section key={g.chave}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2
+                className={cn(
+                  "text-[11px] font-medium uppercase tracking-wide",
+                  g.chave === "antes" ? "text-destructive" : "text-muted-foreground",
+                )}
+              >
+                {g.rotulo}
+              </h2>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {soma >= 0 ? "+" : "−"} {brl(Math.abs(soma))}
+              </span>
+            </div>
+            <ul className="mt-1.5 divide-y rounded-xl border bg-card">
+              {g.itens.map((c) => (
+                <LinhaCompromisso key={c.id} c={c} />
+              ))}
+            </ul>
           </section>
         );
       })}
