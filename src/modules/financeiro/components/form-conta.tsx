@@ -24,9 +24,12 @@ import type { ErrosDeCampo } from "@/lib/result";
 export function FormConta({
   tipo,
   rotulo,
+  variante = "default",
 }: {
   tipo: "PAGAR" | "RECEBER";
   rotulo?: string;
+  /** Na barra de atalhos da Visão geral o botão é discreto, ao lado dos lançamentos. */
+  variante?: "default" | "outline";
 }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -51,7 +54,7 @@ export function FormConta({
         }
       }}
     >
-      <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full" />}>
+      <DialogTrigger render={rotulo ? <Button variant={variante} /> : <Button className="w-full" />}>
         {rotulo ?? (pagar ? "Nova conta a pagar" : "Novo recebimento")}
       </DialogTrigger>
 

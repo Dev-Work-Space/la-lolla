@@ -21,12 +21,13 @@ import { BuscaEstoque } from "./busca-estoque";
 import { FiltrosCatalogo } from "./filtros-catalogo";
 import { NovaPeca } from "./nova-peca";
 import { fornecedoresParaPeca } from "../peca.service";
+import { lerDesenhos } from "../etiqueta.service";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 import { fotosConfiguradas } from "@/lib/storage";
 import { ImprimirEtiquetas } from "./imprimir-etiquetas";
 import { LerEtiqueta } from "./ler-etiqueta";
 import { Button } from "@/components/ui/button";
-import { modeloDosAjustes, precosDaEtiqueta } from "../etiqueta.regras";
+import { precosDaEtiqueta } from "../etiqueta.regras";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -52,12 +53,13 @@ export async function PainelCatalogo({
   veFinanceiro: boolean;
   pode: { criar: boolean; editar: boolean; categorias?: boolean };
 }) {
-  const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores] = await Promise.all([
+  const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores, desenhos] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
     listarCatalogo({ busca, filtro, fornecedorId, categoria, veFinanceiro }),
     opcoesDeFiltro(),
     lerAjustes(),
     pode.criar ? fornecedoresParaPeca() : [],
+    lerDesenhos(),
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -182,7 +184,7 @@ export async function PainelCatalogo({
               saldo: p.saldo,
               ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
             }))}
-            personalizado={modeloDosAjustes(ajustes)}
+            desenhos={desenhos}
             rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
             titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
           />

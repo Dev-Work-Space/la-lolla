@@ -1,3 +1,5 @@
+import type { DesenhoEtiqueta } from "./etiqueta-desenho";
+
 /*
  * Regras e tipos da etiqueta, sem nenhuma biblioteca — o servidor usa para
  * montar os dados e a tela para a prévia, sem que nenhum dos dois carregue o
@@ -23,6 +25,8 @@ export type ModeloEtiqueta = {
   altura: number;
   /** Só NIIMBOT: parte ao meio e envolve o aro — QR numa metade, marca e preço na outra. */
   dobrada: boolean;
+  /** Modelo montado em Ajustes › Criação de etiquetas: o desenho manda no lugar do padrão. */
+  desenho?: DesenhoEtiqueta;
 };
 
 const termica = (l: number, a: number): ModeloEtiqueta => ({
@@ -101,40 +105,34 @@ export function precosDaEtiqueta(tabela: number | null, promo: number | null) {
   return { preco: tabela, precoDe: null };
 }
 
-/**
- * A medida dos Ajustes vira mais um modelo da lista, desenhado como NIIMBOT —
- * para um rolo que não esteja entre os de mercado.
- */
-export function modeloDosAjustes(a: {
-  etiquetaLargura: number;
-  etiquetaAltura: number;
-  etiquetaDobrada: boolean;
-}): ModeloEtiqueta {
+/** Um modelo desenhado vira mais uma opção da lista, impresso como NIIMBOT (canvas). */
+export function modeloDoDesenho(d: DesenhoEtiqueta): ModeloEtiqueta {
   const mm = (n: number) => String(n).replace(".", ",");
   return {
-    id: "ajustes",
-    nome: `Tamanho dos Ajustes · ${mm(a.etiquetaLargura)} × ${mm(a.etiquetaAltura)} mm${a.etiquetaDobrada ? " (dobra)" : " (reta)"}`,
+    id: `desenho-${d.id}`,
+    nome: `Meu modelo · ${d.nome} (${mm(d.largura)} × ${mm(d.altura)} mm)`,
     tipo: "niimbot",
-    largura: a.etiquetaLargura,
-    altura: a.etiquetaAltura,
-    dobrada: a.etiquetaDobrada,
+    largura: d.largura,
+    altura: d.altura,
+    dobrada: d.dobra,
+    desenho: d,
   };
 }
 
-/** A lista do seletor: os de mercado e, se for diferente de todos, o dos Ajustes. */
-export function modelosComAjustes(dosAjustes: ModeloEtiqueta): ModeloEtiqueta[] {
-  const repetido = MODELOS_ETIQUETA.some(
-    (m) =>
-      m.tipo === dosAjustes.tipo &&
-      m.largura === dosAjustes.largura &&
-      m.altura === dosAjustes.altura &&
-      m.dobrada === dosAjustes.dobrada,
-  );
-  return repetido ? [...MODELOS_ETIQUETA] : [...MODELOS_ETIQUETA, dosAjustes];
+/**
+ * A lista do seletor: os modelos desenhados em Ajustes › Criação de etiquetas
+ * primeiro (são os da loja), depois os de mercado. O antigo "tamanho próprio"
+ * dos Ajustes saiu: o editor faz isso e muito mais.
+ */
+export function modelosDaImpressao(desenhos: DesenhoEtiqueta[] = []): ModeloEtiqueta[] {
+  return [...desenhos.map(modeloDoDesenho), ...MODELOS_ETIQUETA];
 }
 
 /** O que o app antigo explicava embaixo do seletor de modelo. */
 export function dicaDoModelo(m: ModeloEtiqueta): string {
+  if (m.desenho) {
+    return `Modelo criado em Ajustes › Criação de etiquetas, ${m.largura}×${m.altura} mm${m.dobrada ? ", dobrável" : ""}.`;
+  }
   if (m.tipo === "folha") return "Folha A4 para recortar — 24 etiquetas por página.";
   if (m.tipo === "niimbot") {
     return m.dobrada

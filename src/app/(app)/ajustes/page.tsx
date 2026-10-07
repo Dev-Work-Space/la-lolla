@@ -35,6 +35,23 @@ export default async function AjustesPage() {
       <div className="mt-5 space-y-5">
         <FormAjustes atuais={atuais} />
 
+        {/* O editor de modelos de etiqueta: tela própria, porque precisa de
+            espaço (paleta, etiqueta, propriedades). Daqui só a porta. */}
+        <Card as="section" className="block overflow-visible py-0 text-base">
+          <Link
+            href="/ajustes/etiquetas"
+            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Criação de etiquetas</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                Monte o seu modelo arrastando logo, nome, preço, QR e o que mais quiser
+              </span>
+            </span>
+            <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </Card>
+
         {/* A tela mora no Estoque, como no app antigo; o João procurou aqui
             também, então os Ajustes têm a porta para ela. */}
         <Card as="section" className="block overflow-visible py-0 text-base">

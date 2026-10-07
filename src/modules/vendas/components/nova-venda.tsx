@@ -54,7 +54,13 @@ type ItemCarrinho = Peca & { quantidade: number; precoUnit: number };
  */
 type Insumo = { id: string; nome: string; unidade: string; custo: number | null; saldo: number };
 type Forma = "DINHEIRO" | "PIX" | "DEBITO" | "CREDITO";
-type Pago = { forma: Forma; valor: number };
+/* `parcelas` só no crédito: a cliente parcelou no CARTÃO (a maquininha),
+   não com a loja. Fica registrado no pagamento e sai na venda e no recibo. */
+type Pago = { forma: Forma; valor: number; parcelas?: number };
+
+/* Os atalhos de parcelamento: 1x a 12x, que cobrem quase toda venda. O campo
+   ao lado aceita qualquer número — o João pediu as duas coisas. */
+const ATALHOS_PARCELAS = Array.from({ length: 12 }, (_, k) => k + 1);
 
 const FORMAS: Array<[Forma, string]> = [
   ["DINHEIRO", "Dinheiro"],
@@ -208,6 +214,13 @@ export function NovaVenda({
   const [ultimos, setUltimos] = useState<Array<{ pecaId: string; quantidade: number }>>([]);
 
   const [pagos, setPagos] = useState<Pago[]>([]);
+  const [vezesCartao, setVezesCartao] = useState("1");
+
+  /** O pagamento que entra na lista; no crédito leva as vezes do cartão. */
+  function novoPago(valor: number): Pago {
+    const vezes = Math.max(1, Number(vezesCartao) || 1);
+    return formaNova === "CREDITO" && vezes > 1 ? { forma: formaNova, valor, parcelas: vezes } : { forma: formaNova, valor };
+  }
   const [formaNova, setFormaNova] = useState<Forma>("DINHEIRO");
   const [valorNovo, setValorNovo] = useState("");
 
@@ -401,6 +414,7 @@ export function NovaVenda({
         pagamentos: pagos.map((p, ix) => ({
           forma: p.forma,
           valor: ix === pagos.length - 1 ? r2(p.valor - contas.troco) : p.valor,
+          parcelas: p.parcelas ?? 1,
           carteiraId: carteiraId || null,
         })).filter((p) => p.valor > 0),
         aPrazo:
@@ -881,7 +895,10 @@ export function NovaVenda({
             <ul className="divide-y rounded-lg border">
               {pagos.map((p, ix) => (
                 <li key={ix} className="flex items-center gap-2 px-3 py-2 text-sm">
-                  <span className="flex-1">{FORMAS.find((f) => f[0] === p.forma)?.[1]}</span>
+                  <span className="flex-1">
+                    {FORMAS.find((f) => f[0] === p.forma)?.[1]}
+                    {p.parcelas && p.parcelas > 1 ? ` · ${p.parcelas}x` : ""}
+                  </span>
                   <span className="tabular-nums">{brl(p.valor)}</span>
                   <Button
                     type="button"
@@ -917,6 +934,15 @@ export function NovaVenda({
             ))}
           </div>
 
+          {formaNova === "CREDITO" && (
+            <SeletorDeVezes
+              id="vezes-cartao"
+              rotulo="Em quantas vezes no cartão"
+              valor={vezesCartao}
+              aoMudar={setVezesCartao}
+            />
+          )}
+
           <div className="flex gap-2">
             <Input
               aria-label="Valor pago"
@@ -932,8 +958,10 @@ export function NovaVenda({
               onClick={() => {
                 const v = paraNumero(valorNovo) || contas.saldo;
                 if (v <= 0) return;
-                setPagos((a) => [...a, { forma: formaNova, valor: v }]);
+                const pago = novoPago(v);
+                setPagos((a) => [...a, pago]);
                 setValorNovo("");
+                setVezesCartao("1");
               }}
             >
               Adicionar
@@ -951,13 +979,22 @@ export function NovaVenda({
               variant="outline"
               className="w-full"
               onClick={() => {
-                setPagos((a) => [...a, { forma: formaNova, valor: contas.saldo }]);
+                const pago = novoPago(contas.saldo);
+                setPagos((a) => [...a, pago]);
                 setValorNovo("");
+                setVezesCartao("1");
               }}
             >
               Pagou tudo · {brl(contas.saldo)} em{" "}
               {FORMAS.find((x) => x[0] === formaNova)?.[1].toLowerCase()}
+              {formaNova === "CREDITO" && Number(vezesCartao) > 1 ? ` ${vezesCartao}x` : ""}
             </Button>
+          )}
+          {contas.saldo > 0.005 && pagos.length === 0 && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Vai parcelar com a loja (crediário)? Não lance pagamento — ou lance só a entrada. O que
+              faltar vira parcelas logo abaixo.
+            </p>
           )}
 
           </>
@@ -990,36 +1027,33 @@ export function NovaVenda({
           {/* O parcelamento só aparece quando de fato sobrou saldo. */}
           {contas.saldo > 0.005 && (
             <div className="space-y-3 rounded-lg border border-dashed p-3">
-              <p className="text-xs text-muted-foreground">
-                Sobrou {brl(contas.saldo)}. Combine as parcelas — elas entram em contas a receber.
-              </p>
+              <div>
+                <p className="text-sm font-semibold">Parcelar no crediário</p>
+                <p className="text-xs text-muted-foreground">
+                  Faltam {brl(contas.saldo)}. Cada parcela entra no Financeiro, em contas a receber.
+                </p>
+              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="parcelas" className="text-xs">
-                    Em quantas vezes
-                  </Label>
-                  <Input
-                    id="parcelas"
-                    inputMode="numeric"
-                    value={parcelas}
-                    onChange={(e) => {
-                      const n = e.target.value.replace(/\D/g, "") || "1";
-                      setParcelas(n);
-                      /* Mudou a quantidade: as datas escolhidas à mão para
-                         parcelas que deixaram de existir vão junto, senão
-                         ressuscitam quando ele aumentar o número de novo. */
-                      setDatas((a) => {
-                        const out: Record<number, string> = {};
-                        for (const [k, v] of Object.entries(a)) {
-                          if (Number(k) < (Number(n) || 1)) out[Number(k)] = v;
-                        }
-                        return out;
-                      });
-                    }}
-                    className="text-base"
-                  />
-                </div>
+              <SeletorDeVezes
+                id="parcelas"
+                rotulo="Em quantas vezes"
+                valor={parcelas}
+                aoMudar={(n) => {
+                  setParcelas(n);
+                  /* Mudou a quantidade: as datas escolhidas à mão para
+                     parcelas que deixaram de existir vão junto, senão
+                     ressuscitam quando ele aumentar o número de novo. */
+                  setDatas((a) => {
+                    const out: Record<number, string> = {};
+                    for (const [k, v] of Object.entries(a)) {
+                      if (Number(k) < (Number(n) || 1)) out[Number(k)] = v;
+                    }
+                    return out;
+                  });
+                }}
+              />
+
+              <div className="grid grid-cols-1 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="intervalo" className="text-xs">
                     A cada
@@ -1148,6 +1182,58 @@ export function NovaVenda({
               : "Pix, débito e crédito ficam pendentes de comprovante — dá para anexar depois."}
           </p>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * Em quantas vezes: atalhos de 1x a 12x e um campo para qualquer número. Serve
+ * aos dois parcelamentos — o do cartão (a maquininha parcela) e o do crediário
+ * (a loja parcela) —, que são coisas diferentes no dinheiro mas iguais na tela.
+ */
+function SeletorDeVezes({
+  id,
+  rotulo,
+  valor,
+  aoMudar,
+}: {
+  id: string;
+  rotulo: string;
+  valor: string;
+  aoMudar: (n: string) => void;
+}) {
+  const n = Number(valor) || 1;
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs">
+        {rotulo}
+      </Label>
+      <div className="flex flex-wrap items-center gap-1">
+        {ATALHOS_PARCELAS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={n === k}
+            onClick={() => aoMudar(String(k))}
+            className={cn(
+              "min-w-9 rounded-full border px-2 py-1 text-xs font-medium tabular-nums transition-colors",
+              n === k
+                ? "border-foreground bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {k}x
+          </button>
+        ))}
+        <Input
+          id={id}
+          inputMode="numeric"
+          aria-label={`${rotulo}: outro número`}
+          value={valor}
+          onChange={(e) => aoMudar(e.target.value.replace(/\D/g, "").slice(0, 2) || "1")}
+          className="h-8 w-16 text-center text-base"
+        />
       </div>
     </div>
   );

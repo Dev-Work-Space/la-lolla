@@ -642,6 +642,115 @@ recusado aqui também, dentro da transação — antes este caminho só avisava.
 fábrica. A permissão continua a de Ajustes. A lista da loja foi trocada pela
 do antigo a pedido do João; só Anéis tinha peça, nada ficou órfão.
 
+### 07/10 · Financeiro reorganizado, com período estilo ERP, e venda parcelada
+
+O João achou o Financeiro "bem desorganizado". Eram seis abas, e a pergunta
+de todo dia (o que está atrasado, o que vence agora, quanto vai sobrar) não
+tinha resposta em lugar nenhum. Ficaram **quatro**:
+
+- **Visão geral** (nova, a primeira): atalhos de lançamento, alertas de
+  vencido e de caixa que vai ficar negativo, "vai entrar / vai sair" nos
+  próximos 30 dias, a linha do saldo previsto, quanto sobrou em cada mês, onde
+  está o dinheiro e para onde ele foi. Não tem barra de período: ela responde
+  "como estou agora".
+- **Contas**: a receber, a pagar e o **calendário** (a antiga Agenda).
+- **Fluxo de caixa**: o **extrato** (o antigo Caixa) e a **previsão**.
+- **Carteiras**: com os cartões.
+
+Os endereços antigos (`?aba=caixa`, `pagar`, `receber`, `agenda`, `previsao`)
+continuam valendo e caem na aba nova.
+
+**Barra de período em todas as abas** (a não ser a Visão geral):
+- atalhos (hoje, semana, mês, mês passado, próximo mês, últimos e próximos
+  30 dias, ano, tudo), datas livres, setas que andam um mês ou uma semana, e
+  "agrupar por" dia, semana ou mês;
+- a semana começa na **segunda**, decisão do João; o calendário mudou junto;
+- no extrato e nas carteiras, "este mês/semana/ano" vai só **até hoje**: um
+  lançamento marcado para o dia 25 ainda não aconteceu;
+- os quatro números do topo não seguem o filtro;
+- conta vencida **não some** com o período: se ele inclui hoje, a vencida de
+  antes aparece, com aviso. Olhando um período que já passou, ela não aparece.
+
+**Extrato**: filtro por carteira, por tipo e por categoria, busca, categoria
+clicável e planilha (CSV com `;`, vírgula decimal e BOM, para o Excel em
+português abrir certo). **Contas**: período pelo vencimento, busca por
+fornecedor ou cliente, ordem, agrupar, três quadros (a vencer, vencido,
+baixado) e planilha; o "Esta semana" saiu da fila de situações e virou
+atalho. **Calendário**: mês ou semana, "ir para data", "só a pagar / só a
+receber", e tocar no dia abre a semana. **Previsão**: de 1 mês a 1 ano, por
+semana ou mês, e planilha. **Carteiras**: entrou e saiu no período, com
+"ver extrato desta carteira"; o saldo continua o de hoje.
+
+> **Defeito corrigido na previsão.** Cada semana ia de `início` a `início + 6
+> dias`, as duas à meia-noite. Uma conta que vencia ao meio-dia do 7º dia ficava
+> depois do fim e caía fora das duas semanas. Agora cada pedaço é `[início,
+> próximo início)`.
+
+> **Gráficos sem depender só de cor.** O validador de paleta reprovou o par
+> verde/vermelho: para quem tem daltonismo as duas cores ficam quase iguais
+> (no escuro, ΔE 0,3). Onde só a cor separava entra e sai, entrou a
+> **direção** (barra para cima quando sobrou, para baixo quando faltou) ou a
+> linha do saldo, com a tabela ao lado.
+
+**Venda parcelada, nos dois sentidos** (o João escolheu "os dois"):
+- **crediário da loja**: já existia, mas escondido (só aparecia sobrando
+  saldo). Agora tem título, atalhos de 1x a 12x e campo para qualquer número;
+  as parcelas continuam virando contas a receber;
+- **cartão parcelado**: escolhendo "Crédito", aparece "em quantas vezes no
+  cartão". O número fica no pagamento (`Pagamento.parcelas` já existia no
+  banco e nunca era preenchido) e sai na venda, no recibo e no extrato.
+
+**"A entrar"** (Fluxo de caixa): a pedido do João, uma tela com TUDO o que
+vai entrar — parcelas do crediário, recebimentos lançados e entradas lançadas
+no caixa com data futura —, por período, por fonte, agrupado e com planilha.
+
+> **Buraco fechado.** Entrada ou saída lançada no caixa com data futura não
+> aparecia em lugar nenhum: fora do saldo de hoje (ainda não aconteceu) e fora
+> da previsão (que só olhava contas). Agora entra na previsão, na semana dela,
+> e na tela A entrar. O que é de HOJE continua só no saldo, para não contar
+> duas vezes.
+
+### 07/10 · Criação de etiquetas (Ajustes)
+
+O João pediu "um menu de criação de etiqueta bem top, onde você cria tudo,
+arrasta o que aparecer". Ficou em **Ajustes › Criação de etiquetas**
+(`/ajustes/etiquetas`), com a permissão de Ajustes:
+
+- paleta de elementos (logo, nome, código, tamanho, preço, preço "DE",
+  desconto, QR, texto livre com `{nome}`/`{preco}`…, linha, moldura): arrasta
+  para a etiqueta ou toca para pôr no centro;
+- arrastar move, a alça redimensiona, ímã nas bordas/centro/dobra/outros
+  elementos (Shift solta o ímã), setas, Delete, Ctrl+D, Ctrl+Z/Ctrl+Y;
+- propriedades (mm exatos, letra automática ou fixa, negrito, maiúsculas, até
+  2 linhas, alinhamento, prefixo como "TAM. "), camadas, rolo de mercado ou
+  livre, dobrável, peça de exemplo editável e PDF de teste;
+- trocar o rolo REESCALA o desenho.
+
+> **O fundo do editor é a etiqueta de verdade.** O mesmo motor que imprime
+> (`etiquetaDoDesenho` no `pdf-etiqueta.ts`: preto e branco, QR de impressão,
+> logo encorpada) desenha a prévia; os quadros por cima são só alças. Assim o
+> que se vê é o que sai na NIIMBOT.
+
+Os modelos ficam numa linha de `Config` (`etiquetaDesenhos`, até 20), sem
+migration, e aparecem **primeiro** na lista de modelos da impressão (ficha,
+catálogo, compra), impressos pelo caminho da NIIMBOT. No celular, arrastar da
+paleta depende do navegador; tocar na peça da paleta sempre funciona.
+
+Com o editor no ar, o João mandou tirar o bloco antigo "Etiqueta da NIIMBOT ·
+tamanho próprio" da tela de Ajustes ("não tem mais sentido"). Saíram o bloco,
+os campos `etiquetaLargura`/`Altura`/`Dobrada` e o modelo "personalizado" da
+impressão; quem quer outro tamanho monta um modelo no editor. As linhas
+antigas dessas chaves na `Config` ficam no banco, sem uso.
+
+> **Armadilha do Prisma.** Um filtro vazio dentro de `OR` é descartado: com
+> "Ver tudo", `OR: [{ vencimento: {} }, { vencimento: { lt: hoje } }]` virava
+> só "vencidas". Sem período, não se monta o `OR`.
+
+> **Pendente, decisão do João:** o dinheiro do cartão continua entrando no
+> caixa no dia da venda, como antes. Mostrar o depósito da maquininha mês a
+> mês muda a regra do caixa, e depende de a loja antecipar ou não os
+> recebimentos.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

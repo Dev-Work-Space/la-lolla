@@ -105,7 +105,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                 saldo: v.saldo,
                 pagamentos: v.pagamentos.map((p) => ({
                   data: p.data,
-                  forma: p.forma,
+                  forma: p.parcelas > 1 ? `${rotuloForma(p.forma)} ${p.parcelas}x` : p.forma,
                   valor: p.valor,
                 })),
                 parcelas: v.parcelas
@@ -261,7 +261,10 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                 {v.pagamentos.map((p) => (
                   <li key={p.id} className="flex items-center gap-2 px-4 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{rotuloForma(p.forma)}</span>
+                      <span className="block text-sm font-medium">
+                        {rotuloForma(p.forma)}
+                        {p.parcelas > 1 ? ` · ${p.parcelas}x` : ""}
+                      </span>
                       <span className="block text-xs text-muted-foreground">
                         {fData(p.data)}
                       </span>

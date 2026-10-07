@@ -22,19 +22,11 @@
 import { jsPDF } from "jspdf";
 import qrcode from "qrcode-generator";
 import type { Etiqueta, ModeloEtiqueta, OpcoesEtiqueta } from "./etiqueta.regras";
+import { textoDoElemento, type DesenhoEtiqueta, type ElementoEtiqueta } from "./etiqueta-desenho";
 
 /* 16 px/mm ≈ 406 dpi: o dobro dos 203 dpi da D110, então a impressora reduz
    (nunca amplia) e o traço sai limpo. */
 export const PX_MM = 16;
-
-/** Para a pré-visualização dos Ajustes. */
-export const ETIQUETA_EXEMPLO: Etiqueta = {
-  codigo: "LL-0001-01",
-  nome: "Brinco argola dourada",
-  tamanho: null,
-  preco: 89.9,
-  precoDe: null,
-};
 
 const LOGO_SRC = "/logo-lalolla.png";
 /* A logo da loja tem 353 × 90 px; as contas de altura do app antigo usam a razão. */
@@ -595,12 +587,156 @@ function soPretoEBranco(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.putImageData(img, 0, 0);
 }
 
+/*
+ * O modelo DESENHADO em Ajustes › Criação de etiquetas: cada elemento no seu
+ * quadro (em mm). Mesmas regras de impressão do desenho padrão — preto puro,
+ * QR de impressão com módulo inteiro, logo encorpada, e no fim só preto e
+ * branco —, para o modelo da loja sair tão nítido quanto o de fábrica.
+ */
+function etiquetaDoDesenho(
+  p: Etiqueta,
+  opc: OpcoesEtiqueta,
+  d: DesenhoEtiqueta,
+  logo: HTMLImageElement | null,
+): HTMLCanvasElement {
+  const W = Math.round(d.largura * PX_MM);
+  const H = Math.round(d.altura * PX_MM);
+  const cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext("2d")!;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#000000";
+  ctx.strokeStyle = "#000000";
+  ctx.textBaseline = "top";
+  const px = (mm: number) => Math.round(mm * PX_MM);
+
+  for (const el of d.elementos) desenharElemento(ctx, el, p, opc, logo, px);
+
+  if (d.dobra) {
+    ctx.save();
+    ctx.setLineDash([px(0.5), px(0.5)]);
+    ctx.lineWidth = Math.max(2, px(0.15));
+    ctx.beginPath();
+    ctx.moveTo(Math.round(W / 2), px(0.6));
+    ctx.lineTo(Math.round(W / 2), H - px(0.6));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  soPretoEBranco(ctx, W, H);
+  return cv;
+}
+
+function desenharElemento(
+  ctx: CanvasRenderingContext2D,
+  el: ElementoEtiqueta,
+  p: Etiqueta,
+  opc: OpcoesEtiqueta,
+  logo: HTMLImageElement | null,
+  px: (mm: number) => number,
+) {
+  const x = px(el.x);
+  const y = px(el.y);
+  const w = Math.max(1, px(el.w));
+  const h = Math.max(1, px(el.h));
+  const alinhaX = (largura: number) =>
+    el.alinhar === "centro" ? x + Math.round((w - largura) / 2) : el.alinhar === "direita" ? x + w - largura : x;
+
+  if (el.tipo === "linha") {
+    ctx.fillRect(x, y, w, Math.max(2, h));
+    return;
+  }
+  if (el.tipo === "moldura") {
+    const esp = Math.max(2, px(0.15));
+    ctx.lineWidth = esp;
+    ctx.strokeRect(x + esp / 2, y + esp / 2, w - esp, h - esp);
+    return;
+  }
+  if (el.tipo === "qr") {
+    if (!opc.qr) return;
+    const qt = qrTermico(p.codigo, Math.min(w, h), 1);
+    if (!qt) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(qt.cv, alinhaX(qt.lado), y + Math.round((h - qt.lado) / 2));
+    return;
+  }
+  if (el.tipo === "marca") {
+    if (logo) {
+      // A logo cabe inteira no quadro, sem deformar.
+      const lw = Math.min(w, Math.round(h / LOGO_RAZAO));
+      const lh = Math.round(lw * LOGO_RAZAO);
+      const lx = alinhaX(lw);
+      const ly = y + Math.round((h - lh) / 2);
+      const img = logoTermica(logo);
+      for (const [dx, dy] of [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]]) ctx.drawImage(img, lx + dx, ly + dy, lw, lh);
+      return;
+    }
+    ctx.font = `italic ${Math.round(h * 0.9)}px Georgia,'Times New Roman',serif`;
+    ctx.fillText("LaLolla", alinhaX(ctx.measureText("LaLolla").width), y);
+    return;
+  }
+
+  const texto = textoDoElemento(el, p, opc);
+  if (!texto) return;
+  const peso = el.negrito ? "800" : "500";
+  const minimo = Math.max(8, px(1.1));
+  const fixo = el.letra > 0 ? px(el.letra) : 0;
+  const fonte = (f: number) => `${peso} ${f}px ${SANS}`;
+
+  /* A maior letra em que o texto cabe no quadro: numa linha; se não couber e
+     o elemento aceitar duas, quebrando. Só por último corta com reticências. */
+  let tamanho = fixo || Math.max(minimo, Math.floor(h / 1.05));
+  let linhas: string[] = [texto];
+  for (let f = tamanho; f >= minimo; f--) {
+    ctx.font = fonte(f);
+    if (ctx.measureText(texto).width <= w && f * 1.05 <= h) {
+      tamanho = f;
+      linhas = [texto];
+      break;
+    }
+    if (el.linhas === 2 && f * 2.15 <= h) {
+      const palavras = texto.split(/\s+/);
+      let a = "";
+      while (palavras.length > 1) {
+        const tenta = a ? `${a} ${palavras[0]}` : palavras[0];
+        if (a && ctx.measureText(tenta).width > w) break;
+        a = tenta;
+        palavras.shift();
+      }
+      const b = palavras.join(" ");
+      if (b && ctx.measureText(a).width <= w && ctx.measureText(b).width <= w) {
+        tamanho = f;
+        linhas = [a, b];
+        break;
+      }
+    }
+    if (fixo) break;
+    tamanho = f;
+    linhas = [texto];
+  }
+  ctx.font = fonte(tamanho);
+  const entre = Math.round(tamanho * 1.08);
+  let ly = y + Math.round((h - entre * linhas.length) / 2);
+  for (const linha of linhas) {
+    const l = cortaCanvas(ctx, linha, w);
+    const lw = ctx.measureText(l).width;
+    const lx = alinhaX(lw);
+    ctx.fillText(l, lx, ly);
+    // O preço antigo sai riscado: é o "DE R$ 159,90" da promoção.
+    if (el.tipo === "precoDe") ctx.fillRect(lx, ly + Math.round(tamanho * 0.48), Math.round(lw), Math.max(2, Math.round(tamanho * 0.09)));
+    ly += entre;
+  }
+}
+
 function etiquetaPequenaCanvas(
   p: Etiqueta,
   opc: OpcoesEtiqueta,
   m: ModeloEtiqueta,
   logo: HTMLImageElement | null,
 ): HTMLCanvasElement {
+  if (m.desenho) return etiquetaDoDesenho(p, opc, m.desenho, logo);
   const W = Math.round(m.largura * PX_MM);
   const H = Math.round(m.altura * PX_MM);
   const cv = document.createElement("canvas");

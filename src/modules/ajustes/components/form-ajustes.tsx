@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarAjustesAction } from "../ajustes.actions";
-import { CamposEtiqueta } from "./campos-etiqueta";
 import { AJUSTES_PADRAO, ROTULOS, type Ajustes } from "../ajustes.tipos";
 import type { ErrosDeCampo } from "@/lib/result";
 
@@ -104,12 +104,14 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
           Etiquetas
         </h2>
 
-        <CamposEtiqueta
-          largura={atuais.etiquetaLargura}
-          altura={atuais.etiquetaAltura}
-          dobrada={atuais.etiquetaDobrada}
-          erros={{ largura: erros.etiquetaLargura?.[0], altura: erros.etiquetaAltura?.[0] }}
-        />
+        {/* O tamanho próprio da NIIMBOT morava aqui; a Criação de etiquetas
+            faz isso e muito mais, então ficou só a porta para ela. */}
+        <p className="text-sm">
+          O modelo, o tamanho do rolo e o desenho da etiqueta se montam na{" "}
+          <Link href="/ajustes/etiquetas" className="font-medium text-(--ll-accent) hover:underline">
+            Criação de etiquetas →
+          </Link>
+        </p>
 
         <Campo
           id="urlApp"
