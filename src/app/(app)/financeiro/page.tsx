@@ -12,6 +12,7 @@ import { PainelContas } from "@/modules/financeiro/components/painel-contas";
 import { PainelCarteiras } from "@/modules/financeiro/components/painel-carteiras";
 import { PainelCartoes } from "@/modules/financeiro/components/painel-cartoes";
 import { PainelVisaoGeral } from "@/modules/financeiro/components/painel-visao-geral";
+import { PainelAEntrar } from "@/modules/financeiro/components/painel-a-entrar";
 import { PainelAgenda } from "@/modules/financeiro/components/painel-agenda";
 import { PainelPrevisao } from "@/modules/financeiro/components/painel-previsao";
 import { cartoesComLimite } from "@/modules/financeiro/cartao.service";
@@ -30,7 +31,8 @@ type TipoContas = "receber" | "pagar" | "calendario";
  *                 dias, para onde o caixa vai e onde o dinheiro está;
  *   Contas      — a pagar e a receber agrupadas por urgência, e o calendário
  *                 do mês (a antiga Agenda);
- *   Fluxo       — o extrato do que já aconteceu e a previsão do que vem;
+ *   Fluxo       — o extrato do que já aconteceu, tudo o que vai entrar
+ *                 (de qualquer fonte) e a previsão do caixa;
  *   Carteiras   — onde o dinheiro está, com os cartões.
  *
  * Os indicadores ficam FORA das abas de propósito: "quanto tenho" e "quanto
@@ -52,7 +54,7 @@ function abaDaUrl(aba?: string, tipo?: string, ver?: string): { qual: Aba; tipo:
       return { qual: "contas", tipo: "calendario", ver: "" };
     case "fluxo":
     case "caixa":
-      return { qual: "fluxo", tipo: tipoOk, ver: ver === "previsto" ? "previsto" : "realizado" };
+      return { qual: "fluxo", tipo: tipoOk, ver: ver === "previsto" || ver === "entrar" ? ver : "realizado" };
     case "previsao":
       return { qual: "fluxo", tipo: tipoOk, ver: "previsto" };
     case "carteiras":
@@ -79,7 +81,7 @@ export default async function FinanceiroPage({
   params.aba = qual;
   if (qual === "contas") params.tipo = tipo;
   else delete params.tipo;
-  if (qual === "fluxo" && ver === "previsto") params.ver = ver;
+  if (qual === "fluxo" && ver !== "realizado") params.ver = ver;
   else delete params.ver;
 
   const admin = sessao.data.papel !== "VENDEDOR";
@@ -125,10 +127,11 @@ export default async function FinanceiroPage({
           <Segmentado
             opcoes={[
               ["realizado", "Extrato"],
+              ["entrar", "A entrar"],
               ["previsto", "Previsão"],
             ]}
             atual={ver}
-            href={(v) => (v === "previsto" ? "/financeiro?aba=fluxo&ver=previsto" : "/financeiro?aba=fluxo")}
+            href={(v) => (v === "realizado" ? "/financeiro?aba=fluxo" : `/financeiro?aba=fluxo&ver=${v}`)}
           />
         )}
       </div>
@@ -222,6 +225,7 @@ async function PainelDaAba({
 
   if (qual === "fluxo") {
     if (ver === "previsto") return <PainelPrevisao params={params} />;
+    if (ver === "entrar") return <PainelAEntrar params={params} carteiras={ind.carteiras} pode={pode} />;
     return <PainelCaixa params={params} carteiras={ind.carteiras} pode={pode} />;
   }
 

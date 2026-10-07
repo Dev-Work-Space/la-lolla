@@ -169,6 +169,32 @@ export type CompromissoAgenda = {
   href: string | null;
 };
 
+/**
+ * Uma entrada que ainda vai acontecer, de qualquer fonte: parcela de venda no
+ * crediário, recebimento lançado à mão em contas a receber, ou entrada lançada
+ * no caixa com data futura.
+ */
+export type EntradaPrevista = {
+  id: string;
+  origem: "crediario" | "recebimento" | "lancamento";
+  titulo: string;
+  quem: string | null;
+  valor: number;
+  quando: Date;
+  /** Já devia ter entrado: venceu e continua em aberto. */
+  atrasado: boolean;
+  href: string | null;
+  /** Conta a receber pode ser baixada; lançamento futuro entra sozinho no dia. */
+  contaId: string | null;
+  deVenda: boolean;
+};
+
+export const ORIGENS_ENTRADA: ReadonlyArray<readonly [EntradaPrevista["origem"], string]> = [
+  ["crediario", "Crediário (parcelas de venda)"],
+  ["recebimento", "Recebimentos lançados"],
+  ["lancamento", "Entradas com data marcada"],
+];
+
 /** Uma semana da previsão de caixa. */
 export type SemanaPrevista = {
   inicio: Date;

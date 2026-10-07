@@ -10,7 +10,7 @@ import {
   saidasPorCategoria,
   type ContaLinha,
 } from "../financeiro.service";
-import { previsao } from "../agenda.service";
+import { entradasPrevistas, previsao } from "../agenda.service";
 import { cartoesComLimite } from "../cartao.service";
 import { FormConta } from "./form-conta";
 import { FormLancamento } from "./form-lancamento";
@@ -106,9 +106,13 @@ export async function PainelVisaoGeral({
 }) {
   const agora = new Date();
   const mes0 = new Date(agora.getFullYear(), agora.getMonth(), 1);
-  const [ind, receber, pagar, prev, meses, cartoes, categorias] = await Promise.all([
+  const em30 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + DIAS_JANELA, 23, 59, 59);
+  const [ind, receber, aEntrar, pagar, prev, meses, cartoes, categorias] = await Promise.all([
     indicadoresFinanceiro(),
     listarContas("RECEBER", "abertas"),
+    /* O "vai entrar" é o mesmo da tela A entrar: parcelas, recebimentos e as
+       entradas lançadas com data marcada — esta última ficava de fora. */
+    entradasPrevistas(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()), em30),
     listarContas("PAGAR", "abertas"),
     previsao(12),
     resumoMensal(6),
@@ -120,7 +124,21 @@ export async function PainelVisaoGeral({
   const vencidasReceber = receber.filter((c) => c.vencida);
   const soma = (l: Array<{ valor: number }>) => Math.round(l.reduce((s, c) => s + c.valor, 0) * 100) / 100;
 
-  const vaiEntrar = proximos(receber, "receber");
+  const vaiEntrar: Compromisso[] = aEntrar
+    .filter((e) => !e.atrasado)
+    .map((e) => ({
+      id: e.origem + e.id,
+      titulo: e.titulo,
+      sub: e.quem,
+      valor: e.valor,
+      vencimento: e.quando,
+      dias: Math.round(
+        (new Date(e.quando.getFullYear(), e.quando.getMonth(), e.quando.getDate()).getTime() -
+          new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime()) /
+          86_400_000,
+      ),
+      href: e.href ?? "/financeiro?aba=fluxo&ver=entrar",
+    }));
   const vaiSair = proximos(pagar, "pagar");
 
   return (
@@ -165,6 +183,7 @@ export async function PainelVisaoGeral({
         <Proximos
           titulo="Vai entrar"
           tipo="receber"
+          verTudo="/financeiro?aba=fluxo&ver=entrar"
           itens={vaiEntrar}
           total={soma(vaiEntrar)}
           vazio="Nada a receber nos próximos 30 dias."
@@ -296,9 +315,12 @@ function Proximos({
   itens,
   total,
   vazio,
+  verTudo,
 }: {
   titulo: string;
   tipo: "pagar" | "receber";
+  /** Para onde o "ver todas" leva; sem isto, a lista de contas do tipo. */
+  verTudo?: string;
   itens: Compromisso[];
   total: number;
   vazio: string;
@@ -322,7 +344,7 @@ function Proximos({
           </p>
         </div>
         <Link
-          href={`/financeiro?aba=contas&tipo=${tipo}`}
+          href={verTudo ?? `/financeiro?aba=contas&tipo=${tipo}`}
           className="shrink-0 text-xs font-medium text-(--ll-accent) hover:underline"
         >
           {itens.length > NA_LISTA ? `Ver todas (${itens.length}) →` : "Ver lista →"}

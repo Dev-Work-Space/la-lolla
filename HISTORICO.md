@@ -700,6 +700,20 @@ semana ou mês, e planilha. **Carteiras**: entrou e saiu no período, com
   cartão". O número fica no pagamento (`Pagamento.parcelas` já existia no
   banco e nunca era preenchido) e sai na venda, no recibo e no extrato.
 
+**"A entrar"** (Fluxo de caixa): a pedido do João, uma tela com TUDO o que
+vai entrar — parcelas do crediário, recebimentos lançados e entradas lançadas
+no caixa com data futura —, por período, por fonte, agrupado e com planilha.
+
+> **Buraco fechado.** Entrada ou saída lançada no caixa com data futura não
+> aparecia em lugar nenhum: fora do saldo de hoje (ainda não aconteceu) e fora
+> da previsão (que só olhava contas). Agora entra na previsão, na semana dela,
+> e na tela A entrar. O que é de HOJE continua só no saldo, para não contar
+> duas vezes.
+
+> **Armadilha do Prisma.** Um filtro vazio dentro de `OR` é descartado: com
+> "Ver tudo", `OR: [{ vencimento: {} }, { vencimento: { lt: hoje } }]` virava
+> só "vencidas". Sem período, não se monta o `OR`.
+
 > **Pendente, decisão do João:** o dinheiro do cartão continua entrando no
 > caixa no dia da venda, como antes. Mostrar o depósito da maquininha mês a
 > mês muda a regra do caixa, e depende de a loja antecipar ou não os
