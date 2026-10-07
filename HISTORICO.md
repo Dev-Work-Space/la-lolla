@@ -710,6 +710,32 @@ no caixa com data futura —, por período, por fonte, agrupado e com planilha.
 > e na tela A entrar. O que é de HOJE continua só no saldo, para não contar
 > duas vezes.
 
+### 07/10 · Criação de etiquetas (Ajustes)
+
+O João pediu "um menu de criação de etiqueta bem top, onde você cria tudo,
+arrasta o que aparecer". Ficou em **Ajustes › Criação de etiquetas**
+(`/ajustes/etiquetas`), com a permissão de Ajustes:
+
+- paleta de elementos (logo, nome, código, tamanho, preço, preço "DE",
+  desconto, QR, texto livre com `{nome}`/`{preco}`…, linha, moldura): arrasta
+  para a etiqueta ou toca para pôr no centro;
+- arrastar move, a alça redimensiona, ímã nas bordas/centro/dobra/outros
+  elementos (Shift solta o ímã), setas, Delete, Ctrl+D, Ctrl+Z/Ctrl+Y;
+- propriedades (mm exatos, letra automática ou fixa, negrito, maiúsculas, até
+  2 linhas, alinhamento, prefixo como "TAM. "), camadas, rolo de mercado ou
+  livre, dobrável, peça de exemplo editável e PDF de teste;
+- trocar o rolo REESCALA o desenho.
+
+> **O fundo do editor é a etiqueta de verdade.** O mesmo motor que imprime
+> (`etiquetaDoDesenho` no `pdf-etiqueta.ts`: preto e branco, QR de impressão,
+> logo encorpada) desenha a prévia; os quadros por cima são só alças. Assim o
+> que se vê é o que sai na NIIMBOT.
+
+Os modelos ficam numa linha de `Config` (`etiquetaDesenhos`, até 20), sem
+migration, e aparecem **primeiro** na lista de modelos da impressão (ficha,
+catálogo, compra), impressos pelo caminho da NIIMBOT. No celular, arrastar da
+paleta depende do navegador; tocar na peça da paleta sempre funciona.
+
 > **Armadilha do Prisma.** Um filtro vazio dentro de `OR` é descartado: com
 > "Ver tudo", `OR: [{ vencimento: {} }, { vencimento: { lt: hoje } }]` virava
 > só "vencidas". Sem período, não se monta o `OR`.

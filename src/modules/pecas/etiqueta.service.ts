@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
 import { precosDaEtiqueta, type Etiqueta } from "./etiqueta.regras";
-import { skuDoCodigo } from "./etiqueta.schemas";
+import { desenhoSchema, skuDoCodigo } from "./etiqueta.schemas";
+import { LIMITES, type DesenhoEtiqueta } from "./etiqueta-desenho";
 
 /*
  * ETIQUETAS — o que vai impresso em cada uma.
@@ -87,4 +88,57 @@ export async function pecaPorCodigo(codigo: string) {
     );
   }
   return p;
+}
+
+/* ─────────────── modelos desenhados (Ajustes › Criação de etiquetas) ─────────────── */
+
+/*
+ * Os modelos moram numa linha de Config, como os outros ajustes da loja: uma
+ * lista pequena (até 20), lida inteira, sem tabela nem migration. Cada um é
+ * revalidado na leitura — um modelo que ficou estranho por qualquer motivo
+ * some da lista em vez de quebrar a impressão.
+ */
+const CHAVE_DESENHOS = "etiquetaDesenhos";
+
+export async function lerDesenhos(): Promise<DesenhoEtiqueta[]> {
+  const linha = await prisma.config.findUnique({ where: { chave: CHAVE_DESENHOS }, select: { valor: true } });
+  const lista = Array.isArray(linha?.valor) ? linha.valor : [];
+  return lista.flatMap((d) => {
+    const ok = desenhoSchema.safeParse(d);
+    return ok.success ? [ok.data] : [];
+  });
+}
+
+async function gravar(lista: DesenhoEtiqueta[]) {
+  await prisma.config.upsert({
+    where: { chave: CHAVE_DESENHOS },
+    update: { valor: lista as unknown as Prisma.InputJsonValue },
+    create: { chave: CHAVE_DESENHOS, valor: lista as unknown as Prisma.InputJsonValue },
+    select: { chave: true },
+  });
+}
+
+/** Salva por cima se o id já existe; senão, entra no fim. */
+export async function salvarDesenho(d: DesenhoEtiqueta) {
+  const lista = await lerDesenhos();
+  const i = lista.findIndex((x) => x.id === d.id);
+  if (i < 0 && lista.length >= LIMITES.modelos) {
+    throw new ErroDominio(
+      "REGRA_NEGOCIO",
+      `Já são ${LIMITES.modelos} modelos. Apague um que não use mais para criar outro.`,
+    );
+  }
+  if (lista.some((x) => x.id !== d.id && x.nome.toLowerCase() === d.nome.toLowerCase())) {
+    throw new ErroDominio("REGRA_NEGOCIO", "Já existe um modelo com esse nome. Escolha outro nome.");
+  }
+  const nova = i < 0 ? [...lista, d] : lista.map((x) => (x.id === d.id ? d : x));
+  await gravar(nova);
+}
+
+export async function excluirDesenho(id: string) {
+  const lista = await lerDesenhos();
+  if (!lista.some((x) => x.id === id)) {
+    throw new ErroDominio("NAO_ENCONTRADO", "Esse modelo não existe mais. Atualize a tela.");
+  }
+  await gravar(lista.filter((x) => x.id !== id));
 }

@@ -1,3 +1,5 @@
+import type { DesenhoEtiqueta } from "./etiqueta-desenho";
+
 /*
  * Regras e tipos da etiqueta, sem nenhuma biblioteca — o servidor usa para
  * montar os dados e a tela para a prévia, sem que nenhum dos dois carregue o
@@ -23,6 +25,8 @@ export type ModeloEtiqueta = {
   altura: number;
   /** Só NIIMBOT: parte ao meio e envolve o aro — QR numa metade, marca e preço na outra. */
   dobrada: boolean;
+  /** Modelo montado em Ajustes › Criação de etiquetas: o desenho manda no lugar do padrão. */
+  desenho?: DesenhoEtiqueta;
 };
 
 const termica = (l: number, a: number): ModeloEtiqueta => ({
@@ -121,8 +125,26 @@ export function modeloDosAjustes(a: {
   };
 }
 
-/** A lista do seletor: os de mercado e, se for diferente de todos, o dos Ajustes. */
-export function modelosComAjustes(dosAjustes: ModeloEtiqueta): ModeloEtiqueta[] {
+/** Um modelo desenhado vira mais uma opção da lista, impresso como NIIMBOT (canvas). */
+export function modeloDoDesenho(d: DesenhoEtiqueta): ModeloEtiqueta {
+  const mm = (n: number) => String(n).replace(".", ",");
+  return {
+    id: `desenho-${d.id}`,
+    nome: `Meu modelo · ${d.nome} (${mm(d.largura)} × ${mm(d.altura)} mm)`,
+    tipo: "niimbot",
+    largura: d.largura,
+    altura: d.altura,
+    dobrada: d.dobra,
+    desenho: d,
+  };
+}
+
+/**
+ * A lista do seletor: os modelos desenhados em Ajustes primeiro (são os da
+ * loja), depois os de mercado e, se for diferente de todos, o tamanho dos Ajustes.
+ */
+export function modelosComAjustes(dosAjustes: ModeloEtiqueta, desenhos: DesenhoEtiqueta[] = []): ModeloEtiqueta[] {
+  const proprios = desenhos.map(modeloDoDesenho);
   const repetido = MODELOS_ETIQUETA.some(
     (m) =>
       m.tipo === dosAjustes.tipo &&
@@ -130,11 +152,14 @@ export function modelosComAjustes(dosAjustes: ModeloEtiqueta): ModeloEtiqueta[] 
       m.altura === dosAjustes.altura &&
       m.dobrada === dosAjustes.dobrada,
   );
-  return repetido ? [...MODELOS_ETIQUETA] : [...MODELOS_ETIQUETA, dosAjustes];
+  return [...proprios, ...MODELOS_ETIQUETA, ...(repetido ? [] : [dosAjustes])];
 }
 
 /** O que o app antigo explicava embaixo do seletor de modelo. */
 export function dicaDoModelo(m: ModeloEtiqueta): string {
+  if (m.desenho) {
+    return `Modelo criado em Ajustes › Criação de etiquetas, ${m.largura}×${m.altura} mm${m.dobrada ? ", dobrável" : ""}.`;
+  }
   if (m.tipo === "folha") return "Folha A4 para recortar — 24 etiquetas por página.";
   if (m.tipo === "niimbot") {
     return m.dobrada

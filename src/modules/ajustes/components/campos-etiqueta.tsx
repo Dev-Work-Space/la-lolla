@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ETIQUETA_EXEMPLO } from "@/modules/pecas/pdf-etiqueta";
@@ -48,7 +49,13 @@ export function CamposEtiqueta({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium">Etiqueta da NIIMBOT · tamanho próprio</p>
+        <p className="flex flex-wrap items-baseline justify-between gap-2 text-sm font-medium">
+          Etiqueta da NIIMBOT · tamanho próprio
+          {/* Para montar a etiqueta do jeito que quiser, o editor completo. */}
+          <Link href="/ajustes/etiquetas" className="text-xs font-medium text-(--ll-accent) hover:underline">
+            Abrir a Criação de etiquetas →
+          </Link>
+        </p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
           Só para um rolo que não esteja na lista de modelos da impressão — ele entra no fim dela. Padrão:{" "}
           {br(AJUSTES_PADRAO.etiquetaLargura)} × {br(AJUSTES_PADRAO.etiquetaAltura)} mm. Confira na caixa do

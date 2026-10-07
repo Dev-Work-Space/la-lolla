@@ -8,7 +8,7 @@ import { brl, data as fData, dataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
-import { pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
+import { lerDesenhos, pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
 import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 
@@ -43,9 +43,10 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
      abre com a quantidade que entrou de cada peça. Insumo não leva etiqueta. */
   const entrou: Record<string, number> = {};
   for (const i of c.itens) if (!i.insumo) entrou[i.pecaId] = (entrou[i.pecaId] ?? 0) + i.quantidade;
-  const [paraEtiqueta, ajustes] = await Promise.all([
+  const [paraEtiqueta, ajustes, desenhos] = await Promise.all([
     pecasParaEtiqueta(Object.keys(entrou)),
     lerAjustes(),
+    lerDesenhos(),
   ]);
   // Na ordem em que vieram na compra, que é a ordem da nota do fornecedor.
   const ordem = Object.keys(entrou);
@@ -76,6 +77,7 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
               pecas={paraEtiqueta}
               quantidades={entrou}
               personalizado={modeloDosAjustes(ajustes)}
+              desenhos={desenhos}
               rotulo="Etiquetas desta compra"
               titulo={`Etiquetas da compra #${c.numero}`}
             />
