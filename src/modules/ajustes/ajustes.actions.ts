@@ -32,9 +32,6 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
       gravarAjuste("diasParado", d.diasParado),
       gravarAjuste("descontoVista", d.descontoVista),
       gravarAjuste("urlApp", d.urlApp),
-      gravarAjuste("etiquetaLargura", d.etiquetaLargura),
-      gravarAjuste("etiquetaAltura", d.etiquetaAltura),
-      gravarAjuste("etiquetaDobrada", d.etiquetaDobrada),
     ]);
 
     // Os ajustes entram em quase toda conta do app.

@@ -27,8 +27,7 @@ import {
 import {
   dicaDoModelo,
   MODELO_PADRAO,
-  modelosComAjustes,
-  type ModeloEtiqueta,
+  modelosDaImpressao,
 } from "../etiqueta.regras";
 import { usePreviaEtiqueta } from "./use-previa-etiqueta";
 import type { DesenhoEtiqueta } from "../etiqueta-desenho";
@@ -83,7 +82,6 @@ const assinarNada = () => () => {};
 
 export function ImprimirEtiquetas({
   pecas,
-  personalizado,
   desenhos = [],
   quantidades,
   rotulo = "Etiquetas",
@@ -91,8 +89,6 @@ export function ImprimirEtiquetas({
   variante = "outline",
 }: {
   pecas: PecaEtiqueta[];
-  /** O tamanho guardado nos Ajustes — entra no fim da lista de modelos. */
-  personalizado: ModeloEtiqueta;
   /** Os modelos montados em Ajustes › Criação de etiquetas — vêm primeiro na lista. */
   desenhos?: DesenhoEtiqueta[];
   /** Quantidade sugerida por peça — ex.: as unidades que entraram na compra. */
@@ -117,7 +113,7 @@ export function ImprimirEtiquetas({
   // A folha de compartilhar com arquivo só existe no navegador — no servidor, falso.
   const compartilha = useSyncExternalStore(assinarNada, podeCompartilharImagem, () => false);
 
-  const modelos = modelosComAjustes(personalizado, desenhos);
+  const modelos = modelosDaImpressao(desenhos);
   const modelo = modelos.find((m) => m.id === modeloId) ?? modelos[0];
   const opc = { preco: mostrarPreco, qr: incluirQr };
   const niimbot = modelo.tipo === "niimbot";

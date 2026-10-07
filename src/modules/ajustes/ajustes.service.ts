@@ -39,12 +39,6 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
     urlApp: typeof bruto.get(CHAVES.urlApp) === "string" ? String(bruto.get(CHAVES.urlApp)) : "",
     // Lista vazia é escolha de quem excluiu todas; só a AUSÊNCIA da linha cai na de fábrica.
     categorias: Array.isArray(cats) ? cats.map(String) : AJUSTES_PADRAO.categorias,
-    etiquetaLargura:
-      numero(CHAVES.etiquetaLargura, AJUSTES_PADRAO.etiquetaLargura) || AJUSTES_PADRAO.etiquetaLargura,
-    etiquetaAltura:
-      numero(CHAVES.etiquetaAltura, AJUSTES_PADRAO.etiquetaAltura) || AJUSTES_PADRAO.etiquetaAltura,
-    // Só vira "simples" quando alguém desligou de propósito; o padrão é a de joia.
-    etiquetaDobrada: bruto.get(CHAVES.etiquetaDobrada) !== false,
   };
 });
 

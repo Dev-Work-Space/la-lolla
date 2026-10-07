@@ -27,7 +27,7 @@ import { fotosConfiguradas } from "@/lib/storage";
 import { ImprimirEtiquetas } from "./imprimir-etiquetas";
 import { LerEtiqueta } from "./ler-etiqueta";
 import { Button } from "@/components/ui/button";
-import { modeloDosAjustes, precosDaEtiqueta } from "../etiqueta.regras";
+import { precosDaEtiqueta } from "../etiqueta.regras";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -184,7 +184,6 @@ export async function PainelCatalogo({
               saldo: p.saldo,
               ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
             }))}
-            personalizado={modeloDosAjustes(ajustes)}
             desenhos={desenhos}
             rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
             titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}

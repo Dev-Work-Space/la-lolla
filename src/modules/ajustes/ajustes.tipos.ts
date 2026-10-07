@@ -19,12 +19,6 @@ export type Ajustes = {
   urlApp: string;
   /** Categorias de peça disponíveis no cadastro. */
   categorias: string[];
-  /** Etiqueta da NIIMBOT: comprimento da área impressa, em mm. */
-  etiquetaLargura: number;
-  /** Etiqueta da NIIMBOT: altura da área impressa, em mm. */
-  etiquetaAltura: number;
-  /** Etiqueta de joia que dobra ao meio (frente numa metade, QR na outra). */
-  etiquetaDobrada: boolean;
 };
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -36,12 +30,6 @@ export const AJUSTES_PADRAO: Ajustes = {
   /* A lista de fábrica do app antigo (CATEGORIAS_PADRAO). É o que volta no
      "Restaurar lista de fábrica" da tela de Categorias. */
   categorias: ["Anéis", "Brincos", "Colares", "Pulseiras", "Conjuntos", "Tornozeleiras", "Piercings", "Berloques", "Outros"],
-  /* As medidas da etiqueta do app antigo não ficaram registradas. Estes são
-     os de uma etiqueta de joia comum da D110 (30 × 15 mm, dobrada ao meio);
-     o João confere na primeira impressão e acerta aqui. */
-  etiquetaLargura: 30,
-  etiquetaAltura: 15,
-  etiquetaDobrada: true,
 };
 
 /** Uma chave por ajuste na tabela Config — assim um não sobrescreve o outro. */
@@ -52,9 +40,6 @@ export const CHAVES = {
   descontoVista: "descontoVista",
   urlApp: "urlApp",
   categorias: "categorias",
-  etiquetaLargura: "etiquetaLargura",
-  etiquetaAltura: "etiquetaAltura",
-  etiquetaDobrada: "etiquetaDobrada",
 } as const;
 
 export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
@@ -81,17 +66,5 @@ export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
   categorias: {
     nome: "Categorias de peça",
     ajuda: "As opções que aparecem no cadastro. Ficam em Estoque › Categorias.",
-  },
-  etiquetaLargura: {
-    nome: "Comprimento",
-    ajuda: "O lado comprido da área que imprime, em milímetros (está na caixa do rolo).",
-  },
-  etiquetaAltura: {
-    nome: "Altura",
-    ajuda: "O lado curto da área que imprime, em milímetros.",
-  },
-  etiquetaDobrada: {
-    nome: "Etiqueta de joia, dobrada ao meio",
-    ajuda: "Frente (loja, nome e preço) numa metade e o QR na outra — ao dobrar em volta da peça, uma de cada lado. Desligado, tudo sai num lado só.",
   },
 };

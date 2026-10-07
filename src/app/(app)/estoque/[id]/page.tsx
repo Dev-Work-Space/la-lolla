@@ -11,7 +11,6 @@ import { FormMovimento } from "@/modules/pecas/components/form-movimento";
 import { ExcluirPeca } from "@/modules/pecas/components/excluir-peca";
 import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
 import { lerDesenhos, pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
-import { modeloDosAjustes } from "@/modules/pecas/etiqueta.regras";
 import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 import { EditarPeca } from "@/modules/pecas/components/nova-peca";
 import { fornecedoresParaPeca } from "@/modules/pecas/peca.service";
@@ -122,7 +121,6 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
           {ajustes && paraEtiqueta.length > 0 && (
             <ImprimirEtiquetas
               pecas={paraEtiqueta}
-              personalizado={modeloDosAjustes(ajustes)}
               desenhos={desenhos}
               rotulo="Imprimir etiqueta"
             />

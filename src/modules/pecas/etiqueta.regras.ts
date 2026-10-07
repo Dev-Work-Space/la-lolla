@@ -105,26 +105,6 @@ export function precosDaEtiqueta(tabela: number | null, promo: number | null) {
   return { preco: tabela, precoDe: null };
 }
 
-/**
- * A medida dos Ajustes vira mais um modelo da lista, desenhado como NIIMBOT —
- * para um rolo que não esteja entre os de mercado.
- */
-export function modeloDosAjustes(a: {
-  etiquetaLargura: number;
-  etiquetaAltura: number;
-  etiquetaDobrada: boolean;
-}): ModeloEtiqueta {
-  const mm = (n: number) => String(n).replace(".", ",");
-  return {
-    id: "ajustes",
-    nome: `Tamanho dos Ajustes · ${mm(a.etiquetaLargura)} × ${mm(a.etiquetaAltura)} mm${a.etiquetaDobrada ? " (dobra)" : " (reta)"}`,
-    tipo: "niimbot",
-    largura: a.etiquetaLargura,
-    altura: a.etiquetaAltura,
-    dobrada: a.etiquetaDobrada,
-  };
-}
-
 /** Um modelo desenhado vira mais uma opção da lista, impresso como NIIMBOT (canvas). */
 export function modeloDoDesenho(d: DesenhoEtiqueta): ModeloEtiqueta {
   const mm = (n: number) => String(n).replace(".", ",");
@@ -140,19 +120,12 @@ export function modeloDoDesenho(d: DesenhoEtiqueta): ModeloEtiqueta {
 }
 
 /**
- * A lista do seletor: os modelos desenhados em Ajustes primeiro (são os da
- * loja), depois os de mercado e, se for diferente de todos, o tamanho dos Ajustes.
+ * A lista do seletor: os modelos desenhados em Ajustes › Criação de etiquetas
+ * primeiro (são os da loja), depois os de mercado. O antigo "tamanho próprio"
+ * dos Ajustes saiu: o editor faz isso e muito mais.
  */
-export function modelosComAjustes(dosAjustes: ModeloEtiqueta, desenhos: DesenhoEtiqueta[] = []): ModeloEtiqueta[] {
-  const proprios = desenhos.map(modeloDoDesenho);
-  const repetido = MODELOS_ETIQUETA.some(
-    (m) =>
-      m.tipo === dosAjustes.tipo &&
-      m.largura === dosAjustes.largura &&
-      m.altura === dosAjustes.altura &&
-      m.dobrada === dosAjustes.dobrada,
-  );
-  return [...proprios, ...MODELOS_ETIQUETA, ...(repetido ? [] : [dosAjustes])];
+export function modelosDaImpressao(desenhos: DesenhoEtiqueta[] = []): ModeloEtiqueta[] {
+  return [...desenhos.map(modeloDoDesenho), ...MODELOS_ETIQUETA];
 }
 
 /** O que o app antigo explicava embaixo do seletor de modelo. */

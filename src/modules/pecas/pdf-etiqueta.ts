@@ -28,15 +28,6 @@ import { textoDoElemento, type DesenhoEtiqueta, type ElementoEtiqueta } from "./
    (nunca amplia) e o traço sai limpo. */
 export const PX_MM = 16;
 
-/** Para a pré-visualização dos Ajustes. */
-export const ETIQUETA_EXEMPLO: Etiqueta = {
-  codigo: "LL-0001-01",
-  nome: "Brinco argola dourada",
-  tamanho: null,
-  preco: 89.9,
-  precoDe: null,
-};
-
 const LOGO_SRC = "/logo-lalolla.png";
 /* A logo da loja tem 353 × 90 px; as contas de altura do app antigo usam a razão. */
 const LOGO_RAZAO = 90 / 353;
