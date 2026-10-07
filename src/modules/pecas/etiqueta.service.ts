@@ -7,18 +7,17 @@ import { precosDaEtiqueta, type Etiqueta } from "./etiqueta.regras";
 import { skuDoCodigo } from "./etiqueta.schemas";
 
 /*
- * ETIQUETAS — o que vai impresso em cada uma, e a numeração por unidade.
+ * ETIQUETAS — o que vai impresso em cada uma.
  *
- * A numeração (LL-0001-01, -02…) vem de `ultimaSerie` da peça, como no app
- * antigo: peças iguais recebem códigos diferentes para dar para rastrear qual
- * unidade saiu. Reservar os números é ESCRITA, e acontece numa transação só
- * para o lote inteiro — duas pessoas imprimindo ao mesmo tempo nunca recebem
- * o mesmo número, e um lote que falha no meio não queima números à toa.
+ * Um código por PEÇA, não por unidade: três anéis iguais saem os três com
+ * LL-0004. O app antigo numerava cada etiqueta (LL-0004-01, -02…) e o novo
+ * copiou; o João mandou tirar (07/10/2026) — o código identifica o modelo, e
+ * número de unidade só confundia na prateleira. Imprimir voltou a ser só
+ * leitura. As etiquetas antigas com sufixo continuam lendo: `skuDoCodigo`
+ * descarta o "-07".
  */
 
 const num = (v: Prisma.Decimal | null) => (v === null ? null : Number(v));
-
-const serie = (sku: string, n: number) => `${sku}-${String(n).padStart(2, "0")}`;
 
 /** Dados de etiqueta de um punhado de peças — para a pré-visualização das telas. */
 export async function pecasParaEtiqueta(ids: string[]) {
@@ -46,7 +45,6 @@ export async function pecasParaEtiqueta(ids: string[]) {
 
 export async function montarEtiquetas(
   itens: Array<{ pecaId: string; quantidade: number }>,
-  numerar: boolean,
 ): Promise<Etiqueta[]> {
   const ids = [...new Set(itens.map((i) => i.pecaId))];
   const pecas = await prisma.peca.findMany({
@@ -61,34 +59,17 @@ export async function montarEtiquetas(
     );
   }
 
-  // Primeiro número de cada item do pedido, na ordem do pedido.
-  const inicio: number[] = [];
-  if (numerar) {
-    await prisma.$transaction(async (tx) => {
-      for (const item of itens) {
-        const p = await tx.peca.update({
-          where: { id: item.pecaId },
-          data: { ultimaSerie: { increment: item.quantidade } },
-          select: { ultimaSerie: true },
-        });
-        inicio.push(p.ultimaSerie - item.quantidade + 1);
-      }
-    });
-  }
-
   const saida: Etiqueta[] = [];
-  itens.forEach((item, k) => {
+  for (const item of itens) {
     const p = porId.get(item.pecaId)!;
-    const precos = precosDaEtiqueta(num(p.precoTabela), num(p.precoPromocional));
-    for (let u = 0; u < item.quantidade; u++) {
-      saida.push({
-        codigo: numerar ? serie(p.sku, inicio[k] + u) : p.sku,
-        nome: p.nome,
-        tamanho: p.tamanho,
-        ...precos,
-      });
-    }
-  });
+    const etiqueta: Etiqueta = {
+      codigo: p.sku,
+      nome: p.nome,
+      tamanho: p.tamanho,
+      ...precosDaEtiqueta(num(p.precoTabela), num(p.precoPromocional)),
+    };
+    for (let u = 0; u < item.quantidade; u++) saida.push(etiqueta);
+  }
   return saida;
 }
 

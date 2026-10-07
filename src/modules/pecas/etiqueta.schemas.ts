@@ -22,8 +22,6 @@ export const pedidoEtiquetasSchema = z
       )
       .min(1, "Escolha ao menos uma peça.")
       .max(MAX_ETIQUETAS),
-    /** Cada unidade com seu número (LL-0001-01, -02…) — gasta a numeração da peça. */
-    numerar: z.boolean(),
   })
   .refine((d) => d.itens.reduce((s, i) => s + i.quantidade, 0) <= MAX_ETIQUETAS, {
     path: ["itens"],

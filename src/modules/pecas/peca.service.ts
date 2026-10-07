@@ -484,18 +484,6 @@ export async function excluirPeca(pecaId: string) {
   });
 }
 
-/** Numeração por unidade na etiqueta: LL-0001-01, LL-0001-02… */
-export async function proximaSerie(pecaId: string, quantas: number): Promise<string[]> {
-  const p = await prisma.peca.update({
-    where: { id: pecaId },
-    data: { ultimaSerie: { increment: quantas } },
-    select: { sku: true, ultimaSerie: true },
-  });
-  const fim = p.ultimaSerie;
-  const inicio = fim - quantas + 1;
-  return Array.from({ length: quantas }, (_, i) => `${p.sku}-${String(inicio + i).padStart(2, "0")}`);
-}
-
 /* ══════════════════════════ INSUMOS ══════════════════════════ */
 
 /*

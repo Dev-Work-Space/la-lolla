@@ -2,7 +2,6 @@
 
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
-import { recarregar } from "@/lib/recarregar";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
 import { codigoEtiquetaSchema, pedidoEtiquetasSchema, type PedidoEtiquetas } from "./etiqueta.schemas";
 import { montarEtiquetas, pecaPorCodigo } from "./etiqueta.service";
@@ -26,16 +25,8 @@ export async function gerarEtiquetasAction(
     return fail("DADOS_INVALIDOS", fields.itens?.[0] ?? "Confira as quantidades.", fields);
   }
 
-  /* Numerar reserva números na peça — é escrita, e pede a permissão de editar
-     estoque. Sem numerar, imprimir é só leitura: quem vê a peça pode etiquetar. */
-  if (parsed.data.numerar) {
-    const podeEditar = await exigirPermissao("pecas", "editar");
-    if (!podeEditar.ok) return podeEditar;
-  }
-
   try {
-    const etiquetas = await montarEtiquetas(parsed.data.itens, parsed.data.numerar);
-    if (parsed.data.numerar) recarregar("estoque");
+    const etiquetas = await montarEtiquetas(parsed.data.itens);
     return ok({ etiquetas });
   } catch (e) {
     return tratarErro(e, "gerarEtiquetasAction");

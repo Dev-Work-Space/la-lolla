@@ -12,7 +12,7 @@
  * nunca se apaga por nome nem por seletor aproximado.
  */
 import { prisma } from "../src/lib/prisma";
-import { criarPeca, listarPecas, movimentarEstoque, proximaSerie } from "../src/modules/pecas/peca.service";
+import { criarPeca, listarPecas, movimentarEstoque } from "../src/modules/pecas/peca.service";
 import { temCusto } from "../src/modules/pecas/peca.schema";
 import type { CriarPecaDados } from "../src/modules/pecas/peca.schema";
 
@@ -98,16 +98,6 @@ async function main() {
 
   const depois = (await listarPecas({ busca: MARCA, veFinanceiro: true })).find((p) => p.id === comFin.id);
   conferir("saldo = soma dos deltas (10 − 3 = 7)", depois?.saldo === 7, String(depois?.saldo));
-
-  console.log("\n5) SÉRIE POR UNIDADE NA ETIQUETA");
-
-  const series = await proximaSerie(comFin.id, 3);
-  conferir("gerou 3 séries", series.length === 3);
-  conferir("formato SKU-01", series[0] === `${comFin.sku}-01`, series.join(", "));
-  conferir("sequência não repete", new Set(series).size === 3);
-
-  const maisUma = await proximaSerie(comFin.id, 1);
-  conferir("continua de onde parou (SKU-04)", maisUma[0] === `${comFin.sku}-04`, maisUma[0]);
 }
 
 async function limpar() {
