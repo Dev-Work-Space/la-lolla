@@ -47,9 +47,11 @@ const niimbot = (l: number, a: number, dobrada: boolean): ModeloEtiqueta => ({
  * Os sete primeiros são os do app antigo, na mesma ordem e com os mesmos ids
  * (a etiqueta "niimbot" é a D110 de 40 × 12 que a loja usa). Depois deles, os
  * rolos que se vendem prontos para as mesmas impressoras: o 100 × 50 das
- * térmicas e os rolos da NIIMBOT D110/D11/D101. Nos rolos de 30 mm a etiqueta
- * sai reta, porque dobrada cada metade ficaria pequena demais para o QR. Os
- * rolos de 22 e 25 mm ficaram de fora: nem reta cabe QR, nome e preço legíveis.
+ * térmicas e os rolos da NIIMBOT D110/D11/D101. Os de 30 × 12 e 30 × 14 só
+ * saem retos: dobrada, cada metade ficaria pequena demais para o QR. O de
+ * 30 × 15 tem as duas — é o rolo que a loja usa (João, 07/10/2026), e cada
+ * metade dobrada fica um quadrado de 15 mm, onde o QR cabe. Os rolos de 22 e
+ * 25 mm ficaram de fora: nem reta cabe QR, nome e preço legíveis.
  */
 export const MODELOS_ETIQUETA: readonly ModeloEtiqueta[] = [
   termica(40, 25),
@@ -64,6 +66,7 @@ export const MODELOS_ETIQUETA: readonly ModeloEtiqueta[] = [
   niimbot(30, 12, false),
   niimbot(30, 14, false),
   niimbot(40, 14, true),
+  niimbot(30, 15, true),
   niimbot(30, 15, false),
   niimbot(40, 15, true),
   niimbot(50, 15, true),

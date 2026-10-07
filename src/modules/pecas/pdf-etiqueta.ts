@@ -169,9 +169,13 @@ function qrEtiqueta(texto: string, px: number): HTMLCanvasElement | null {
    Aqui é o que imprime: quadrado duro, PRETO puro, sem suavização, e o módulo
    com tamanho INTEIRO e par de pixels, para cair em número redondo de pontos
    quando a impressora reduz de 406 para 203 dpi. Correção de erro L: guarda o
-   mesmo dado em menos módulos, e módulo maior é o que faz o leitor enxergar. */
-function qrTermico(texto: string, caixaPx: number) {
-  const quiet = 2;
+   mesmo dado em menos módulos, e módulo maior é o que faz o leitor enxergar.
+
+   `quietMin` é a borda branca mínima, em módulos. A borda boa é 2; a NIIMBOT
+   aceita 1, porque a etiqueta em volta já é branca. A borda só encolhe quando
+   isso deixa o MÓDULO maior (no 30 × 15, de 8 para 10 px) — se o módulo fica
+   igual, vale mais a borda de 2, que o leitor do celular agradece. */
+function qrTermico(texto: string, caixaPx: number, quietMin = 2) {
   let t: ReturnType<typeof qrcode> | null = null;
   for (const nivel of ["L", "M"] as const) {
     try {
@@ -186,8 +190,10 @@ function qrTermico(texto: string, caixaPx: number) {
   }
   if (!t) return null;
   const n = t.getModuleCount();
+  const modulo = (q: number) => Math.max(2, Math.floor(caixaPx / (n + q * 2) / 2) * 2);
+  const quiet = modulo(2) >= modulo(quietMin) ? 2 : quietMin;
   const total = n + quiet * 2;
-  const s = Math.max(2, Math.floor(caixaPx / total / 2) * 2);
+  const s = modulo(quiet);
   const lado = total * s;
   const cv = document.createElement("canvas");
   cv.width = lado;
@@ -571,6 +577,24 @@ function cortaCanvas(ctx: CanvasRenderingContext2D, txt: string, max: number) {
 
 const SANS = "Helvetica,Arial,sans-serif";
 
+/*
+ * A térmica só tem preto e branco. A borda suavizada das letras sai cinza no
+ * canvas, e o app da NIIMBOT converte esse cinza em chuvisco — é o que deixava
+ * a letra fina e "desfocada" no papel (João, 07/10/2026). Aqui o cinza já vira
+ * preto ou branco: o limiar é generoso para o lado do preto, então o traço
+ * engrossa um pouco em vez de falhar.
+ */
+function soPretoEBranco(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 < 170 ? 0 : 255;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
 function etiquetaPequenaCanvas(
   p: Etiqueta,
   opc: OpcoesEtiqueta,
@@ -590,6 +614,8 @@ function etiquetaPequenaCanvas(
   ctx.textBaseline = "top";
 
   const pad = Math.round(0.9 * PX_MM);
+  // O QR chega mais perto da borda que o texto: cada décimo de mm a mais nele vira módulo maior.
+  const padQr = Math.round(0.3 * PX_MM);
   const preco = precoVigente(p);
   const promo = temPromocao(p);
   const pct = descontoPct(p);
@@ -602,7 +628,12 @@ function etiquetaPequenaCanvas(
     const lh = Math.round(lw * LOGO_RAZAO);
     if (logo) {
       try {
-        ctx.drawImage(logoTermica(logo), x, y, lw, lh);
+        /* A logo tem traço de cabelo: em 7 mm ele some na queima. Desenhada
+           três vezes, deslocada um pixel, ganha corpo sem mudar o desenho. */
+        const l = logoTermica(logo);
+        for (const [dx, dy] of [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]]) {
+          ctx.drawImage(l, x + dx, y + dy, lw, lh);
+        }
         return lh;
       } catch {
         /* cai na serifa */
@@ -627,7 +658,7 @@ function etiquetaPequenaCanvas(
     fPx = Math.max(MIN, fPx);
     let fp = 0;
     for (;;) {
-      ctx.font = `700 ${fPx}px ${SANS}`;
+      ctx.font = `800 ${fPx}px ${SANS}`;
       const wP = ctx.measureText(txt).width;
       if (!tag) {
         if (wP <= maxW || fPx <= MIN) break;
@@ -638,7 +669,7 @@ function etiquetaPequenaCanvas(
       }
       fPx -= 2;
     }
-    ctx.font = `700 ${fPx}px ${SANS}`;
+    ctx.font = `800 ${fPx}px ${SANS}`;
     const corte = cortaCanvas(ctx, txt, maxW);
     const wFinal = ctx.measureText(corte).width;
     ctx.fillText(corte, x, y);
@@ -660,33 +691,86 @@ function etiquetaPequenaCanvas(
     return fMin;
   }
 
+  /* O nome da peça, em negrito. Cabendo numa linha, a maior letra que couber;
+     não cabendo e sobrando altura (rolo de 14 mm para cima), quebra em duas
+     em vez de virar "Anel solitário …". Devolve a altura usada. */
+  function nomeDaPeca(x: number, y: number, maxW: number, fMax: number, fMin: number) {
+    const f = fonteQueCabe(p.nome, maxW, fMax, fMin, "700");
+    ctx.font = `700 ${f}px ${SANS}`;
+    if (ctx.measureText(p.nome).width <= maxW || H < Math.round(14 * PX_MM)) {
+      ctx.fillText(cortaCanvas(ctx, p.nome, maxW), x, y);
+      return f;
+    }
+    const palavras = p.nome.trim().split(/\s+/);
+    let primeira = "";
+    while (palavras.length > 1) {
+      const tenta = primeira ? `${primeira} ${palavras[0]}` : palavras[0];
+      if (primeira && ctx.measureText(tenta).width > maxW) break;
+      primeira = tenta;
+      palavras.shift();
+    }
+    const entrelinha = Math.round(0.15 * PX_MM);
+    ctx.fillText(cortaCanvas(ctx, primeira, maxW), x, y);
+    ctx.fillText(cortaCanvas(ctx, palavras.join(" "), maxW), x, y + f + entrelinha);
+    return f * 2 + entrelinha;
+  }
+
+  /* Código interno e tamanho, em negrito: é o que a loja confere na peça.
+     Antes eles dividiam uma linha e o tamanho virava "T…" quando não cabia;
+     agora a letra encolhe um pouco e, se ainda não couber, o tamanho desce
+     para a linha de baixo. Devolve a altura usada. */
+  function codigoETamanho(x: number, y: number, maxW: number, fMax: number) {
+    const fMin = Math.round(1.3 * PX_MM);
+    const junto = codigo + (tam ? "  ·  " + tam : "");
+    const f = fonteQueCabe(junto, maxW, fMax, fMin, "700");
+    ctx.font = `700 ${f}px ${SANS}`;
+    if (ctx.measureText(junto).width <= maxW || !tam) {
+      ctx.fillText(cortaCanvas(ctx, junto, maxW), x, y);
+      return f;
+    }
+    const f2 = fonteQueCabe(codigo, maxW, fMax, fMin, "700");
+    ctx.font = `700 ${f2}px ${SANS}`;
+    ctx.fillText(cortaCanvas(ctx, codigo, maxW), x, y);
+    ctx.fillText(cortaCanvas(ctx, tam, maxW), x, y + f2 + Math.round(0.15 * PX_MM));
+    return f2 * 2 + Math.round(0.15 * PX_MM);
+  }
+
   if (m.dobrada) {
     /* Dobra ao meio e envolve o aro. Não cabe tudo, então há uma ordem de
        prioridade — QR, preço, nome e tamanho é o que a loja usa; a marca entra
        pequena, de assinatura, e é a primeira a ceder espaço. O vinco
        pontilhado marca onde dobrar. */
     const meia = Math.floor(W / 2);
+
+    /* Face esquerda: só o QR, o MAIOR que cabe na metade sem encostar no
+       vinco — módulo mais grosso é o que faz o leitor pegar de primeira no
+       térmico. Desenhado 1:1: redimensionar reamostra os módulos e o código
+       sai fraco. */
+    const reservaVinco = Math.round(0.9 * PX_MM);
+    const caixaQR = Math.min(meia - padQr - reservaVinco, H - padQr * 2);
+    if (opc.qr && caixaQR > Math.round(4 * PX_MM)) {
+      const qt = qrTermico(p.codigo, caixaQR, 1);
+      if (qt) {
+        ctx.imageSmoothingEnabled = false;
+        /* Centrado na metade, como sempre foi; só encosta para a esquerda
+           quando o centro invadiria a reserva do vinco (30 × 15). Mexer na
+           posição do 40 × 12, que já lia bem, fez o leitor falhar no teste. */
+        const xq = Math.min(padQr + Math.round((meia - padQr * 2 - qt.lado) / 2), meia - reservaVinco - qt.lado);
+        ctx.drawImage(qt.cv, xq, Math.round((H - qt.lado) / 2));
+      }
+    }
+
+    /* O vinco tracejado marca onde dobrar, SEMPRE (o João sentiu falta dele
+       quando o QR do 30 × 15 ocupou a metade inteira). Por isso o QR deixa a
+       reserva acima: o tracejado colado no código atrapalha a leitura. */
     ctx.save();
     ctx.setLineDash([Math.round(0.5 * PX_MM), Math.round(0.5 * PX_MM)]);
-    ctx.lineWidth = Math.max(1, Math.round(0.12 * PX_MM));
+    ctx.lineWidth = Math.max(2, Math.round(0.15 * PX_MM));
     ctx.beginPath();
     ctx.moveTo(meia, pad);
     ctx.lineTo(meia, H - pad);
     ctx.stroke();
     ctx.restore();
-
-    /* Face esquerda: só o QR, usando a ALTURA INTEIRA — módulo mais grosso é o
-       que faz o leitor pegar de primeira no térmico. Desenhado 1:1:
-       redimensionar reamostra os módulos e o código sai fraco. */
-    const espL = meia - pad * 2;
-    const caixaQR = Math.min(espL, H - pad * 2);
-    if (opc.qr && caixaQR > Math.round(4 * PX_MM)) {
-      const qt = qrTermico(p.codigo, caixaQR);
-      if (qt) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(qt.cv, pad + Math.round((espL - qt.lado) / 2), Math.round((H - qt.lado) / 2));
-      }
-    }
 
     // Face direita, de cima para baixo: assinatura, nome, código com tamanho e o preço fechando.
     const xR = meia + pad;
@@ -694,17 +778,12 @@ function etiquetaPequenaCanvas(
     let yR = pad;
     yR += marca(xR, yR, Math.round(7 * PX_MM)) + Math.round(0.3 * PX_MM);
 
-    const fNome = fonteQueCabe(p.nome, espR, Math.round(2.2 * PX_MM), Math.round(1.7 * PX_MM), "600");
-    ctx.font = `600 ${fNome}px ${SANS}`;
-    ctx.fillText(cortaCanvas(ctx, p.nome, espR), xR, yR);
-    yR += fNome + Math.round(0.2 * PX_MM);
+    yR += nomeDaPeca(xR, yR, espR, Math.round(2.2 * PX_MM), Math.round(1.7 * PX_MM)) + Math.round(0.2 * PX_MM);
 
-    const fSub = Math.round(1.6 * PX_MM);
-    ctx.font = `${fSub}px ${SANS}`;
-    ctx.fillText(cortaCanvas(ctx, codigo + (tam ? "  ·  " + tam : ""), espR), xR, yR);
-    yR += fSub + Math.round(0.25 * PX_MM);
+    yR += codigoETamanho(xR, yR, espR, Math.round(1.7 * PX_MM)) + Math.round(0.25 * PX_MM);
 
     precoEm(xR, yR, espR, Math.min(Math.round(3.4 * PX_MM), H - pad - yR));
+    soPretoEBranco(ctx, W, H);
     return cv;
   }
 
@@ -713,12 +792,15 @@ function etiquetaPequenaCanvas(
      vai o QR de impressão, o mesmo da etiqueta dobrada. */
   let espTexto = W - pad * 2;
   if (opc.qr) {
-    const caixa = H - pad * 2;
-    const qt = qrTermico(p.codigo, caixa);
+    const caixa = H - padQr * 2;
+    const qt = qrTermico(p.codigo, caixa, 1);
     if (qt) {
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(qt.cv, W - pad - caixa + Math.round((caixa - qt.lado) / 2), Math.round((H - qt.lado) / 2));
-      espTexto = W - pad * 3 - caixa;
+      const xq = W - padQr - caixa + Math.round((caixa - qt.lado) / 2);
+      ctx.drawImage(qt.cv, xq, Math.round((H - qt.lado) / 2));
+      /* Branco de verdade entre o texto e o QR: com o texto em negrito colado
+         nele, o leitor confundia letra com módulo e não lia o 30 × 12. */
+      espTexto = xq - pad - Math.round(1.5 * PX_MM);
     }
   }
   /* A marca vai do tamanho da assinatura da dobrada: com a logo grande do app
@@ -726,21 +808,16 @@ function etiquetaPequenaCanvas(
   let y = pad;
   y += marca(pad, y, Math.min(espTexto, Math.round(7 * PX_MM))) + Math.round(0.45 * PX_MM);
 
-  const fN = Math.round(2.0 * PX_MM);
-  ctx.font = `${fN}px ${SANS}`;
-  ctx.fillText(cortaCanvas(ctx, p.nome, espTexto), pad, y);
-  y += fN + Math.round(0.25 * PX_MM);
+  y += nomeDaPeca(pad, y, espTexto, Math.round(2.0 * PX_MM), Math.round(1.6 * PX_MM)) + Math.round(0.25 * PX_MM);
 
-  const fC = Math.round(1.7 * PX_MM);
-  ctx.font = `${fC}px ${SANS}`;
-  ctx.fillText(cortaCanvas(ctx, codigo + (tam ? "  ·  " + tam : ""), espTexto), pad, y);
-  y += fC + Math.round(0.3 * PX_MM);
+  y += codigoETamanho(pad, y, espTexto, Math.round(1.7 * PX_MM)) + Math.round(0.3 * PX_MM);
 
   // o preço ocupa o que sobrou de altura, sem estourar a etiqueta
   const sobra = H - pad - y;
   if (opc.preco && preco > 0 && sobra > Math.round(1.6 * PX_MM)) {
     precoEm(pad, y, espTexto, Math.min(Math.round(3.4 * PX_MM), sobra));
   }
+  soPretoEBranco(ctx, W, H);
   return cv;
 }
 

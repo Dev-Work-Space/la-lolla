@@ -50,7 +50,6 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
   // Na ordem em que vieram na compra, que é a ordem da nota do fornecedor.
   const ordem = Object.keys(entrou);
   paraEtiqueta.sort((a, b) => ordem.indexOf(a.id) - ordem.indexOf(b.id));
-  const podeNumerar = sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pecas.editar;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
@@ -77,7 +76,6 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
               pecas={paraEtiqueta}
               quantidades={entrou}
               personalizado={modeloDosAjustes(ajustes)}
-              podeNumerar={podeNumerar}
               rotulo="Etiquetas desta compra"
               titulo={`Etiquetas da compra #${c.numero}`}
             />

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import { MinusIcon, PlusIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +83,6 @@ const assinarNada = () => () => {};
 export function ImprimirEtiquetas({
   pecas,
   personalizado,
-  podeNumerar,
   quantidades,
   rotulo = "Etiquetas",
   titulo,
@@ -93,21 +91,17 @@ export function ImprimirEtiquetas({
   pecas: PecaEtiqueta[];
   /** O tamanho guardado nos Ajustes — entra no fim da lista de modelos. */
   personalizado: ModeloEtiqueta;
-  /** Numerar reserva números na peça: só quem pode editar o estoque. */
-  podeNumerar: boolean;
   /** Quantidade sugerida por peça — ex.: as unidades que entraram na compra. */
   quantidades?: Record<string, number>;
   rotulo?: string;
   titulo?: string;
   variante?: "default" | "outline";
 }) {
-  const router = useRouter();
   const unica = pecas.length === 1;
   const [aberto, setAberto] = useState(false);
   const [qtd, setQtd] = useState<Record<string, number>>({});
   const [modo, setModo] = useState<Modo>("um");
   const [nDeCada, setNDeCada] = useState("2");
-  const [numerar, setNumerar] = useState(podeNumerar);
   const [modeloId, setModeloId] = useState(MODELO_PADRAO);
   const [mostrarPreco, setMostrarPreco] = useState(true);
   const [incluirQr, setIncluirQr] = useState(true);
@@ -140,7 +134,6 @@ export function ImprimirEtiquetas({
   function abrir(v: boolean) {
     setAberto(v);
     if (!v) return;
-    setNumerar(podeNumerar);
     setModeloId(modeloSalvo());
     setMostrarPreco(true);
     setIncluirQr(true);
@@ -171,7 +164,7 @@ export function ImprimirEtiquetas({
   const previa = usePreviaEtiqueta(
     primeira
       ? {
-          codigo: primeira.sku + (numerar ? "-01" : ""),
+          codigo: primeira.sku,
           nome: primeira.nome,
           tamanho: primeira.tamanho,
           preco: primeira.preco,
@@ -202,9 +195,8 @@ export function ImprimirEtiquetas({
   }
 
   async function gerar() {
-    const r = await gerarEtiquetasAction({ itens: pedido(), numerar });
+    const r = await gerarEtiquetasAction({ itens: pedido() });
     if (!r.ok) throw new AvisoPdf(r.error.message);
-    if (numerar) router.refresh();
     return gerarPdfEtiquetas(r.data.etiquetas, modelo, opc);
   }
 
@@ -230,13 +222,11 @@ export function ImprimirEtiquetas({
     setAviso(null);
     setEnviando(true);
     try {
-      /* Só as que vão de fato: numerar 50 e mandar 12 queimaria 38 números. */
-      const r = await gerarEtiquetasAction({ itens: pedido(MAX_IMAGENS_NIIMBOT), numerar });
+      const r = await gerarEtiquetasAction({ itens: pedido(MAX_IMAGENS_NIIMBOT) });
       if (!r.ok) {
         setAviso(r.error.message);
         return;
       }
-      if (numerar) router.refresh();
       const arquivos = await imagensNiimbot(r.data.etiquetas, modelo, opc);
       await compartilhar(arquivos);
     } catch {
@@ -300,7 +290,6 @@ export function ImprimirEtiquetas({
               />
               <figcaption className="mt-2 text-center text-xs text-neutral-500">
                 Prévia da primeira etiqueta
-                {numerar ? " — o número da unidade sai na hora de gerar" : ""}
               </figcaption>
             </figure>
           )}
@@ -430,24 +419,6 @@ export function ImprimirEtiquetas({
               </span>
             </label>
           </div>
-
-          <label className="flex items-start gap-2.5 rounded-lg border p-3">
-            <input
-              type="checkbox"
-              checked={numerar}
-              disabled={!podeNumerar}
-              onChange={(e) => setNumerar(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-primary"
-            />
-            <span className="text-sm">
-              <span className="font-medium">Numerar cada unidade</span>
-              <span className="block text-xs leading-relaxed text-muted-foreground">
-                {podeNumerar
-                  ? "Como no app antigo: LL-0001-01, LL-0001-02… — dá para saber exatamente qual unidade saiu. Desligado, todas saem com o código da peça."
-                  : "Só quem pode editar o estoque numera unidades. As etiquetas saem com o código da peça."}
-              </span>
-            </span>
-          </label>
 
           {/* Caminho do celular: a folha de compartilhar do aparelho é onde o app
               da NIIMBOT aparece. O botão só existe onde a folha existe — no PC

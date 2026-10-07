@@ -118,7 +118,6 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <ImprimirEtiquetas
               pecas={paraEtiqueta}
               personalizado={modeloDosAjustes(ajustes)}
-              podeNumerar={podeEditar}
               rotulo="Imprimir etiqueta"
             />
           )}
