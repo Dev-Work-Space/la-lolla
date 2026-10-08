@@ -4,7 +4,10 @@ import { prisma } from "@/lib/prisma";
 /* O saldo em caixa vem do MESMO lugar que o Financeiro usa — uma conta só
    para uma pergunta só. */
 import { carteirasComSaldo, naoAtribuido } from "@/modules/financeiro/financeiro.service";
+import { previsao } from "@/modules/financeiro/agenda.service";
+import { listarClientes } from "@/modules/pessoas/pessoa.service";
 import { CATEGORIAS_FORA_DA_DESPESA } from "@/modules/financeiro/financeiro.tipos";
+import { brl, brlCompacto } from "@/lib/formato";
 
 /*
  * Dados do Início.
@@ -38,19 +41,44 @@ export type Pendencia = {
   href: string;
 };
 
+/** Um recorte dos números de venda — as abas Hoje, 7 dias, Mês e Ano. */
+export type NumerosDoPeriodo = {
+  id: "hoje" | "semana" | "mes" | "ano";
+  rotulo: string;
+  /** Com quem se compara, já com a preposição: "ontem", "de 1º a 7 de set"… */
+  contra: string;
+  faturado: number;
+  /** "R$ 2,0 mil", formatado AQUI: o navegador abrevia diferente do
+      servidor ("R$ 2 mil") e a tela acusava erro de hidratação. */
+  curto: string;
+  anterior: number;
+  vendas: number;
+  pecas: number;
+  ticket: number;
+  /** null para quem não vê o Financeiro: custo não sai do servidor. */
+  margem: number | null;
+};
+
+export type PecaVendida = { id: string; nome: string; sku: string; qtd: number; valor: number };
+
+const mesCurto = (d: Date) => d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+const ddmm = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
 /**
- * TUDO que o Início precisa, em 4 consultas.
+ * TUDO que o Início precisa, em poucas consultas paralelas.
  * Antes era uma consulta por número da tela — catorze no total.
  */
-export async function dadosDoInicio(nome: string) {
+export async function dadosDoInicio(nome: string, veFinanceiro: boolean) {
   const agora = new Date();
   const dia0 = inicioDoDia(agora);
+  const amanha0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 1);
   const mes0 = inicioDoMes(agora);
   const mesAnt0 = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
   const ano0 = inicioDoAno(agora);
-  // O gráfico de 6 meses pode começar antes de janeiro; pego o menor dos dois.
-  const seis0 = new Date(agora.getFullYear(), agora.getMonth() - 5, 1);
-  const desde = new Date(Math.min(+ano0, +seis0, +mesAnt0));
+  /* A aba "Ano" compara com o mesmo pedaço do ano passado, então as vendas
+     vêm desde 1º de janeiro do ano anterior — que já cobre os 6 meses do
+     gráfico e os 30 dias do ritmo. */
+  const desde = new Date(agora.getFullYear() - 1, 0, 1);
   const em7 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 7);
   /* O orçamento avisa com 2 dias, a conta com 7: são urgências diferentes.
      Dois dias é o que sobra para ligar para a cliente antes de o preço
@@ -58,13 +86,16 @@ export async function dadosDoInicio(nome: string) {
      dinheiro. Documentação, seção 05. */
   const em2 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + 2, 23, 59, 59, 999);
 
-  const [vendas, caixa, config, pendencias, saidasAno] = await Promise.all([
+  const [vendas, caixa, config, pendencias, saidasAno, futuro, clientes] = await Promise.all([
     // 1) as vendas do período, com o que basta para TODOS os números da tela
     prisma.venda.findMany({
       where: { status: { not: "CANCELADA" }, data: { gte: desde } },
       select: {
+        id: true,
+        numero: true,
         data: true,
         total: true,
+        cliente: { select: { nome: true } },
         itens: {
           select: {
             quantidade: true,
@@ -95,10 +126,26 @@ export async function dadosDoInicio(nome: string) {
     // 3) meta do mês
     prisma.config.findUnique({ where: { chave: "meta" } }),
 
-    // 4) o que precisa de atenção — quatro contagens baratas numa viagem só
+    /* 4) o que precisa de atenção, numa viagem só.
+       As contas vêm separadas por tipo: antes "Contas vencidas" somava o que
+       a loja deve com o que a cliente deve à loja, e o link abria só as
+       contas a pagar — o número não batia com a lista. */
     prisma.$transaction([
-      prisma.conta.count({ where: { status: "ABERTA", vencimento: { lt: dia0 } } }),
-      prisma.conta.count({ where: { status: "ABERTA", vencimento: { gte: dia0, lte: em7 } } }),
+      prisma.conta.aggregate({
+        where: { tipo: "PAGAR", status: "ABERTA", vencimento: { lt: dia0 } },
+        _count: { _all: true },
+        _sum: { valor: true },
+      }),
+      prisma.conta.aggregate({
+        where: { tipo: "RECEBER", status: "ABERTA", vencimento: { lt: dia0 } },
+        _count: { _all: true },
+        _sum: { valor: true },
+      }),
+      prisma.conta.aggregate({
+        where: { tipo: "PAGAR", status: "ABERTA", vencimento: { gte: dia0, lte: em7 } },
+        _count: { _all: true },
+        _sum: { valor: true },
+      }),
       /*
        * "Validade acabando em até 2 dias" — documentação, seção 05.
        *
@@ -139,6 +186,14 @@ export async function dadosDoInicio(nome: string) {
       where: { data: { gte: ano0, lt: new Date(agora.getFullYear() + 1, 0, 1) }, valor: { lt: 0 } },
       select: { valor: true, categoria: true },
     }),
+
+    /* 6) o caixa das próximas 4 semanas — a MESMA conta da previsão do
+       Financeiro. Só para quem vê o Financeiro. */
+    veFinanceiro ? previsao({ semanas: 4 }) : null,
+
+    /* 7) clientes — a MESMA lista da tela de Clientes, para "parada" e
+       "aniversário" quererem dizer aqui o que dizem lá. */
+    listarClientes({}),
   ]);
 
   /* ── daqui para baixo é tudo soma em memória ── */
@@ -198,57 +253,41 @@ export async function dadosDoInicio(nome: string) {
     });
   }
 
-  // Ritmo dos últimos 14 dias
-  const ritmo: Array<{ dia: string; data: string; valor: number; vendas: number }> = [];
-  for (let k = 13; k >= 0; k--) {
-    const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - k);
-    const fim = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-    const doDiaK = noPeriodo(d, fim);
-    ritmo.push({
-      dia: String(d.getDate()).padStart(2, "0"),
-      data: d.toLocaleDateString("pt-BR"),
-      valor: soma(doDiaK),
-      vendas: doDiaK.length,
-    });
-  }
-
-  // Mais vendidas no mês — desconta o que foi devolvido
-  const mapa = new Map<string, { nome: string; sku: string; qtd: number; valor: number }>();
-  for (const v of doMes) {
-    for (const i of v.itens) {
-      const liquidas = i.quantidade - i.devolvido;
-      if (liquidas <= 0) continue;
-      const a = mapa.get(i.peca.id) ?? { nome: i.peca.nome, sku: i.peca.sku, qtd: 0, valor: 0 };
-      a.qtd += liquidas;
-      a.valor += num(i.precoUnit) * liquidas;
-      mapa.set(i.peca.id, a);
-    }
-  }
-  const mais = [...mapa.entries()]
-    .map(([id, v]) => ({ id, ...v }))
-    .sort((a, b) => b.qtd - a.qtd)
-    .slice(0, 5);
 
   // Pendências
-  const [vencidas, aVencer, orcamentos, zeradasRaw] = pendencias;
+  const [pagarVencidas, receberVencidas, aVencer, orcamentos, zeradasRaw] = pendencias;
   const zeradas = Number(zeradasRaw[0]?.zeradas ?? 0);
+  const pagarVencido = { qtd: pagarVencidas._count._all, valor: r2(num(pagarVencidas._sum.valor)) };
+  const receberAtrasado = { qtd: receberVencidas._count._all, valor: r2(num(receberVencidas._sum.valor)) };
+  /* Valor em dinheiro só para quem vê o Financeiro; os outros continuam
+     vendo a contagem, como antes. */
+  const quanto = (qtd: number, valor: number) => (veFinanceiro ? `${qtd} · ${brl(valor)}` : String(qtd));
 
   const pend: Pendencia[] = [];
-  if (vencidas > 0)
+  if (pagarVencido.qtd > 0)
     pend.push({
       p: 0,
-      nome: "Contas vencidas",
-      sub: "passaram do vencimento",
-      valor: String(vencidas),
+      nome: pagarVencido.qtd === 1 ? "Conta vencida" : "Contas vencidas",
+      sub: "a pagar, passaram do vencimento",
+      valor: quanto(pagarVencido.qtd, pagarVencido.valor),
       cor: "var(--ll-danger)",
       href: "/financeiro?aba=contas&tipo=pagar&filtro=vencidas",
     });
-  if (aVencer > 0)
+  if (receberAtrasado.qtd > 0)
+    pend.push({
+      p: 0,
+      nome: "Cobrar clientes",
+      sub: "a receber, já devia ter entrado",
+      valor: quanto(receberAtrasado.qtd, receberAtrasado.valor),
+      cor: "var(--ll-danger)",
+      href: "/financeiro?aba=contas&tipo=receber&filtro=vencidas",
+    });
+  if (aVencer._count._all > 0)
     pend.push({
       p: 1,
-      nome: "Vencendo esta semana",
-      sub: "próximos 7 dias",
-      valor: String(aVencer),
+      nome: "Pagar esta semana",
+      sub: "vence nos próximos 7 dias",
+      valor: quanto(aVencer._count._all, r2(num(aVencer._sum.valor))),
       cor: "var(--ll-warn)",
       href: "/financeiro?aba=contas&tipo=pagar&filtro=semana",
     });
@@ -274,6 +313,129 @@ export async function dadosDoInicio(nome: string) {
     });
 
   const metaValor = Number(config?.valor);
+
+  /* ── as abas de números: cada recorte contra o mesmo pedaço de antes ── */
+
+  const numerosDe = (
+    id: NumerosDoPeriodo["id"],
+    rotulo: string,
+    de: Date,
+    antDe: Date,
+    antAte: Date,
+    contra: string,
+  ): NumerosDoPeriodo => {
+    const lista = noPeriodo(de, amanha0);
+    const faturado = soma(lista);
+    const comValor = lista.filter((v) => faturadoDe(v) > 0.005).length;
+    return {
+      id,
+      rotulo,
+      contra,
+      faturado,
+      curto: brlCompacto(faturado),
+      anterior: soma(noPeriodo(antDe, antAte)),
+      vendas: comValor,
+      pecas: lista.reduce((s, v) => s + v.itens.reduce((t, i) => t + i.quantidade - i.devolvido, 0), 0),
+      ticket: comValor ? r2(faturado / comValor) : 0,
+      margem: veFinanceiro ? r2(faturado - custoDe(lista)) : null,
+    };
+  };
+  const ontem0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 1);
+  const sete0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 6);
+  const quatorze0 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 13);
+  /* O mês corrente contra o MESMO pedaço do mês passado (1º até o mesmo dia).
+     Contra o mês passado inteiro, todo começo de mês dava "-100%" — o João
+     viu isso no dia 7 e com razão achou que estava ruim. */
+  const diaNoMesAnt = Math.min(agora.getDate(), new Date(agora.getFullYear(), agora.getMonth(), 0).getDate());
+  const mesAntAte = new Date(agora.getFullYear(), agora.getMonth() - 1, diaNoMesAnt + 1);
+  const anoAnt0 = new Date(agora.getFullYear() - 1, 0, 1);
+  const anoAntAte = new Date(agora.getFullYear() - 1, agora.getMonth(), agora.getDate() + 1);
+
+  const periodos: NumerosDoPeriodo[] = [
+    numerosDe("hoje", "Hoje", dia0, ontem0, dia0, "ontem"),
+    numerosDe("semana", "7 dias", sete0, quatorze0, sete0, `nos 7 dias antes (${ddmm(quatorze0)} a ${ddmm(new Date(+sete0 - 1))})`),
+    numerosDe(
+      "mes",
+      "Mês",
+      mes0,
+      mesAnt0,
+      mesAntAte,
+      diaNoMesAnt === 1 ? `em 1º de ${mesCurto(mesAnt0)}` : `de 1º a ${diaNoMesAnt} de ${mesCurto(mesAnt0)}`,
+    ),
+    numerosDe("ano", "Ano", ano0, anoAnt0, anoAntAte, `no mesmo período de ${agora.getFullYear() - 1}`),
+  ];
+
+  /* ── ritmo de 30 dias (a tela mostra 14 ou 30) ── */
+  const ritmo30: Array<{ chave: string; dia: string; semana: string; data: string; valor: number; vendas: number }> = [];
+  for (let k = 29; k >= 0; k--) {
+    const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - k);
+    const doDiaK = noPeriodo(d, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1));
+    ritmo30.push({
+      chave: d.toISOString(),
+      dia: String(d.getDate()).padStart(2, "0"),
+      semana: d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
+      data: d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }),
+      valor: soma(doDiaK),
+      vendas: doDiaK.filter((v) => faturadoDe(v) > 0.005).length,
+    });
+  }
+
+  /* ── mais vendidas no mês e no ano, pelas duas réguas ── */
+  const ranking = (lista: typeof vendas) => {
+    const m = new Map<string, PecaVendida>();
+    for (const v of lista)
+      for (const i of v.itens) {
+        const liquidas = i.quantidade - i.devolvido;
+        if (liquidas <= 0) continue;
+        const a = m.get(i.peca.id) ?? { id: i.peca.id, nome: i.peca.nome, sku: i.peca.sku, qtd: 0, valor: 0 };
+        a.qtd += liquidas;
+        a.valor = r2(a.valor + num(i.precoUnit) * liquidas);
+        m.set(i.peca.id, a);
+      }
+    const todas = [...m.values()];
+    return {
+      qtd: [...todas].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor).slice(0, 10),
+      valor: [...todas].sort((a, b) => b.valor - a.valor || b.qtd - a.qtd).slice(0, 10),
+    };
+  };
+  const ranking12 = { mes: ranking(doMes), ano: ranking(doAno) };
+
+  /* ── as últimas vendas, da mais nova para a mais antiga ── */
+  const ultimas = [...vendas]
+    .filter((v) => v.data < amanha0)
+    .sort((a, b) => +b.data - +a.data)
+    .slice(0, 6)
+    .map((v) => ({
+      id: v.id,
+      numero: v.numero,
+      cliente: v.cliente?.nome ?? null,
+      quando:
+        v.data >= dia0 ? "hoje" : v.data >= ontem0 ? "ontem" : ddmm(v.data),
+      valor: faturadoDe(v),
+      pecas: v.itens.reduce((t, i) => t + i.quantidade - i.devolvido, 0),
+    }));
+
+  /* ── clientes: aniversário nos próximos 7 dias e as que sumiram ── */
+  const aniversarios = clientes.linhas
+    .flatMap((c) => {
+      if (!c.nascimento) return [];
+      const [, mm, dd] = c.nascimento.split("-").map(Number);
+      if (!mm || !dd) return [];
+      /* De hoje até 6 dias à frente, virando o ano se precisar (aniversário
+         em 2/jan visto em 29/dez). */
+      for (let k = 0; k < 7; k++) {
+        const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + k);
+        if (d.getMonth() + 1 === mm && d.getDate() === dd)
+          return [{ id: c.id, nome: c.nome, telefone: c.telefone, emDias: k, dia: ddmm(d) }];
+      }
+      return [];
+    })
+    .sort((a, b) => a.emDias - b.emDias);
+  const paradas = clientes.linhas
+    .filter((c) => c.diasSemComprar !== null && c.diasSemComprar >= clientes.limite)
+    /* As que compravam mais primeiro: é a ligação que mais vale a pena. */
+    .sort((a, b) => b.totalComprado - a.totalComprado)
+    .map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone, dias: c.diasSemComprar ?? 0 }));
 
   return {
     ctx: {
@@ -310,10 +472,28 @@ export async function dadosDoInicio(nome: string) {
       })(),
       emCaixa: caixa,
       meta: Number.isFinite(metaValor) && metaValor > 0 ? metaValor : 0,
+      /* Os nomes de mês saem prontos daqui. Formatados no navegador, a data
+         de 1º de outubro feita no servidor (UTC) virava 30/set no Brasil, e
+         a tela dizia "Meta de setembro" em pleno outubro. */
+      nomeMes: mes0.toLocaleDateString("pt-BR", { month: "long" }),
+      diaDoMes: agora.getDate(),
+      diasNoMes: new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate(),
     },
     serie,
-    ritmo,
-    mais,
+    ritmo30,
+    periodos,
+    ranking: ranking12,
+    ultimas,
+    caixaFuturo: futuro
+      ? {
+          entra: futuro.totalEntra,
+          sai: futuro.totalSai,
+          fica: r2(caixa + futuro.totalEntra - futuro.totalSai),
+          semanas: futuro.linhas.map((l) => ({ de: ddmm(l.inicio), ate: ddmm(l.fim), entra: l.entra, sai: l.sai })),
+          piorSemana: futuro.pior ? ddmm(futuro.pior.inicio) : null,
+        }
+      : null,
+    clientes: { aniversarios, paradas: paradas.slice(0, 5), totalParadas: paradas.length, limite: clientes.limite },
     pend: pend.sort((a, b) => a.p - b.p),
   };
 }

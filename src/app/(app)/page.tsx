@@ -23,7 +23,7 @@ export default async function InicioPage() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
-  const dados = dadosDoInicio(sessao.nome).then((d) => ({
+  const dados = dadosDoInicio(sessao.nome, veFinanceiro(sessao)).then((d) => ({
     ...d,
     veFinanceiro: veFinanceiro(sessao),
   }));

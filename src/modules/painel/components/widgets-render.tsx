@@ -5,25 +5,21 @@ import Link from "next/link";
 import { brl } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { ContextoInicio, Pendencia } from "../painel.service";
+import type { DadosInicio } from "../painel.service";
 import type { IdWidget } from "../widgets";
+import { Clientes, MaisVendidas, Meta, Numeros, Ritmo, UltimasVendas } from "./widgets-interativos";
 
 /*
- * Os 7 widgets do Início, portados um a um do app antigo.
+ * Os widgets do Início. Os 7 primeiros vieram do app antigo; em 07/10/2026
+ * o João pediu tudo abaixo do gráfico principal "melhor, com mais opções e
+ * interativo", e os que se mexem moram em `widgets-interativos.tsx`.
  *
  * Regra herdada de lá: um widget que não tem nada a mostrar devolve `null` e
  * SOME da tela, sem deixar buraco. É por isso que "Meta do mês" desaparece
  * quando não há meta definida.
  */
 
-export type DadosPainel = {
-  ctx: ContextoInicio;
-  serie: Array<{ rotulo: string; valor: number }>;
-  ritmo: Array<{ dia: string; data: string; valor: number; vendas: number }>;
-  mais: Array<{ id: string; nome: string; sku: string; qtd: number; valor: number }>;
-  pend: Pendencia[];
-  veFinanceiro: boolean;
-};
+export type DadosPainel = DadosInicio & { veFinanceiro: boolean };
 
 function saudacao(d: Date) {
   const h = d.getHours();
@@ -284,241 +280,57 @@ function Pendencias({ pend }: DadosPainel) {
   );
 }
 
-/* ─────────────────────────── números ─────────────────────────── */
-
-function Numeros({ ctx, veFinanceiro }: DadosPainel) {
-  const variacao =
-    ctx.fatMesAnterior > 0
-      ? Math.round(((ctx.fatMes - ctx.fatMesAnterior) / ctx.fatMesAnterior) * 100)
-      : null;
-  const mesAnt = ctx.mesAnt0.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
-
-  return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-      <Cartao
-        titulo="Vendido hoje"
-        valor={brl(ctx.fatHoje)}
-        sub={`${ctx.vendasHoje} ${ctx.vendasHoje === 1 ? "venda" : "vendas"}`}
-        href="/vendas"
-        tom={ctx.fatHoje > 0 ? "pos" : "neutro"}
-      />
-      <Cartao
-        titulo="Este mês"
-        selo={variacao === null ? undefined : `${variacao >= 0 ? "+" : ""}${variacao}%`}
-        seloBom={variacao !== null && variacao >= 0}
-        valor={brl(ctx.fatMes)}
-        sub={`contra ${brl(ctx.fatMesAnterior)} em ${mesAnt}`}
-        href="/financeiro"
-      />
-      {veFinanceiro && (
-        <Cartao
-          titulo="Em caixa"
-          valor={brl(ctx.emCaixa)}
-          sub="todas as carteiras"
-          href="/financeiro"
-          tom={ctx.emCaixa < 0 ? "neg" : "accent"}
-        />
-      )}
-    </div>
-  );
-}
-
-function Cartao({
-  titulo,
-  valor,
-  sub,
-  href,
-  tom = "neutro",
-  selo,
-  seloBom,
-}: {
-  titulo: string;
-  valor: string;
-  sub: string;
-  href: string;
-  tom?: "neutro" | "pos" | "neg" | "accent";
-  selo?: string;
-  seloBom?: boolean;
-}) {
-  return (
-    <Link href={href} className="min-w-0">
-      <Card className="block h-full p-4 text-base hover:bg-accent/30">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {titulo}
-          </p>
-          {selo && (
-            <Badge
-              variant="outline"
-              className={cn(
-                "h-auto",
-                "shrink-0 rounded px-1 py-0.5 text-[10px] font-bold",
-                seloBom
-                  ? "bg-(--ll-ok-soft) text-ok"
-                  : "bg-destructive/10 text-destructive",
-              )}
-            >
-              {selo}
-            </Badge>
-          )}
-        </div>
-        <p
-          className={cn(
-            "mt-1 overflow-hidden whitespace-nowrap text-2xl font-bold tabular-nums",
-            tom === "pos" && "text-emerald-700 dark:text-emerald-400",
-            tom === "neg" && "text-destructive",
-            tom === "accent" && "text-amber-700 dark:text-amber-500",
-          )}
-        >
-          {valor}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
-      </Card>
-    </Link>
-  );
-}
-
-/* ─────────────────────────── meta ─────────────────────────── */
-
-function Meta({ ctx }: DadosPainel) {
-  if (!(ctx.meta > 0)) return null; // some quando não há meta — regra do app antigo
-
-  const pct = Math.min(100, Math.round((ctx.fatMes / ctx.meta) * 100));
-  const nomeMes = ctx.mes0.toLocaleDateString("pt-BR", { month: "long" });
-
-  return (
-    <Card as="section" className="block overflow-visible py-0 text-base p-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Meta de <span className="first-letter:uppercase">{nomeMes}</span>
-        </p>
-        <p className="overflow-hidden whitespace-nowrap text-sm font-medium tabular-nums">
-          {brl(ctx.fatMes)} <span className="text-muted-foreground">de {brl(ctx.meta)}</span>
-        </p>
-      </div>
-      <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {ctx.fatMes >= ctx.meta
-          ? "Meta batida. O que vier agora é acima do combinado."
-          : `Faltam ${brl(ctx.meta - ctx.fatMes)} · ${pct}% do caminho`}
-      </p>
-    </Card>
-  );
-}
-
-/* ─────────────────────────── ritmo 14 dias ─────────────────────────── */
-
-function Ritmo14({ ritmo }: DadosPainel) {
-  const maior = Math.max(...ritmo.map((r) => r.valor), 1);
-  const total = ritmo.reduce((s, r) => s + r.valor, 0);
-
-  return (
-    <Card as="section" className="block overflow-visible py-0 text-base p-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Ritmo dos últimos 14 dias
-        </p>
-        <p className="overflow-hidden whitespace-nowrap text-sm font-medium tabular-nums">
-          {brl(total)}
-        </p>
-      </div>
-
-{/*
-        A barra mede em PORCENTAGEM da altura do pai — então o pai precisa ter
-        altura. Antes a coluna de cada dia era um `flex-col` sem altura
-        definida dentro do `h-24`, e `height: 100%` não resolvia para nada:
-        o gráfico aparecia vazio mesmo com venda no dia. O rótulo saiu para
-        fora da área da barra pelo mesmo motivo — dentro, ele comia a altura.
-      */}
-      <div className="mt-4 flex h-24 items-end gap-1">
-        {ritmo.map((r) => (
-          <div
-            key={r.data}
-            title={`${r.data}: ${brl(r.valor)} · ${r.vendas} ${r.vendas === 1 ? "venda" : "vendas"}`}
-            className={cn(
-              "min-w-0 flex-1 rounded-sm",
-              r.valor > 0 ? "bg-foreground/70" : "bg-muted",
-            )}
-            style={{ height: `${Math.max(3, (r.valor / maior) * 100)}%` }}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex gap-1">
-        {ritmo.map((r) => (
-          <span
-            key={r.data}
-            className="min-w-0 flex-1 truncate text-center text-[9px] tabular-nums text-muted-foreground"
-          >
-            {r.dia}
-          </span>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/* ─────────────────────────── mais vendidas ─────────────────────────── */
-
-function MaisVendidas({ mais }: DadosPainel) {
-  if (mais.length === 0) return null; // sem venda no mês, o bloco some
-
-  return (
-    <Card as="section" className="block overflow-visible py-0 text-base">
-      <p className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Mais vendidas no mês
-      </p>
-      <div className="divide-y">
-        {mais.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{p.nome}</p>
-              <p className="truncate text-xs text-muted-foreground">{p.sku}</p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-sm font-medium tabular-nums">{brl(p.valor)}</p>
-              <p className="text-xs text-muted-foreground">
-                {p.qtd} {p.qtd === 1 ? "unidade" : "unidades"}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
 /* ─────────────────────────── resumo ─────────────────────────── */
 
-function Resumo() {
+/* O antigo "Ver o resumo completo" virou uma fileira de atalhos: o resumo
+   continua aqui, ao lado dos outros lugares que se abrem todo dia. Quem não
+   vê o Financeiro fica só com os que pode abrir. */
+function Resumo({ veFinanceiro }: DadosPainel) {
+  const atalhos = [
+    ...(veFinanceiro
+      ? [
+          { href: "/financeiro", nome: "Resumo do mês", sub: "faturamento, margem e resultado" },
+          { href: "/financeiro?aba=fluxo&ver=entrar", nome: "Vai entrar", sub: "tudo que a loja vai receber" },
+          { href: "/financeiro?aba=contas&tipo=pagar", nome: "Contas a pagar", sub: "o que vence e quando" },
+        ]
+      : []),
+    { href: "/vendas?aba=orcamentos", nome: "Orçamentos", sub: "os abertos e os que vencem" },
+    { href: "/cadastros", nome: "Clientes", sub: "quem compra, quem deve, quem sumiu" },
+  ];
   return (
-    <Link
-      href="/financeiro"
-      className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-5 py-4 transition-colors hover:bg-accent/30"
-    >
-      <span>
-        <span className="block font-medium">Ver o resumo completo</span>
-        <span className="block text-sm text-muted-foreground">
-          Faturamento, margem e resultado, mês a mês.
-        </span>
-      </span>
-      <span aria-hidden className="shrink-0 text-muted-foreground">
-        →
-      </span>
-    </Link>
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+      {atalhos.map((a) => (
+        <Link
+          key={a.href}
+          href={a.href}
+          className="group flex items-center justify-between gap-2 rounded-xl border border-dashed px-4 py-3 transition-colors hover:border-solid hover:bg-accent/30"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">{a.nome}</span>
+            <span className="block truncate text-xs text-muted-foreground">{a.sub}</span>
+          </span>
+          <span aria-hidden className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
 /* ─────────────────────────── despachante ─────────────────────────── */
 
+/* "ritmo14" continua sendo o id do ritmo — mudar o nome apagaria a escolha
+   de quem já arrumou o painel. */
 const MAPA: Record<IdWidget, (d: DadosPainel) => React.ReactNode> = {
   saudacao: Saudacao,
   pendencias: Pendencias,
   numeros: Numeros,
   meta: Meta,
-  ritmo14: Ritmo14,
+  ritmo14: Ritmo,
   maisvendidas: MaisVendidas,
+  ultimasvendas: UltimasVendas,
+  clientes: Clientes,
   resumo: Resumo,
 };
 
@@ -531,12 +343,16 @@ const MAPA: Record<IdWidget, (d: DadosPainel) => React.ReactNode> = {
  */
 export function widgetTemConteudo(id: IdWidget, d: DadosPainel): boolean {
   if (id === "meta") return d.ctx.meta > 0;
-  if (id === "maisvendidas") return d.mais.length > 0;
+  if (id === "maisvendidas") return d.ranking.ano.qtd.length > 0;
+  if (id === "ultimasvendas") return d.ultimas.length > 0;
+  if (id === "clientes") return d.clientes.aniversarios.length > 0 || d.clientes.totalParadas > 0;
   return true;
 }
 
 export function RenderWidget({ id, dados }: { id: IdWidget; dados: DadosPainel }) {
   const Componente = MAPA[id];
   if (!Componente) return null;
-  return <>{Componente(dados)}</>;
+  /* Como elemento, e não chamando a função: os blocos interativos têm
+     estado próprio, e hook só vale dentro de componente de verdade. */
+  return <Componente {...dados} />;
 }

@@ -751,6 +751,41 @@ antigas dessas chaves na `Config` ficam no banco, sem uso.
 > mês muda a regra do caixa, e depende de a loja antecipar ou não os
 > recebimentos.
 
+### 07/10 · O Início abaixo do gráfico principal
+
+O João achou "uma bosta" tudo abaixo do gráfico principal e pediu mais
+opções e interatividade, sem mexer no gráfico. Os blocos que se mexem foram
+para `painel/components/widgets-interativos.tsx`; o servidor manda todos os
+recortes prontos, então trocar de aba não vai ao banco.
+
+- **Vendas** com abas Hoje / 7 dias / Mês / Ano, cada uma contra o mesmo
+  pedaço de antes (ontem, os 7 dias anteriores, 1º até o mesmo dia do mês
+  passado, o mesmo período do ano passado). O mês contra o mês passado
+  INTEIRO dava "-100%" todo começo de mês.
+- **Em caixa** com as próximas 4 semanas, pela mesma `previsao` do Financeiro.
+- **Precisa de você** separa conta a pagar vencida de cliente a cobrar. Antes
+  "Contas vencidas" somava as duas e o link abria só as a pagar.
+- **Meta** com a marca do "hoje", quanto vender por dia e onde o mês fecha.
+- **Ritmo** em 14 ou 30 dias, em R$ ou em vendas, tocando no dia.
+- **Mais vendidas** no mês ou no ano, por unidades ou por R$.
+- Novos: **Últimas vendas**, **Clientes para chamar** (aniversário na
+  semana e sumidas, com WhatsApp) e os **Atalhos** no lugar do "resumo".
+
+Margem, caixa e valores de conta só saem do servidor para quem vê o
+Financeiro.
+
+> **Dois tropeços.** (1) A largura de cada bloco era `style` solto e valia no
+> celular também: numa grade de uma coluna, "span 4" cria colunas e os blocos
+> ficavam espremidos lado a lado. Agora é `lg:col-span-*`. (2) "R$ 2 mil"
+> formatado no navegador sai "R$ 2,0 mil" no servidor: erro de hidratação.
+> Texto abreviado sai pronto do servidor.
+
+> **Fuso.** Na Vercel o servidor roda em UTC. Data feita lá e formatada no
+> navegador volta um dia — era o "Meta de setembro" em 7 de outubro. No
+> Início os nomes de mês agora vêm prontos do servidor. O corte de "hoje"
+> do app inteiro (`src/lib/dia.ts`) continua em UTC na Vercel: venda depois
+> das 21h cai no dia seguinte. Pendente, decisão do João.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

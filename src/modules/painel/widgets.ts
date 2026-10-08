@@ -35,6 +35,8 @@ export type IdWidget =
   | "meta"
   | "ritmo14"
   | "maisvendidas"
+  | "ultimasvendas"
+  | "clientes"
   | "resumo";
 
 export type DefWidget = {
@@ -59,37 +61,51 @@ export const WIDGETS: DefWidget[] = [
     id: "pendencias",
     /* Faixa de aviso logo abaixo da saudação, atravessando a tela. */
     nome: "Precisa de você",
-    desc: "Contas vencendo, peças zeradas e orçamentos expirando.",
+    desc: "Contas vencidas e da semana, clientes a cobrar, peças zeradas e orçamentos expirando.",
     tam: "cheio",
   },
   {
     id: "numeros",
     nome: "Números do momento",
-    desc: "Vendido hoje, faturamento do mês e saldo em caixa.",
+    desc: "Vendas de hoje, 7 dias, mês e ano comparadas com antes, e o caixa das próximas 4 semanas.",
     tam: "cheio",
   },
   {
     id: "meta",
     nome: "Meta do mês",
-    desc: "Quanto falta para bater a meta. Some quando não há meta definida.",
+    desc: "Quanto falta, quanto vender por dia e onde o mês fecha neste ritmo. Some sem meta definida.",
     tam: "pequeno",
   },
   {
     id: "ritmo14",
-    nome: "Ritmo dos últimos 14 dias",
-    desc: "Gráfico de barras com o que entrou dia a dia.",
+    nome: "Ritmo das vendas",
+    desc: "Barras dia a dia de 14 ou 30 dias, em reais ou em vendas; toque num dia para ver.",
     tam: "grande",
   },
   {
     id: "maisvendidas",
-    nome: "Mais vendidas no mês",
-    desc: "As peças que mais saíram, com quantidade e valor.",
+    nome: "Mais vendidas",
+    desc: "As peças que mais saíram no mês ou no ano, por unidades ou por valor.",
+    /* Meia largura: lado a lado com as últimas vendas, as duas listas de
+       peça e de venda se leem juntas. */
+    tam: "medio",
+  },
+  {
+    id: "ultimasvendas",
+    nome: "Últimas vendas",
+    desc: "As 6 vendas mais recentes, com cliente e valor. Toque para abrir.",
+    tam: "medio",
+  },
+  {
+    id: "clientes",
+    nome: "Clientes para chamar",
+    desc: "Aniversários da semana e clientes sumidas, com o atalho do WhatsApp.",
     tam: "cheio",
   },
   {
     id: "resumo",
-    nome: "Atalho para o resumo completo",
-    desc: "Um botão grande para a tela de faturamento.",
+    nome: "Atalhos",
+    desc: "Resumo do mês, o que vai entrar, contas a pagar e orçamentos.",
     tam: "cheio",
   },
 ];
