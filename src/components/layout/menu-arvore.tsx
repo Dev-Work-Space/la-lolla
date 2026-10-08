@@ -62,6 +62,33 @@ export function useMenuAberto(ativa: string | null) {
 }
 
 /*
+ * ESQUENTAR AS TELAS ANTES DO CLIQUE.
+ *
+ * O servidor responde uma tela em ~30 ms, mas o React segura a tela nova por
+ * 300 ms depois de mostrar o "carregando" (para não piscar). Medido: 29 ms de
+ * servidor, 315 ms até a tela. Escapa quem já tem os dados buscados. E o
+ * Next só busca os dados completos de um <Link prefetch> que esteja na tela —
+ * as opções moram num painel que nem existe até abrir.
+ *
+ * Por isso, quando o mouse chega numa categoria (ou o foco, ou o dedo), estes
+ * links entram na página escondidos só para o Next buscá-los. Quando a
+ * pessoa abre o painel e escolhe, a tela já está aqui. `aria-hidden` e
+ * `tabIndex={-1}`: não existem para quem usa leitor de tela ou teclado.
+ */
+export function Aquecer({ categoria: c }: { categoria: CategoriaNav }) {
+  const hrefs = [...c.opcoes.map((o) => o.href), ...(c.acoes ?? []).map((a) => a.href)];
+  return (
+    <div aria-hidden className="sr-only">
+      {hrefs.map((href) => (
+        <Link key={href} href={href} prefetch tabIndex={-1}>
+          .
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/*
  * "Nova venda", "Novo orçamento"…: o caminho curto para o que mais se faz.
  * Quadradinhos lado a lado com o "+" e o nome curto — três botões cheios
  * empilhados pesavam mais que as opções embaixo deles. O nome inteiro vai

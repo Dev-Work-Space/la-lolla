@@ -849,12 +849,22 @@ A barra que abria no hover (68 → 244px) e o acordeão saíram. Agora:
 - **Trilho fixo de 76px**, com o ícone numa pastilha e o nome sempre escrito
   embaixo (até duas linhas: "Compra e / venda"). A pastilha dourada marca a
   categoria da tela. Início e IA em cima; Ajustes, Tema e Sair no pé.
-- **Painel que desliza** ao parar o mouse numa categoria: nome e uma frase,
-  os atalhos de **Criar** (Venda, Orçamento, Compra — só para quem pode
-  criar) e as opções com ícone e uma frase do que tem lá. Some ao tirar o
-  mouse, ao escolher ou no Esc; pelo teclado, o foco abre e o Tab entra.
-- **Clicar na categoria** abre a tela principal dela direto.
+- **Painel que desliza** ao **clicar** numa categoria (o João testou abrindo
+  no hover e pediu assim): nome e uma frase, os atalhos de **Criar** (Venda,
+  Orçamento, Compra — só para quem pode criar) e as opções com ícone e uma
+  frase do que tem lá. Fica até escolher uma opção, clicar de novo na
+  categoria, clicar fora ou apertar Esc; pelo teclado, Enter abre.
 - A gaveta do celular usa as **mesmas** opções e atalhos (`menu-arvore.tsx`).
+
+> **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
+> segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
+> — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
+> 315 ms até a tela). Só escapa a tela cujos dados completos já foram
+> buscados. O Next só busca os dados completos de um `<Link prefetch>` que
+> esteja na página, e as opções do menu moram num painel que nem existe até
+> abrir. Por isso o mouse (ou o foco) chegando numa categoria monta, escondidos,
+> os links dela (`Aquecer` em `menu-arvore.tsx`): 320 → 35 ms. Vale para
+> qualquer tela nova: se a troca parecer "presa" em ~300 ms, é isto.
 
 Cada opção ganhou `icone` e `desc` em `navegacao.ts`; o tamanho mora em
 `--nav-fechada` e `--nav-painel` no `globals.css`.
