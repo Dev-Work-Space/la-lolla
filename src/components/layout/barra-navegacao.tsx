@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { XIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
-import { itensVisiveis, opcaoAtual, secaoAtiva, type ItemNav } from "./navegacao";
+import { categoriasVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
 
 /*
  * Barra fixa de baixo, só no celular. No PC a navegação vive no cabeçalho.
@@ -16,17 +16,18 @@ import { itensVisiveis, opcaoAtual, secaoAtiva, type ItemNav } from "./navegacao
  *
  * É cliente pela URL (qual botão acender) e pelo painel de opções.
  *
- * As abas que moravam dentro das telas (Peças/Insumos, as do Financeiro…)
- * agora são OPÇÕES do botão, como no menu do PC — pedido do João em
- * 08/10/2026. Tocar num botão com opções abre o painel logo acima da barra,
- * em vez de ir direto: é ali que se escolhe para onde ir.
+ * Os botões são as CATEGORIAS do menu (navegacao.ts), as mesmas do PC.
+ * Tocar numa categoria com opções abre o painel logo acima da barra, em vez
+ * de ir direto: é ali que se escolhe para onde ir. Ajustes não está aqui —
+ * mora no cabeçalho, ao lado do tema, que é o "lá embaixo" do celular.
  */
-export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; papel: Papel }) {
+export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permissoes; papel: Papel; temIA: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const visiveis = itensVisiveis(permissoes, papel);
-  const [aberto, setAberto] = useState<ItemNav | null>(null);
+  const visiveis = categoriasVisiveis(permissoes, papel, temIA);
+  const [aberto, setAberto] = useState<CategoriaNav | null>(null);
   const fechar = useCallback(() => setAberto(null), []);
+  const router = useRouter();
 
   return (
     <>
@@ -60,25 +61,28 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
         >
           {visiveis.map((i) => {
             const Icone = i.icone;
-            const atual = secaoAtiva(i, pathname);
+            const atual = Boolean(opcaoAtual(i, pathname, params));
             const classe = cn(
               "flex h-full min-w-0 flex-col items-center justify-center gap-1 px-1 text-center",
               "transition-colors duration-150",
-              atual || aberto?.href === i.href ? "text-(--ll-accent)" : "text-muted-foreground",
+              atual || aberto?.id === i.id ? "text-(--ll-accent)" : "text-muted-foreground",
             );
             const conteudo = (
               <>
-                <Icone weight={aberto?.href === i.href ? "fill" : "regular"} className="size-5 shrink-0" aria-hidden />
+                <Icone weight={aberto?.id === i.id ? "fill" : "regular"} className="size-5 shrink-0" aria-hidden />
                 <span className="w-full truncate text-[10px] font-medium leading-none">{i.curto}</span>
               </>
             );
-            if ((i.sub?.length ?? 0) > 1)
+            if (i.opcoes.length > 1)
               return (
                 <button
-                  key={i.href}
+                  key={i.id}
                   type="button"
-                  onClick={() => setAberto((a) => (a?.href === i.href ? null : i))}
-                  aria-expanded={aberto?.href === i.href}
+                  onClick={() => setAberto((a) => (a?.id === i.id ? null : i))}
+                  /* O dedo encostou: começa a buscar as opções já, antes de o
+                     painel abrir e de a pessoa escolher. */
+                  onPointerDown={() => i.opcoes.forEach((o) => router.prefetch(o.href))}
+                  aria-expanded={aberto?.id === i.id}
                   aria-haspopup="dialog"
                   aria-current={atual ? "page" : undefined}
                   className={classe}
@@ -88,8 +92,8 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
               );
             return (
               <Link
-                key={i.href}
-                href={i.href}
+                key={i.id}
+                href={i.opcoes[0].href}
                 /* No celular não existe hover: o Next busca quando o link entra
                    na tela — e esta barra está sempre na tela. Na prática, todas
                    as telas ficam prontas logo depois que o app abre. */
@@ -103,7 +107,7 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
             );
           })}
         </div>
-        {aberto && <PainelOpcoes item={aberto} pathname={pathname} params={params} fechar={fechar} />}
+        {aberto && <PainelOpcoes categoria={aberto} pathname={pathname} params={params} fechar={fechar} />}
       </nav>
     </>
   );
@@ -115,31 +119,31 @@ export function BarraNavegacao({ permissoes, papel }: { permissoes: Permissoes; 
  * leitor de tela ouvir as opções em seguida.
  */
 function PainelOpcoes({
-  item,
+  categoria,
   pathname,
   params,
   fechar,
 }: {
-  item: ItemNav;
+  categoria: CategoriaNav;
   pathname: string;
   params: URLSearchParams;
   fechar: () => void;
 }) {
   const painel = useRef<HTMLDivElement>(null);
-  const acesa = opcaoAtual(item, pathname, params);
+  const acesa = opcaoAtual(categoria, pathname, params);
 
   useEffect(() => {
     painel.current?.querySelector<HTMLElement>("a")?.focus({ preventScroll: true });
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && fechar();
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [item, fechar]);
+  }, [categoria, fechar]);
 
   return (
     <div
       ref={painel}
       role="dialog"
-      aria-label={`Opções de ${item.nome}`}
+      aria-label={`Opções de ${categoria.nome}`}
       className={cn(
         "absolute inset-x-0 bottom-full mx-auto max-w-3xl rounded-t-2xl border border-b-0 bg-card px-4 pt-3 pb-3",
         "shadow-[0_-8px_30px_-12px_rgba(22,21,26,.35)]",
@@ -147,7 +151,7 @@ function PainelOpcoes({
       )}
     >
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-bold">{item.nome}</p>
+        <p className="text-sm font-bold">{categoria.nome}</p>
         <button
           type="button"
           onClick={fechar}
@@ -158,9 +162,9 @@ function PainelOpcoes({
         </button>
       </div>
       <ul className="grid grid-cols-2 gap-2">
-        {item.sub?.map((s, k) => {
+        {categoria.opcoes.map((s, k) => {
           const on = s === acesa;
-          const novoGrupo = s.grupo && s.grupo !== item.sub?.[k - 1]?.grupo;
+          const novoGrupo = s.grupo && s.grupo !== categoria.opcoes[k - 1]?.grupo;
           return (
             <li key={s.href} className="contents">
               {novoGrupo && (

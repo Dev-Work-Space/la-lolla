@@ -11,6 +11,7 @@ import {
   Linha,
   Lista,
   Pilula,
+  TituloTela,
   Vazio,
 } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
@@ -73,15 +74,14 @@ export default async function ComprasPage({
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de compras</h1>
+        <TituloTela secao="Compra e venda" titulo="Compras">
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}
           >
             <ContagemCompras promessa={pCompras} busca={busca} />
           </Suspense>
-        </div>
+        </TituloTela>
         {podeComprar && (
           <Button nativeButton={false} render={<Link href="/compras/nova" />}>
             Nova compra

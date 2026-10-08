@@ -289,6 +289,37 @@
   animation: ll-entra-cabecalho var(--ll-duracao-suave) var(--ll-ease);
 }
 
+/*
+ * Barrinha de "carregando" no topo durante a troca de tela. Só aparece depois
+ * de 120 ms: troca que já é instantânea não pisca nada. Com movimento
+ * reduzido a animação some e a barra fica parada, mas ainda aparece.
+ */
+@keyframes ll-aparece {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ll-progresso {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+.ll-progresso {
+  animation: ll-aparece 1ms 120ms both;
+}
+
+.ll-progresso > span {
+  animation: ll-progresso 1.1s var(--ll-ease) infinite;
+}
+
 /* Inclui overlays em portais e pseudoelementos, sem alterar estados visuais. */
 @media (prefers-reduced-motion: reduce) {
   *,

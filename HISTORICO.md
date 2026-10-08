@@ -162,6 +162,26 @@ Na mesma data a **região das funções da Vercel** foi para São Paulo (`gru1`)
 do lado do banco: o projeto não tinha região escolhida, e o padrão da Vercel é
 Washington.
 
+**08/10 — "a troca de telas na Vercel ainda está lenta".** Três achados e um
+disfarce:
+
+- **Uma conexão só com o banco por instância.** `max: 1` na Vercel fazia toda
+  consulta "em paralelo" virar fila, e com a Vercel atendendo várias
+  requisições na mesma instância (Fluid), uma tela esperava a outra. Agora
+  são 5 por instância (`src/lib/prisma.ts`), atrás do pooler em modo
+  transação.
+- **O menu de categorias escondia os links**, e o Next só busca antes do
+  clique o link que está visível. A barra agora pede de antemão a primeira
+  opção de cada categoria e todas as da categoria aberta, e as de uma
+  categoria assim que o mouse passa nela (no celular, quando o dedo encosta).
+  Medido no build local: 7–41 ms do clique até a tela.
+- **Vaivém sem ir ao servidor:** `staleTimes.dynamic = 30` — tela vista há
+  menos de 30 s volta na hora (73 ms). Gravar algo chama `recarregar`, que
+  pelo `revalidatePath` descarta essa memória inteira.
+- **Disfarce:** barrinha dourada no topo a partir de 120 ms de espera
+  (`barra-progresso.tsx`), e a opção clicada no menu acende e pulsa até a
+  tela chegar (`useLinkStatus`).
+
 ---
 
 ## 7. O que foi feito nesta conversa
@@ -806,6 +826,15 @@ Os endereços continuam os mesmos, inclusive os antigos (`?aba=pagar`,
 `?aba=caixa`…). A leitura da URL do Financeiro saiu da página para
 `financeiro/abas.ts`, e o menu usa a mesma função: menu e tela não podem
 discordar sobre qual opção está aberta. O `Segmentado` ficou sem uso e saiu.
+
+No mesmo dia, o menu ganhou **categorias** por cima das opções: Início
+(Início, IA), Compra e venda (Vendas, Orçamentos, Compras), Estoque,
+Financeiro e Cadastros (Clientes, Fornecedores, Usuários). Tocar na categoria
+abre as opções e fecha a outra. **Ajustes** saiu das categorias e foi para
+baixo, junto do tema e do "Sair" (no celular, engrenagem no cabeçalho), sem
+opções. O **assistente de IA** deixou de ser um robô flutuando em toda tela e
+virou a tela `/ia`, com as sugestões e os "Resumir" de cada tela em botões; o
+`chat-flutuante.tsx` saiu. Sem a `GEMINI_API_KEY`, a opção IA some do menu.
 
 ---
 

@@ -66,7 +66,7 @@ export default async function VendasPage({
     return (
       <main className="mx-auto w-full max-w-7xl px-4 py-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <TituloTela secao="Portal de vendas" titulo="Orçamentos">
+          <TituloTela secao="Compra e venda" titulo="Orçamentos">
             <p className="mt-1 text-sm text-muted-foreground">
               A proposta que vai para a cliente antes de fechar.
             </p>
@@ -120,7 +120,7 @@ export default async function VendasPage({
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <TituloTela secao="Portal de vendas" titulo="Vendas">
+        <TituloTela secao="Compra e venda" titulo="Vendas">
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}

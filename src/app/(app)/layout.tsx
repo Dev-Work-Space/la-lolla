@@ -4,12 +4,12 @@ import { sessaoAtual } from "@/lib/auth/sessao";
 import { BarraNavegacao } from "@/components/layout/barra-navegacao";
 import { BarraLateral } from "@/components/layout/barra-lateral";
 import { Cabecalho } from "@/components/layout/cabecalho";
+import { BarraProgresso } from "@/components/layout/barra-progresso";
 import {
   BarraLateralEsqueleto,
   BarraNavegacaoEsqueleto,
   CabecalhoEsqueleto,
 } from "@/components/layout/molduras";
-import { ChatFlutuante } from "@/modules/assistente/components/chat-flutuante";
 import { cn } from "@/lib/utils";
 
 /*
@@ -33,6 +33,11 @@ import { cn } from "@/lib/utils";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col md:pl-(--nav-fechada)">
+      {/* Lê o endereço da tela, então mora no seu <Suspense>; sem esqueleto,
+          porque sem clique não há o que mostrar. */}
+      <Suspense fallback={null}>
+        <BarraProgresso />
+      </Suspense>
       <Suspense fallback={<CabecalhoEsqueleto />}>
         <CabecalhoDaSessao />
       </Suspense>
@@ -67,20 +72,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <BarraNavegacaoDaSessao />
       </Suspense>
 
-      {/*
-        O ChatFlutuante é Client Component mas a decisão de renderizá-lo
-        vive aqui, no servidor: verificamos a presença da chave antes de
-        passar a prop `configurado`. A chave em si NUNCA desce ao cliente.
-      */}
-      {/* O chat lê o endereço da tela (para o "Resumir esta página"), e em
-          tela de endereço variável — /vendas/[id] — isso só existe no pedido.
-          Sem esqueleto: é um botão flutuante, aparece quando estiver pronto. */}
-      <Suspense fallback={null}>
-        <ChatFlutuante configurado={Boolean(process.env.GEMINI_API_KEY)} />
-      </Suspense>
     </div>
   );
 }
+
+/* O assistente só existe com a chave do Gemini no servidor. Daqui desce só o
+   sim/não — a chave em si NUNCA vai para o cliente. Sem ela, a opção "IA"
+   some do menu. */
+const temIA = () => Boolean(process.env.GEMINI_API_KEY);
 
 /** Sem sessão válida não há app: volta para o login (o proxy só confere se o cookie existe). */
 async function sessaoOuLogin() {
@@ -95,10 +94,10 @@ async function CabecalhoDaSessao() {
 
 async function BarraLateralDaSessao() {
   const s = await sessaoOuLogin();
-  return <BarraLateral permissoes={s.permissoes} papel={s.papel} nome={s.nome} />;
+  return <BarraLateral permissoes={s.permissoes} papel={s.papel} nome={s.nome} temIA={temIA()} />;
 }
 
 async function BarraNavegacaoDaSessao() {
   const s = await sessaoOuLogin();
-  return <BarraNavegacao permissoes={s.permissoes} papel={s.papel} />;
+  return <BarraNavegacao permissoes={s.permissoes} papel={s.papel} temIA={temIA()} />;
 }
