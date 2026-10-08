@@ -907,6 +907,27 @@ branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
 escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
 pt).
 
+### 08/10 · "A pagar" no estoque sem compra nenhuma
+
+O João viu peça com a pílula "A pagar" no estoque que nunca teve compra. A
+marca vinha de `!pagoFornecedor`, coluna que **nasce falsa em toda peça** e
+que **nunca era desligada**: peça nunca comprada acendia "A pagar", e peça de
+compra a prazo seguia "A pagar" para sempre, mesmo depois de pagas as
+parcelas. Agora `pecasComDividaAberta()` (`peca.service.ts`) olha o que existe
+de verdade: a peça está numa compra que ainda tem **parcela em aberto** no
+contas a pagar. Vale para o catálogo, a ficha, o filtro "A acertar" e o aviso
+ao excluir. A coluna `pagoFornecedor` continua gravada pela compra, mas
+**ninguém mais a lê** (sem migration; pode sair numa limpeza futura).
+Conferido com quatro peças: nunca comprada, a prazo em aberto, a prazo já
+paga e à vista — só a segunda acende.
+
+**Janela sobre janela (mesmo dia).** O Base UI só desenha o fundo escuro da
+PRIMEIRA janela; a que abria por cima (Nova peça › Novo fornecedor) ficava
+sem fundo e misturada com a de baixo. `DialogOverlay` agora usa
+`forceRender`: cada janela tem o seu fundo. A primeira janela **não fecha**
+nem perde o digitado quando a segunda abre (testado no PC e no celular).
+Também entrou a barra de rolagem fina da LaLolla (`globals.css`).
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
