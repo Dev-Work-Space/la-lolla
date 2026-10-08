@@ -161,20 +161,6 @@ function IconesTema({ tamanho = "size-[19px]" }: { tamanho?: string }) {
   );
 }
 
-/*
- * O texto também é decidido pelo CSS, pelo mesmo motivo dos ícones. Os dois
- * ficam no documento; no escuro aparece "Tema claro" (o que o clique FAZ), no
- * claro, "Tema escuro".
- */
-function RotuloTema({ className }: { className?: string }) {
-  return (
-    <>
-      <span className={cn("dark:hidden", className)}>Tema escuro</span>
-      <span className={cn("hidden dark:inline", className)}>Tema claro</span>
-    </>
-  );
-}
-
 /**
  * Botão quadrado de ícone, para o cabeçalho do celular.
  *
@@ -202,36 +188,23 @@ export function BotaoTema({ className }: { className?: string }) {
 }
 
 /**
- * Linha inteira, para a barra lateral: mesmo desenho dos itens de navegação.
- *
- * Ele ganhou a MESMA estrutura dos itens (trilho fixo do ícone + rótulo que
- * cresce) porque antes era um quadrado de 36px com ícone de 16px no meio de
- * linhas de 44px com ícone de 19px: com a barra aberta ele ficava 7,5px fora
- * da coluna dos outros ícones. Dava para ver.
+ * Botão do trilho da barra lateral: ícone numa pastilha e o nome embaixo, o
+ * mesmo desenho dos itens de navegação ao lado. O nome é curto ("Tema") e
+ * vale nos dois estados, sem divergência de hidratação.
  */
-export function LinhaTema({ className }: { className?: string }) {
+export function TemaNoTrilho({ pastilha, rotulo }: { pastilha: string; rotulo: string }) {
   return (
-    <Button
-      variant="ghost"
+    <button
       type="button"
       aria-label="Alternar entre tema claro e escuro"
+      title="Alternar tema"
       onClick={alternarTema}
-      className={cn("h-auto justify-start gap-0 border-0 p-0 font-normal whitespace-normal", className)}
+      className="group/item flex w-full flex-col items-center gap-1 rounded-xl py-1"
     >
-      <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-        <IconesTema />
+      <span className={pastilha}>
+        <IconesTema tamanho="size-5" />
       </span>
-      <span
-        data-rotulo
-        className={cn(
-          "max-w-0 overflow-hidden opacity-0",
-          "transition-[opacity,max-width] duration-200 ease-(--ll-ease)",
-          "group-hover:max-w-(--nav-rotulo) group-hover:opacity-100",
-          "group-has-[:focus-visible]:max-w-(--nav-rotulo) group-has-[:focus-visible]:opacity-100",
-        )}
-      >
-        <RotuloTema className="whitespace-nowrap" />
-      </span>
-    </Button>
+      <span className={rotulo}>Tema</span>
+    </button>
   );
 }

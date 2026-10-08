@@ -1,77 +1,54 @@
 "use client";
 
-import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CaretDownIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { SignOutIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
-import { LinhaTema } from "./tema";
+import { TemaNoTrilho } from "./tema";
 import type { Papel } from "@prisma/client";
+import type { Icon } from "@phosphor-icons/react";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { AJUSTES_NAV, categoriasVisiveis, fixosVisiveis, opcaoAtual, veAjustes, type CategoriaNav } from "./navegacao";
-import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
 import { logoutAction } from "@/modules/auth/auth.actions";
+import { AtalhosDeCriar, ListaDeOpcoes } from "./menu-arvore";
 
 /*
- * Barra lateral do monitor, portada do app antigo.
+ * Barra lateral do monitor: TRILHO + PAINEL.
  *
- * Comportamento:
- *   - fechada tem 68px e mostra só o ícone
- *   - ao passar o mouse (ou ao chegar nela pelo teclado) abre para 244px e os
- *     rótulos aparecem
- *   - o rótulo some por OPACIDADE e LARGURA, nunca por `display:none`: assim
- *     ele continua no documento para leitor de tela e para a busca do navegador
- *   - a aba atual fica com fundo dourado suave
+ * Redesenho de 08/10/2026 ("usa sua criatividade, tô achando uma bosta
+ * minhas ideias"). O que havia antes e por que saiu:
+ *   - a barra ABRIA no hover, de 68px para 244px, e só então mostrava os
+ *     nomes. Fechada, eram ícones soltos que ninguém lia; aberta, cobria a
+ *     tela a cada passada do mouse a caminho de outra coisa;
+ *   - as opções viviam num acordeão que abria e fechava, e a lista crescia
+ *     até rolar.
  *
- * DUAS CORREÇÕES que o João pediu, com o motivo de cada uma:
+ * Agora:
+ *   - o TRILHO é fixo e estreito, com o ícone numa pastilha e o nome sempre
+ *     escrito embaixo (como a barra de baixo de um celular). A pastilha
+ *     dourada diz em que categoria a tela está;
+ *   - parar o mouse numa categoria desliza o PAINEL dela ao lado: nome, uma
+ *     frase, os atalhos de criar ("+ Nova venda") e as opções, cada uma com
+ *     ícone e uma frase do que tem lá. O painel some quando o mouse sai;
+ *   - clicar na categoria já abre a tela principal dela — o painel é para as
+ *     outras opções, não um passo a mais no caminho comum;
+ *   - pelo teclado, o foco numa categoria abre o painel, o Tab entra nele e
+ *     o Esc fecha.
  *
- * 1. O ÍCONE NÃO SE MEXE MAIS.
- *    Antes o recuo da barra ia de 8px para 16px e cada item trocava
- *    `justify-center` por `justify-start`. Duas armadilhas juntas: o recuo
- *    arrastava os sete ícones 8px para a direita, e `justify-content` NÃO
- *    anima — ele salta no primeiro quadro. Os ícones tremiam.
- *    Agora cada linha tem um TRILHO de largura fixa (--nav-trilho) com o ícone
- *    centrado nele. O trilho não muda de tamanho ao abrir, então o ícone fica
- *    parado e só o rótulo cresce ao lado. Medido: 0px de percurso.
- *
- * 2. A BARRA FECHA SOZINHA DEPOIS DO CLIQUE.
- *    Era `focus-within`, que aceita QUALQUER foco — inclusive o que o clique do
- *    mouse deixa no item. Ao clicar em "Estoque" e tirar o mouse, a barra
- *    continuava aberta em 244px, e só fechava quando se clicava em outro lugar
- *    para tirar o foco. Era exatamente a reclamação: "tenho que clicar em algo
- *    para conseguir fechar".
- *    `has-[:focus-visible]` só conta o foco que o NAVEGADOR considera visível,
- *    que na prática é o do teclado. Quem navega por Tab continua abrindo a
- *    barra; quem clica com o mouse não a deixa presa.
- *
- * 3. CATEGORIAS E OPÇÕES (08/10/2026).
- *    As abas de dentro das telas viraram opções do menu, e o menu ganhou
- *    categorias por cima delas (ver navegacao.ts). Início e IA são botões
- *    fixos no topo, sem lista. Categoria aberta fica aberta até a pessoa
- *    fechar (ver menu-arvore.tsx). Com a barra fechada as opções somem: no
- *    trilho de 68px não há onde escrever, e o título da tela diz onde se está.
- *
- * A ordem segue o caminho do negócio, não a ordem em que as telas nasceram:
- * vende e compra → guarda no estoque → olha o dinheiro → consulta cadastros.
- * Ajustes é configuração, não trabalho: fica embaixo, com o tema e o "Sair".
+ * O painel mora DENTRO da <nav> (posição absoluta, colado à direita dela):
+ * assim sair do trilho para o painel não é "sair do menu", e a demora para
+ * fechar perdoa o mouse que escorrega na diagonal.
  */
 
-/* O desenho de uma linha é o mesmo para item, tema e sair — fica num lugar só
-   para os três não saírem de sintonia de novo. */
-const LINHA = cn(
-  "flex h-11 shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[11px]",
-  "text-sm font-semibold outline-none",
-  "transition-[background-color,color] duration-200 ease-(--ll-ease)",
-  "focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
+const PASTILHA = cn(
+  "grid h-8 w-12 place-items-center rounded-full transition-colors duration-150",
+  "text-muted-foreground group-hover/item:bg-(--ll-surface-2) group-hover/item:text-foreground",
 );
-
-const ROTULO = cn(
-  "max-w-0 opacity-0 transition-[opacity,max-width] duration-200 ease-(--ll-ease)",
-  "group-hover:max-w-(--nav-rotulo) group-hover:opacity-100",
-  "group-has-[:focus-visible]:max-w-(--nav-rotulo) group-has-[:focus-visible]:opacity-100",
-);
+/* Até duas linhas, centradas: "Compra e venda" não cabe numa só em 76px, e
+   cortar o nome do lugar é pior que uma linha a mais. */
+const ROTULO = "line-clamp-2 max-w-full px-0.5 text-center text-[10px] leading-[1.15] font-semibold tracking-tight text-muted-foreground";
 
 export function BarraLateral({
   permissoes,
@@ -86,242 +63,236 @@ export function BarraLateral({
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
+  const router = useRouter();
   const fixos = fixosVisiveis(temIA);
   const categorias = categoriasVisiveis(permissoes, papel);
   const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
-  const { abertas, alternar } = useMenuAberto(ativa);
+  const ajustesAtual = pathname === AJUSTES_NAV.href || pathname.startsWith(AJUSTES_NAV.href + "/");
+
+  /* Qual painel está aberto. Muda com um pequeno atraso: o mouse que só
+     passa pelo trilho a caminho da tela não abre nada, e o que escorrega do
+     painel por um instante não o fecha. */
+  const [aberta, setAberta] = useState<string | null>(null);
+  const espera = useRef<number | undefined>(undefined);
+  const abrirDepois = (id: string | null, ms: number) => {
+    window.clearTimeout(espera.current);
+    espera.current = window.setTimeout(() => setAberta(id), ms);
+  };
+  const fecharJa = () => {
+    window.clearTimeout(espera.current);
+    setAberta(null);
+  };
+  useEffect(() => () => window.clearTimeout(espera.current), []);
+
+  /* Trocou de tela: o painel fecha. */
+  const rota = `${pathname}?${params.toString()}`;
+  const [ultimaRota, setUltimaRota] = useState(rota);
+  if (ultimaRota !== rota) {
+    setUltimaRota(rota);
+    setAberta(null);
+  }
 
   /*
    * BUSCAR ANTES DO CLIQUE.
-   * O Next só busca a tela de um link quando ele aparece na tela, e as
-   * opções das categorias fechadas nem existem na página. Então, ao montar,
-   * a barra pede a primeira opção de cada categoria e todas as das
-   * categorias abertas; passar o mouse (ou o foco) numa categoria pede as
-   * dela. Quando o
-   * clique vem, a tela já está aqui. Esta barra existe também no celular
-   * (escondida), então o pedido vale para os dois.
+   * O Next só busca a tela de um link visível, e as opções moram num painel
+   * que nem existe até abrir. Os itens do trilho estão sempre à vista e já se
+   * buscam sozinhos; parar numa categoria pede também todas as opções e
+   * atalhos dela. Quando o clique vem, a tela já está aqui.
    */
-  const router = useRouter();
-  const antecipar = categorias
-    .flatMap((c) => (abertas.includes(c.id) ? c.opcoes : c.opcoes.slice(0, 1)))
-    .map((o) => o.href)
-    .join(" ");
-  useEffect(() => {
-    for (const href of antecipar.split(" ")) if (href) router.prefetch(href);
-  }, [antecipar, router]);
-  const buscarOpcoes = (c: CategoriaNav) => {
+  const buscar = (c: CategoriaNav) => {
     for (const o of c.opcoes) router.prefetch(o.href);
+    for (const a of c.acoes ?? []) router.prefetch(a.href);
   };
-  const ajustesAtual = pathname === AJUSTES_NAV.href || pathname.startsWith(AJUSTES_NAV.href + "/");
 
   return (
     <nav
       aria-label="Navegação principal"
       data-nav="lateral"
-      className={cn(
-        "group fixed inset-y-0 left-0 z-60 hidden flex-col overflow-y-auto overflow-x-hidden md:flex",
-        "border-r bg-card py-6 px-(--nav-recuo)",
-        "w-(--nav-fechada) hover:w-(--nav-aberta) has-[:focus-visible]:w-(--nav-aberta)",
-        /* só a largura e a sombra animam; o recuo é fixo, ver o comentário 1 */
-        "transition-[width,box-shadow] duration-200 ease-(--ll-ease)",
-        "hover:shadow-[4px_0_24px_-10px_rgba(22,21,26,.28)]",
-        "has-[:focus-visible]:shadow-[4px_0_24px_-10px_rgba(22,21,26,.28)]",
-      )}
+      onPointerEnter={() => window.clearTimeout(espera.current)}
+      onPointerLeave={() => abrirDepois(null, 220)}
+      onKeyDown={(e) => e.key === "Escape" && fecharJa()}
+      className="fixed inset-y-0 left-0 z-60 hidden w-(--nav-fechada) flex-col border-r bg-card py-4 md:flex"
     >
       {/*
-       * Marca: fechada mostra só o "L"; aberta, a logo inteira.
-       *
        * O "L" é RECORTADO da logo oficial (scripts/recortar-l-da-logo.mjs),
-       * não digitado numa fonte serifada qualquer. Antes eram dois desenhos
-       * diferentes e dava para ver: a letra fechada tinha outro traço, outra
-       * espessura e outra serifa que a da marca.
-       *
-       * A troca é um CRUZAMENTO, não um corte — estava `hidden`/`block`, que
-       * pisca. E o "L" agora mora no mesmo trilho dos ícones: antes ele também
-       * escorregava ao abrir, porque o link trocava de `justify-center` para
-       * `justify-start` (medido: de x=33,5 para x=24,7).
+       * não digitado numa fonte serifada qualquer: antes eram dois desenhos
+       * diferentes e dava para ver.
        */}
       <Link
         href="/"
         aria-label="Início"
-        className="relative mb-6 flex h-9 shrink-0 items-center outline-none focus-visible:ring-2 focus-visible:ring-(--ll-accent) rounded-[11px]"
+        onPointerEnter={() => abrirDepois(null, 120)}
+        className="mx-auto mb-4 grid h-10 w-12 shrink-0 place-items-center rounded-xl"
       >
-        <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-          <Image
-            src="/logo-lalolla-l.png"
-            alt=""
-            aria-hidden
-            width={53}
-            height={85}
-            priority
-            className={cn(
-              "h-7 w-auto max-w-none opacity-100 transition-opacity duration-200 ease-(--ll-ease)",
-              "group-hover:opacity-0 group-has-[:focus-visible]:opacity-0",
-            )}
-          />
-        </span>
-        <Image
-          src="/logo-lalolla.png"
-          alt="LaLolla"
-          width={353}
-          height={90}
-          priority
-          className={cn(
-            "absolute left-0 h-7 w-auto max-w-none opacity-0",
-            "transition-opacity duration-200 ease-(--ll-ease)",
-            "group-hover:opacity-100 group-has-[:focus-visible]:opacity-100",
-          )}
-        />
+        <Image src="/logo-lalolla-l.png" alt="" aria-hidden width={53} height={85} priority className="h-7 w-auto" />
       </Link>
 
-      {/* `shrink-0` e não `min-h-0`: com as opções abertas a lista fica mais
-          alta que a tela, e encolhida ela passava por cima do "Sair". Assim
-          quem rola é a barra. */}
-      <div className="flex flex-1 shrink-0 flex-col gap-1">
-        {fixos.map((f) => {
-          const Icone = f.icone;
-          const atual = f.atual(pathname);
-          return (
-            <Link
-              key={f.href}
-              href={f.href}
-              /* prefetch: o Next busca a tela ANTES do clique. Como a barra
-                 abre no hover, quando o mouse chega no item a tela já está
-                 vindo — ao clicar, está pronta. */
-              prefetch
-              aria-current={atual ? "page" : undefined}
-              title={f.nome}
-              className={cn(
-                LINHA,
-                "w-full",
-                atual
-                  ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
-                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
-              )}
-            >
-              {/* trilho de largura fixa: é ele que mantém o ícone parado */}
-              <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-                <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
-              </span>
-              {/* opacidade + max-width, nunca display:none */}
-              <span data-rotulo className={ROTULO}>{f.nome}</span>
-            </Link>
-          );
-        })}
+      {/* `overflow-y-auto` aqui e não na <nav>: numa tela baixa o trilho rola,
+          e o painel (preso à <nav>) não é cortado junto. */}
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto px-1.5">
+        {fixos.map((f) => (
+          <ItemTrilho
+            key={f.href}
+            href={f.href}
+            nome={f.nome}
+            icone={f.icone}
+            atual={f.atual(pathname)}
+            onPointerEnter={() => abrirDepois(null, 120)}
+          />
+        ))}
 
-        {/* Separa os botões fixos das categorias. */}
-        <span aria-hidden className="mx-3 my-2 h-px shrink-0 bg-border" />
+        <span aria-hidden className="my-1.5 h-px w-8 shrink-0 bg-border" />
 
         {categorias.map((c) => {
-          const Icone = c.icone;
-          const atual = c.id === ativa;
-          const classe = cn(
-            LINHA,
-            "w-full",
-            atual
-              ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
-              : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
-          );
-          const icone = (
-            <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-              <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
-            </span>
-          );
-
-          /* Categoria de uma opção só (um perfil que só vê Vendas, por
-             exemplo) é um link direto: abrir uma lista de um item é clique
-             à toa. */
-          if (c.opcoes.length === 1)
-            return (
-              <Link
-                key={c.id}
-                href={c.opcoes[0].href}
-                /* prefetch: o Next busca a tela ANTES do clique. Como a barra
-                   abre no hover, quando o mouse chega no item a tela já está
-                   vindo — ao clicar, está pronta. */
-                prefetch
-                aria-current={atual ? "page" : undefined}
-                title={c.nome}
-                className={classe}
-              >
-                {icone}
-                <span data-rotulo className={ROTULO}>{c.nome}</span>
-              </Link>
-            );
-
-          const mostra = abertas.includes(c.id);
+          const aberto = aberta === c.id;
           return (
-            <div key={c.id} className="flex shrink-0 flex-col">
-              <button
-                type="button"
-                onClick={() => alternar(c.id)}
-                onPointerEnter={() => buscarOpcoes(c)}
-                onFocus={() => buscarOpcoes(c)}
-                aria-expanded={mostra}
-                title={c.nome}
-                className={cn(classe, "text-left")}
-              >
-                {icone}
-                <span data-rotulo className={ROTULO}>{c.nome}</span>
-                <CaretDownIcon
-                  weight="bold"
-                  aria-hidden
-                  className={cn(
-                    "mr-3 ml-auto size-3.5 shrink-0 opacity-0 transition-[opacity,rotate] duration-200",
-                    "group-hover:opacity-60 group-has-[:focus-visible]:opacity-60",
-                    mostra && "rotate-180",
-                  )}
-                />
-              </button>
-              {mostra && <OpcoesDaCategoria categoria={c} pathname={pathname} params={params} modo="lateral" />}
+            <div key={c.id} className="w-full">
+              <ItemTrilho
+                href={c.opcoes[0].href}
+                nome={c.curto}
+                titulo={c.nome}
+                icone={c.icone}
+                atual={c.id === ativa}
+                aberto={aberto}
+                controla={`painel-${c.id}`}
+                onPointerEnter={() => {
+                  buscar(c);
+                  /* Com um painel já aberto, trocar de categoria é na hora:
+                     a pessoa está explorando, não passando. */
+                  abrirDepois(c.id, aberta ? 0 : 110);
+                }}
+                onFocus={() => {
+                  buscar(c);
+                  window.clearTimeout(espera.current);
+                  setAberta(c.id);
+                }}
+              />
+              {aberto && <Painel categoria={c} pathname={pathname} params={params} fechar={fecharJa} />}
             </div>
           );
         })}
       </div>
 
-      {veAjustes(permissoes, papel) && (
-        <Link
-          href={AJUSTES_NAV.href}
-          prefetch
-          aria-current={ajustesAtual ? "page" : undefined}
-          title={AJUSTES_NAV.nome}
-          className={cn(
-            LINHA,
-            "mt-4 w-full",
-            ajustesAtual
-              ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
-              : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
-          )}
-        >
-          <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-            <AJUSTES_NAV.icone weight={ajustesAtual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
-          </span>
-          <span data-rotulo className={ROTULO}>{AJUSTES_NAV.nome}</span>
-        </Link>
-      )}
-
-      {/*
-        Claro/escuro fica junto do "Sair": são as duas coisas que não são
-        navegação. Usa a mesma linha dos itens, então o ícone cai na mesma
-        coluna que os outros — antes ficava 7,5px fora com a barra aberta.
-      */}
-      <LinhaTema
-        className={cn(LINHA, "mt-1 w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
-      />
-
-      <form action={logoutAction} className="mt-1 shrink-0">
-        <Button
-          variant="ghost"
-          type="submit"
-          title={`Sair (${nome})`}
-          className={cn("h-auto justify-start gap-0 border-0 p-0 font-normal whitespace-normal", LINHA, "w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
-        >
-          <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-            <SignOutIcon weight="regular" className="size-[19px] shrink-0" aria-hidden />
-          </span>
-          <span data-rotulo className={ROTULO}>Sair</span>
-        </Button>
-      </form>
+      {/* Ajustes, tema e sair: o que não é lugar de trabalho fica embaixo. */}
+      <div className="mt-2 flex shrink-0 flex-col items-center gap-1 px-1.5" onPointerEnter={() => abrirDepois(null, 120)}>
+        {veAjustes(permissoes, papel) && (
+          <ItemTrilho href={AJUSTES_NAV.href} nome={AJUSTES_NAV.nome} icone={AJUSTES_NAV.icone} atual={ajustesAtual} />
+        )}
+        <TemaNoTrilho pastilha={PASTILHA} rotulo={ROTULO} />
+        <form action={logoutAction} className="w-full">
+          <button type="submit" title={`Sair (${nome})`} className="group/item flex w-full flex-col items-center gap-1 rounded-xl py-1">
+            <span className={PASTILHA}>
+              <SignOutIcon weight="regular" className="size-5" aria-hidden />
+            </span>
+            <span className={ROTULO}>Sair</span>
+          </button>
+        </form>
+      </div>
     </nav>
+  );
+}
+
+function ItemTrilho({
+  href,
+  nome,
+  titulo,
+  icone,
+  atual,
+  aberto = false,
+  controla,
+  onPointerEnter,
+  onFocus,
+}: {
+  href: string;
+  nome: string;
+  titulo?: string;
+  icone: Icon;
+  atual: boolean;
+  aberto?: boolean;
+  controla?: string;
+  onPointerEnter?: () => void;
+  onFocus?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      /* prefetch: o Next busca a tela antes do clique; o trilho está sempre
+         à vista, então todas as telas principais chegam logo depois do app. */
+      prefetch
+      title={titulo ?? nome}
+      aria-current={atual ? "page" : undefined}
+      aria-expanded={controla ? aberto : undefined}
+      aria-controls={controla && aberto ? controla : undefined}
+      onPointerEnter={onPointerEnter}
+      onFocus={onFocus}
+      className="group/item flex w-full flex-col items-center gap-1 rounded-xl py-1"
+    >
+      <PastilhaDoItem icone={icone} atual={atual} aberto={aberto} />
+      <span className={cn(ROTULO, atual && "text-(--ll-accent)", aberto && !atual && "text-foreground")}>{nome}</span>
+    </Link>
+  );
+}
+
+/* A pastilha pulsa enquanto a tela clicada não chega: o clique responde na
+   hora, mesmo com o servidor demorando. */
+function PastilhaDoItem({ icone: Icone, atual, aberto }: { icone: Icon; atual: boolean; aberto: boolean }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      className={cn(
+        PASTILHA,
+        aberto && "bg-(--ll-surface-2) text-foreground",
+        atual && "bg-(--ll-accent-soft) text-(--ll-accent) group-hover/item:bg-(--ll-accent-soft) group-hover/item:text-(--ll-accent)",
+        pending && "animate-pulse",
+      )}
+    >
+      <Icone weight={atual ? "fill" : "regular"} className="size-5" aria-hidden />
+    </span>
+  );
+}
+
+/*
+ * O painel de uma categoria: cabeçalho, atalhos de criar e as opções com
+ * ícone e frase. Fica colado à direita do trilho, da altura da tela.
+ */
+function Painel({
+  categoria: c,
+  pathname,
+  params,
+  fechar,
+}: {
+  categoria: CategoriaNav;
+  pathname: string;
+  params: URLSearchParams;
+  fechar: () => void;
+}) {
+  const Icone = c.icone;
+  return (
+    <div
+      id={`painel-${c.id}`}
+      role="group"
+      aria-label={`Opções de ${c.nome}`}
+      className={cn(
+        "ll-painel-entra absolute inset-y-0 left-full flex w-(--nav-painel) flex-col overflow-y-auto border-r bg-card px-3 py-5",
+        "shadow-[12px_0_32px_-16px_rgba(22,21,26,.28)]",
+      )}
+    >
+      <div className="flex items-center gap-3 px-1.5">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--ll-accent-soft) text-(--ll-accent)">
+          <Icone weight="duotone" className="size-5" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[15px] leading-tight font-bold">{c.nome}</span>
+          <span className="block text-xs text-muted-foreground">{c.desc}</span>
+        </span>
+      </div>
+
+      <div className="mt-5 px-1.5">
+        <AtalhosDeCriar acoes={c.acoes ?? []} aoEscolher={fechar} />
+      </div>
+      <div className="mt-3">
+        <ListaDeOpcoes categoria={c} pathname={pathname} params={params} aoEscolher={fechar} />
+      </div>
+    </div>
   );
 }

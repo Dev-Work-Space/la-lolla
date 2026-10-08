@@ -41,35 +41,28 @@ export function CabecalhoEsqueleto() {
 }
 
 export function BarraLateralEsqueleto() {
+  /* O trilho de verdade: pastilha com o nome embaixo, Início e IA, a linha,
+     as quatro categorias e, no pé, ajustes, tema e sair. */
+  const item = (k: number) => (
+    <span key={k} className="flex shrink-0 flex-col items-center gap-1.5 py-1">
+      <span className={cn(BLOCO, "h-8 w-12 rounded-full")} />
+      <span className={cn(BLOCO, "h-2 w-10")} />
+    </span>
+  );
   return (
     <nav
       aria-hidden
-      className={cn(
-        "fixed inset-y-0 left-0 z-60 hidden flex-col overflow-hidden md:flex",
-        "w-(--nav-fechada) border-r bg-card py-6 px-(--nav-recuo)",
-      )}
+      className="fixed inset-y-0 left-0 z-60 hidden w-(--nav-fechada) flex-col items-center border-r bg-card py-4 md:flex"
     >
-      <span className="mb-6 flex h-9 shrink-0 items-center">
-        <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-          <Image src="/logo-lalolla-l.png" alt="" width={53} height={85} priority className="h-7 w-auto max-w-none" />
-        </span>
+      <span className="mb-4 grid h-10 w-12 shrink-0 place-items-center">
+        <Image src="/logo-lalolla-l.png" alt="" width={53} height={85} priority className="h-7 w-auto" />
       </span>
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
-        {Array.from({ length: 7 }, (_, i) => (
-          <span key={i} className="flex h-11 shrink-0 items-center">
-            <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-              <span className={cn(BLOCO, "size-[19px] rounded-full")} />
-            </span>
-          </span>
-        ))}
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-1">
+        {[0, 1].map(item)}
+        <span className="my-1.5 h-px w-8 shrink-0 bg-border" />
+        {[2, 3, 4, 5].map(item)}
       </div>
-      {Array.from({ length: 2 }, (_, i) => (
-        <span key={i} className={cn("flex h-11 shrink-0 items-center", i === 0 ? "mt-4" : "mt-1")}>
-          <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-            <span className={cn(BLOCO, "size-[19px] rounded-full")} />
-          </span>
-        </span>
-      ))}
+      <div className="mt-2 flex flex-col items-center gap-1">{[6, 7, 8].map(item)}</div>
     </nav>
   );
 }
@@ -83,8 +76,9 @@ export function BarraNavegacaoEsqueleto() {
         "pb-[env(safe-area-inset-bottom)]",
       )}
     >
-      <div className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl grid-cols-6 items-center">
-        {Array.from({ length: 6 }, (_, i) => (
+      {/* Início, IA e Menu — os três botões da barra de verdade. */}
+      <div className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl grid-cols-3 items-center">
+        {Array.from({ length: 3 }, (_, i) => (
           <span key={i} className="flex flex-col items-center justify-center gap-1.5">
             <span className={cn(BLOCO, "size-5 rounded-full")} />
             <span className={cn(BLOCO, "h-2 w-9")} />

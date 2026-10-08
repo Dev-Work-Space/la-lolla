@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
+import { CaretRightIcon, PlusIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
-import { opcaoAtual, type CategoriaNav } from "./navegacao";
+import { opcaoAtual, type AcaoNav, type CategoriaNav } from "./navegacao";
 
 /*
- * O que o menu do PC (barra lateral) e o do celular (gaveta do "Menu")
- * dividem: quais categorias estão abertas e o desenho das opções.
- *
- * CATEGORIA ABERTA FICA ABERTA ATÉ FECHAR — pedido do João (08/10/2026).
- * Abrir outra não fecha a anterior, trocar de tela não fecha nada, e a
- * escolha vale também depois de recarregar (fica neste aparelho). Entrar
- * numa tela de categoria fechada abre essa categoria, para a opção acesa
- * não ficar escondida; fechar, só a pessoa fecha.
+ * O que o menu do PC (painel da barra lateral) e o do celular (gaveta do
+ * "Menu") dividem: o desenho das opções e dos atalhos de criar, e — só no
+ * celular — quais categorias estão abertas. Um desenho só, para os dois
+ * menus não saírem de sintonia.
  */
 
 const CHAVE = "lalolla-menu-abertas";
@@ -26,6 +23,13 @@ function salvar(abertas: string[]) {
   }
 }
 
+/*
+ * Na gaveta do celular, CATEGORIA ABERTA FICA ABERTA ATÉ FECHAR — pedido do
+ * João (08/10/2026). Abrir outra não fecha a anterior, trocar de tela não
+ * fecha nada, e a escolha vale também depois de recarregar (fica neste
+ * aparelho). Entrar numa tela de categoria fechada abre essa categoria, para
+ * a opção acesa não ficar escondida; fechar, só a pessoa fecha.
+ */
 export function useMenuAberto(ativa: string | null) {
   const [abertas, setAbertas] = useState<string[]>(() => (ativa ? [ativa] : []));
 
@@ -58,62 +62,93 @@ export function useMenuAberto(ativa: string | null) {
 }
 
 /*
- * As opções de uma categoria, penduradas num trilho fino que desce da coluna
- * dos ícones: dá para ver de relance de quem elas são.
- *
- * Na barra do PC só aparecem com a barra aberta (no trilho de 68px não há
- * onde escrever); na gaveta do celular, sempre.
+ * "Nova venda", "Novo orçamento"…: o caminho curto para o que mais se faz.
+ * Quadradinhos lado a lado com o "+" e o nome curto — três botões cheios
+ * empilhados pesavam mais que as opções embaixo deles. O nome inteiro vai
+ * no `aria-label` e no `title`.
  */
-export function OpcoesDaCategoria({
-  categoria,
+export function AtalhosDeCriar({ acoes, aoEscolher }: { acoes: AcaoNav[]; aoEscolher?: () => void }) {
+  if (acoes.length === 0) return null;
+  return (
+    <div>
+      <p className="px-1 pb-1.5 text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Criar</p>
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${acoes.length}, minmax(0, 1fr))` }}>
+        {acoes.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            onClick={aoEscolher}
+            aria-label={a.nome}
+            title={a.nome}
+            className={cn(
+              "flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-xs font-semibold transition-colors",
+              "bg-(--ll-accent-soft) text-(--ll-accent) hover:bg-(--ll-accent) hover:text-(--ll-accent-ink)",
+            )}
+          >
+            <PlusIcon weight="bold" className="size-4" aria-hidden />
+            <span className="max-w-full truncate">{a.curto}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/*
+ * As opções de uma categoria: cada uma com ícone, nome e uma frase do que
+ * tem lá, agrupadas ("Contas", "Fluxo de caixa") quando a categoria pede.
+ * A da tela aberta fica dourada.
+ */
+export function ListaDeOpcoes({
+  categoria: c,
   pathname,
   params,
-  modo,
   aoEscolher,
 }: {
   categoria: CategoriaNav;
   pathname: string;
   params: URLSearchParams;
-  modo: "lateral" | "gaveta";
   aoEscolher?: () => void;
 }) {
-  const acesa = opcaoAtual(categoria, pathname, params);
-  const gaveta = modo === "gaveta";
+  const acesa = opcaoAtual(c, pathname, params);
   return (
-    <ul
-      aria-label={`Opções de ${categoria.nome}`}
-      className={cn(
-        "relative flex-col gap-0.5 pt-0.5 pb-1.5",
-        gaveta ? "flex" : "hidden group-hover:flex group-has-[:focus-visible]:flex",
-        "before:absolute before:top-1 before:bottom-2 before:left-[calc(var(--nav-trilho)/2)] before:w-px before:bg-border",
-      )}
-    >
-      {categoria.opcoes.map((s, k) => {
-        const on = s === acesa;
-        const novoGrupo = s.grupo && s.grupo !== categoria.opcoes[k - 1]?.grupo;
+    <ul aria-label={`Opções de ${c.nome}`} className="flex flex-col gap-0.5">
+      {c.opcoes.map((o, k) => {
+        const on = o === acesa;
+        const novoGrupo = o.grupo && o.grupo !== c.opcoes[k - 1]?.grupo;
+        const Icone = o.icone;
         return (
-          <li key={s.href} className="flex flex-col">
+          <li key={o.href} className="flex flex-col">
             {novoGrupo && (
-              <span className="pt-1.5 pb-0.5 pl-(--nav-trilho) text-[10px] font-bold tracking-wide whitespace-nowrap text-muted-foreground/80 uppercase">
-                {s.grupo}
+              <span className="px-2.5 pt-3 pb-1 text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+                {o.grupo}
               </span>
             )}
             <Link
-              href={s.href}
+              href={o.href}
               prefetch
               onClick={aoEscolher}
               aria-current={on ? "page" : undefined}
               className={cn(
-                "relative flex items-center rounded-lg pr-3 pl-(--nav-trilho) whitespace-nowrap outline-none",
-                gaveta ? "h-11 text-[15px]" : "h-8 text-[13px]",
-                "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
-                on
-                  ? "font-semibold text-(--ll-accent)"
-                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+                "group/op flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors duration-150",
+                on ? "bg-(--ll-accent-soft)" : "hover:bg-(--ll-surface-2)",
               )}
             >
-              <Ponto on={on} />
-              {s.nome}
+              <span
+                className={cn(
+                  "grid size-8 shrink-0 place-items-center rounded-lg transition-colors",
+                  on
+                    ? "bg-(--ll-accent) text-(--ll-accent-ink)"
+                    : "bg-(--ll-surface-2) text-muted-foreground group-hover/op:bg-card group-hover/op:text-foreground",
+                )}
+              >
+                <Icone weight={on ? "fill" : "regular"} className="size-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={cn("block truncate text-sm", on ? "font-bold text-(--ll-accent)" : "font-medium")}>{o.nome}</span>
+                <span className="block truncate text-xs text-muted-foreground">{o.desc}</span>
+              </span>
+              <Seta on={on} />
             </Link>
           </li>
         );
@@ -122,20 +157,18 @@ export function OpcoesDaCategoria({
   );
 }
 
-/*
- * O pontinho no trilho marca a opção da tela. Clicada e ainda chegando, ela
- * já acende e pulsa — o clique responde na hora, mesmo com o servidor
- * demorando.
- */
-function Ponto({ on }: { on: boolean }) {
+/* A setinha aparece ao apontar a opção, e pulsa de espera depois do clique:
+   o clique responde na hora, mesmo com o servidor demorando. */
+function Seta({ on }: { on: boolean }) {
   const { pending } = useLinkStatus();
   return (
-    <span
+    <CaretRightIcon
+      weight="bold"
       aria-hidden
       className={cn(
-        "absolute top-1/2 left-[calc(var(--nav-trilho)/2)] -translate-x-1/2 -translate-y-1/2 rounded-full",
-        on || pending ? "size-2 bg-(--ll-accent)" : "size-1 bg-border",
-        pending && "animate-pulse",
+        "size-3.5 shrink-0 transition-[opacity,translate] duration-150",
+        on ? "text-(--ll-accent) opacity-100" : "-translate-x-1 opacity-0 group-hover/op:translate-x-0 group-hover/op:opacity-60",
+        pending && "animate-pulse opacity-100",
       )}
     />
   );

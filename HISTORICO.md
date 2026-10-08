@@ -843,6 +843,22 @@ fica guardada no aparelho (`menu-arvore.tsx`). No celular a barra de baixo
 virou **Início · IA · Menu**, e o Menu sobe uma gaveta com a mesma árvore de
 categorias do PC.
 
+**Redesenho do menu do PC (08/10, "usa sua criatividade"): trilho + painel.**
+A barra que abria no hover (68 → 244px) e o acordeão saíram. Agora:
+
+- **Trilho fixo de 76px**, com o ícone numa pastilha e o nome sempre escrito
+  embaixo (até duas linhas: "Compra e / venda"). A pastilha dourada marca a
+  categoria da tela. Início e IA em cima; Ajustes, Tema e Sair no pé.
+- **Painel que desliza** ao parar o mouse numa categoria: nome e uma frase,
+  os atalhos de **Criar** (Venda, Orçamento, Compra — só para quem pode
+  criar) e as opções com ícone e uma frase do que tem lá. Some ao tirar o
+  mouse, ao escolher ou no Esc; pelo teclado, o foco abre e o Tab entra.
+- **Clicar na categoria** abre a tela principal dela direto.
+- A gaveta do celular usa as **mesmas** opções e atalhos (`menu-arvore.tsx`).
+
+Cada opção ganhou `icone` e `desc` em `navegacao.ts`; o tamanho mora em
+`--nav-fechada` e `--nav-painel` no `globals.css`.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo
