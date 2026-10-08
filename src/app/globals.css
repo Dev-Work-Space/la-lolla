@@ -202,6 +202,19 @@
   }
 
   /*
+   * O cabeçalho e a barra de baixo do celular são FIXOS. Quando o navegador
+   * rola um campo ou um botão para "aparecer" (foco, Tab, tocar numa seta),
+   * ele o encosta na borda da tela — ou seja, por baixo dessas barras. Estas
+   * margens dizem a ele para parar antes delas.
+   */
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-top: calc(var(--cabecalho-celular) + env(safe-area-inset-top) + 12px);
+      scroll-padding-bottom: calc(var(--nav-inferior) + env(safe-area-inset-bottom) + 12px);
+    }
+  }
+
+  /*
    * O CONTORNO QUE APARECIA DO NADA.
    *
    * Depois de clicar num item da barra lateral, o link continuava com o foco

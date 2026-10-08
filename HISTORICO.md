@@ -907,6 +907,28 @@ branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
 escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
 pt).
 
+### 08/10 · A Agenda usa o calendário do shadcn
+
+Pedido do João: "pegue o calendário do ui.shadcn.com e substitua na agenda".
+A grade do MÊS (feita à mão) saiu e entrou o componente oficial
+(`ui/calendar.tsx`, instalado com `npx shadcn add calendar`, que trouxe
+`react-day-picker` 10 e `date-fns`). O que continua nosso: as barrinhas de "a
+receber" (esquerda) e "a pagar" (direita) dentro de cada dia, os totais, a
+lista do mês ou só do dia tocado e a visão de SEMANA (que segue como estava).
+O calendário cuida das setas de mês, do teclado (setas, Home/End,
+PageUp/PageDown) e do leitor de tela, que lê "sábado, 10 de outubro · a
+receber R$ 300,00, a pagar R$ 800,00". Em português, semana na segunda. O
+dia e o mês continuam na URL (`CalendarioAgenda` é cliente só para navegar).
+
+> **Armadilha:** em `<Calendar classNames={{...}}>` cada chave SUBSTITUI a
+> classe padrão do shadcn, não se soma a ela. Passar só `day: "h-14"` apagou
+> `w-full` e as células encolheram; passar `months` sem `relative` jogou as
+> setas para o canto da página. Repita a classe inteira.
+
+Junto: `scroll-padding` no `<html>` do celular. O cabeçalho e a barra de baixo
+são fixos, e tudo que o navegador rola "para aparecer" (foco, Tab, tocar
+numa seta) ia parar por baixo deles.
+
 ### 08/10 · Impressão de etiquetas: um botão "Imprimir" com as saídas
 
 Substitui o "Gerar PDF" que abria uma segunda janela e o bloco "Enviar para a
