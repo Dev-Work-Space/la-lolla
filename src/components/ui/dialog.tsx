@@ -30,6 +30,11 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
+      /* Sem isto a janela que abre POR CIMA de outra não ganha fundo próprio
+         (o Base UI só desenha o da primeira) e as duas ficavam misturadas,
+         a de baixo igualmente clara. Com um fundo por janela, cada nível
+         escurece o anterior. */
+      forceRender
       className={cn(
         "fixed inset-0 isolate z-50 bg-overlay duration-(--ll-duracao-suave) ease-(--ll-ease) supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
