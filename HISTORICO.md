@@ -880,34 +880,6 @@ e IA vão direto. Tocar noutra categoria troca o painel, tocar na mesma fecha.
 O rótulo quebra em duas linhas ("Compra e / venda"). Ajustes continua na
 engrenagem do cabeçalho. A trava da tela de trás, o X e o deslizar valem igual.
 
-### 08/10 · Mandar VÁRIAS etiquetas para a NIIMBOT no iPhone
-
-O João usa uma **NIIMBOT D110-M** e salvava cada imagem no iPhone para depois
-importar no app dela. Pesquisado o que existe (fontes no fim):
-
-- **Bluetooth direto não serve no iPhone:** a D110-M fala BLE (o app dela
-  também; ela só não aparece em Ajustes › Bluetooth do iPhone, é normal), mas
-  o Safari e o Chrome do iPhone não têm Web Bluetooth. Só navegador especial
-  (Bluefy). A biblioteca aberta NiimBlueLib (MIT, não oficial) atende a
-  D110-M, e no PC/Android (Chrome) funcionaria. O João mandou largar a ideia;
-  nada disso entrou no código.
-- **A porta USB-C da D110 só carrega**, não transmite dados.
-- **O app aberto "niim"** (iPhone/Mac, só D110) não faz lote e exige Xcode.
-- **Folha de compartilhar:** a NIIMBOT não aparece nela (o app dela não
-  publicou a extensão), e isso o LaLolla não muda.
-- **O que o app dela faz em lote:** importar **planilha (Excel ou CSV, até
-  5.000 linhas)** e imprimir uma etiqueta por linha, com o modelo ligado às
-  colunas ("Fonte de dados").
-
-Por isso a impressão ganhou **"Muitas de uma vez"** (modelos NIIMBOT): gera a
-planilha do lote — uma linha por etiqueta, colunas `Codigo`, `Nome`,
-`Tamanho`, `Preco`, `Preco de`, `Desconto` (sem acento, de propósito) — em
-Excel ou CSV (`etiqueta.planilha.ts`; o .xlsx é montado à mão com `fflate`, e
-foi conferido abrindo no LibreOffice). O modelo da etiqueta se monta uma vez
-no app da NIIMBOT. **Ainda não testado no app dela** (não há como daqui):
-se ele recusar o Excel ou o CSV, ou não ligar o QR à coluna, é o primeiro
-lugar a olhar.
-
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
