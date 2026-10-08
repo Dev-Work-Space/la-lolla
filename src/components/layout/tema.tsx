@@ -44,8 +44,9 @@ function aplicar(tema: Tema) {
    * clara em cima — a emenda apareceria justamente onde o João quer que não
    * apareça nada.
    */
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", escuro ? COR_BARRA_ESCURA : COR_BARRA_CLARA);
+  const cor = escuro ? COR_BARRA_ESCURA : COR_BARRA_CLARA;
+  raiz.dataset.corBarra = cor;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", cor));
   try {
     if (tema === "sistema") localStorage.removeItem(CHAVE_TEMA);
     else localStorage.setItem(CHAVE_TEMA, tema);

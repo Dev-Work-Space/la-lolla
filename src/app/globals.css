@@ -299,6 +299,35 @@
   }
 }
 
+/* O véu escurece em vez de aparecer de uma vez, e a gaveta sobe da barra. */
+@keyframes ll-veu-entra {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ll-veu-entra {
+  animation: ll-veu-entra 200ms var(--ll-ease);
+}
+
+@keyframes ll-gaveta-sobe {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.ll-gaveta-sobe {
+  animation: ll-gaveta-sobe 220ms var(--ll-ease);
+}
+
 /* O painel do menu lateral entra deslizando do trilho, curto e discreto. */
 @keyframes ll-painel-entra {
   from {

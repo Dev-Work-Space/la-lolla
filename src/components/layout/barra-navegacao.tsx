@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { categoriasVisiveis, fixosVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
-import { AtalhosDeCriar, ListaDeOpcoes, useMenuAberto } from "./menu-arvore";
+import { AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from "./menu-arvore";
 
 /*
  * Barra fixa de baixo, só no celular. No PC a navegação vive na barra
@@ -18,9 +18,12 @@ import { AtalhosDeCriar, ListaDeOpcoes, useMenuAberto } from "./menu-arvore";
  * O MESMO MENU DO PC, do jeito do celular (pedido do João, 08/10/2026):
  * Início e IA são botões fixos, de um toque; "Menu" sobe uma gaveta com as
  * categorias; cada uma abre as mesmas opções do painel do PC (ícone, nome e
- * frase, mais os atalhos de criar), e a categoria aberta continua aberta até
- * a pessoa fechar. Ajustes não está
- * aqui — mora no cabeçalho, ao lado do tema, que é o "lá embaixo" do celular.
+ * frase, mais os atalhos de criar). A gaveta abre SEMPRE com tudo fechado
+ * (pedido do João: as categorias que ficaram abertas da última vez
+ * atrapalhavam), e fecha no X, deslizando para baixo, tocando fora ou no Esc.
+ * Aberta, ela TRAVA a tela de trás: escurece, não rola e não recebe toque.
+ * Ajustes não está aqui — mora no cabeçalho, ao lado do tema, que é o "lá
+ * embaixo" do celular.
  */
 export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permissoes; papel: Papel; temIA: boolean }) {
   const pathname = usePathname();
@@ -29,9 +32,27 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
   const fixos = fixosVisiveis(temIA);
   const categorias = categoriasVisiveis(permissoes, papel);
   const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
-  const { abertas, alternar } = useMenuAberto(ativa);
   const [menu, setMenu] = useState(false);
   const fechar = () => setMenu(false);
+
+  /*
+   * Gaveta aberta = tela de trás travada. O véu já recebe os toques, mas não
+   * impede a página de rolar por baixo nem o Tab de entrar nela: então a
+   * página e o cabeçalho ficam `inert` e a rolagem do <html> é desligada.
+   * Tudo volta ao fechar, inclusive se a barra sumir do ar.
+   */
+  useEffect(() => {
+    if (!menu) return;
+    const html = document.documentElement;
+    const antes = html.style.overflow;
+    html.style.overflow = "hidden";
+    const trancados = document.querySelectorAll("[data-conteudo], header");
+    trancados.forEach((el) => el.setAttribute("inert", ""));
+    return () => {
+      html.style.overflow = antes;
+      trancados.forEach((el) => el.removeAttribute("inert"));
+    };
+  }, [menu]);
 
   const botao = (acesa: boolean) =>
     cn(
@@ -43,19 +64,22 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
   return (
     <>
       {/* O véu fica FORA da <nav>: o `backdrop-blur` dela faz de qualquer
-          `fixed` lá dentro um filho preso à barra, e o véu não cobriria a tela. */}
+          `fixed` lá dentro um filho preso à barra, e o véu não cobriria a
+          tela. Fica POR CIMA do cabeçalho (z-50) para escurecer a tela
+          inteira, e a barra sobe acima dele enquanto a gaveta está aberta. */}
       {menu && (
         <button
           type="button"
           aria-label="Fechar o menu"
           tabIndex={-1}
           onClick={fechar}
-          className="fixed inset-0 z-30 bg-black/25 md:hidden"
+          className="ll-veu-entra fixed inset-0 z-55 touch-none bg-black/55 backdrop-blur-[2px] md:hidden"
         />
       )}
       <nav
         className={cn(
           "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur md:hidden",
+          menu && "z-60",
           // No iPhone a barra de gestos come o rodapé; isto devolve o espaço.
           "pb-[env(safe-area-inset-bottom)]",
         )}
@@ -92,11 +116,11 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
           <button
             type="button"
             onClick={() => setMenu((m) => !m)}
-            /* O dedo encostou: começa a buscar as telas das categorias abertas
-               já, antes de a gaveta subir e de a pessoa escolher. */
+            /* O dedo encostou: começa a buscar a tela principal de cada
+               categoria já, antes de a gaveta subir. As demais opções são
+               buscadas quando a categoria abre (ver `ListaDeOpcoes`). */
             onPointerDown={() => {
-              for (const c of categorias)
-                for (const o of abertas.includes(c.id) ? c.opcoes : c.opcoes.slice(0, 1)) router.prefetch(o.href);
+              for (const c of categorias) router.prefetch(c.opcoes[0].href);
             }}
             aria-expanded={menu}
             aria-haspopup="dialog"
@@ -114,8 +138,6 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
           <Gaveta
             categorias={categorias}
             ativa={ativa}
-            abertas={abertas}
-            alternar={alternar}
             pathname={pathname}
             params={params}
             fechar={fechar}
@@ -128,27 +150,31 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
 
 /*
  * A gaveta que sobe da barra com as categorias. Fecha ao escolher uma opção,
- * ao tocar fora, no X ou no Esc; abrir e fechar categoria NÃO fecha a gaveta.
- * O foco entra nela ao abrir, para quem usa leitor de tela ouvir o menu.
+ * no X, deslizando para baixo, ao tocar fora e no Esc; abrir e fechar
+ * categoria NÃO fecha a gaveta. O foco entra nela ao abrir, para quem usa
+ * leitor de tela ouvir o menu.
+ *
+ * Quais categorias estão abertas mora AQUI e não na barra: a gaveta é
+ * desmontada ao fechar, então cada abertura começa com tudo fechado.
  */
 function Gaveta({
   categorias,
   ativa,
-  abertas,
-  alternar,
   pathname,
   params,
   fechar,
 }: {
   categorias: CategoriaNav[];
   ativa: string | null;
-  abertas: string[];
-  alternar: (id: string) => void;
   pathname: string;
   params: URLSearchParams;
   fechar: () => void;
 }) {
   const painel = useRef<HTMLDivElement>(null);
+  const [abertas, setAbertas] = useState<string[]>([]);
+  const alternar = (id: string) =>
+    setAbertas((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+  const { zona, estilo } = useArrastarParaFechar("baixo", fechar);
 
   /* Só ao abrir: abrir e fechar categoria redesenha a gaveta, e o foco não
      pode pular de volta para o topo a cada toque. */
@@ -162,14 +188,31 @@ function Gaveta({
       role="dialog"
       aria-label="Menu"
       onKeyDown={(e) => e.key === "Escape" && fechar()}
+      style={estilo}
       className={cn(
-        "absolute inset-x-0 bottom-full mx-auto max-w-3xl rounded-t-2xl border border-b-0 bg-card px-3 pt-2 pb-3",
+        "ll-gaveta-sobe absolute inset-x-0 bottom-full mx-auto max-w-3xl rounded-t-2xl border border-b-0 bg-card px-3 pt-2 pb-3",
         "shadow-[0_-8px_30px_-12px_rgba(22,21,26,.35)]",
         "max-h-[75dvh] overflow-y-auto overscroll-contain",
       )}
     >
-      {/* a alcinha diz "isto é uma gaveta" */}
-      <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-border" />
+      {/* A zona de puxar: a alcinha (que diz "isto é uma gaveta") e o título
+          com o X. Arrastar daqui para baixo fecha; a lista abaixo só rola. */}
+      {/* `sticky`: com uma categoria grande aberta a gaveta rola, e sem isto o
+          X e a alcinha sumiam lá em cima. */}
+      <div {...zona} className="sticky top-0 z-10 -mx-3 -mt-2 mb-1 touch-none bg-card px-3 pt-2">
+        <span aria-hidden className="mx-auto mb-1 block h-1.5 w-12 rounded-full bg-border" />
+        <div className="flex items-center justify-between pb-1 pl-1">
+          <p className="text-sm font-bold">Menu</p>
+          <button
+            type="button"
+            onClick={fechar}
+            aria-label="Fechar o menu"
+            className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground"
+          >
+            <XIcon weight="bold" className="size-5" aria-hidden />
+          </button>
+        </div>
+      </div>
       <div className="flex flex-col gap-1">
         {categorias.map((c) => {
           const Icone = c.icone;
