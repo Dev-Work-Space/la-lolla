@@ -3,7 +3,23 @@ import "server-only";
 import { Prisma, type FormaPagamento, type ResolucaoDevolucao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
-import { totalDe, vencimentoParcela, type Intervalo } from "./venda.service";
+import { PEDE_COMPROVANTE, totalDe, vencimentoParcela, type Intervalo } from "./venda.service";
+import { comprovanteExiste } from "@/modules/financeiro/comprovante.service";
+
+/*
+ * O COMPROVANTE É OBRIGATÓRIO fora do dinheiro vivo (pedido do João,
+ * 08/10/2026): Pix, débito e crédito não se fecham sem a foto do
+ * comprovante ou do papel da maquininha. Antes ele virava "pendência" — ainda
+ * existe para a venda antiga —, mas a venda NOVA já nasce com ele.
+ */
+async function exigirComprovante(forma: FormaPagamento, comprovanteId: string | null | undefined) {
+  if (PEDE_COMPROVANTE.includes(forma) && !(await comprovanteExiste(comprovanteId))) {
+    throw new ErroDominio(
+      "REGRA_NEGOCIO",
+      "Anexe o comprovante do pagamento: tire uma foto ou escolha da galeria. Só o dinheiro vivo dispensa.",
+    );
+  }
+}
 
 /*
  * Fechar uma venda. Tudo numa transação só, porque cinco coisas precisam
@@ -38,6 +54,7 @@ export type PagamentoEntrada = {
   valor: number;
   parcelas?: number;
   carteiraId?: string | null;
+  comprovanteId?: string | null;
 };
 
 /*
@@ -96,6 +113,8 @@ export async function fecharVenda(entrada: VendaEntrada) {
   if (entrada.itens.length === 0) {
     throw new ErroDominio("REGRA_NEGOCIO", "Adicione ao menos uma peça à venda.");
   }
+
+  for (const p of entrada.pagamentos) await exigirComprovante(p.forma, p.comprovanteId);
 
   return prisma.$transaction(async (tx) => {
     /*
@@ -263,6 +282,7 @@ export async function fecharVenda(entrada: VendaEntrada) {
             valor: new Prisma.Decimal(p.valor.toFixed(2)),
             parcelas: p.parcelas ?? 1,
             carteiraId: p.carteiraId || null,
+            comprovanteId: p.comprovanteId || null,
             /* O dinheiro entrou no dia da VENDA, não no dia do registro. */
             data: dataVenda,
           })),
@@ -722,8 +742,10 @@ export async function receberPagamento(entrada: {
   valor: number;
   contaId?: string | null;
   carteiraId?: string | null;
+  comprovanteId?: string | null;
   data?: Date | null;
 }) {
+  await exigirComprovante(entrada.forma, entrada.comprovanteId);
   return prisma.$transaction(async (tx) => {
     const v = await tx.venda.findUnique({
       where: { id: entrada.vendaId },
@@ -761,6 +783,7 @@ export async function receberPagamento(entrada: {
         forma: entrada.forma,
         valor: new Prisma.Decimal(entrada.valor.toFixed(2)),
         carteiraId: entrada.carteiraId || null,
+        comprovanteId: entrada.comprovanteId || null,
         data: quando,
       },
       select: { id: true },

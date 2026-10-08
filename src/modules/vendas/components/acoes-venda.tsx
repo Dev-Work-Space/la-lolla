@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
 import { campoDaData } from "@/lib/dia";
+import { CampoComprovante } from "@/modules/financeiro/components/campo-comprovante";
 import {
   buscarCarteirasDaVendaAction,
   cancelarVendaAction,
@@ -75,6 +76,9 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [forma, setForma] = useState<Forma>("PIX");
+  /* Fora do dinheiro vivo, o recebimento só entra com o comprovante. */
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
+  const [faltou, setFaltou] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
@@ -108,8 +112,13 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
 
         <form
           action={(fd) => {
+            if (forma !== "DINHEIRO" && !comprovanteId) {
+              setFaltou(true);
+              return;
+            }
             fd.set("vendaId", vendaId);
             fd.set("forma", forma);
+            fd.set("comprovanteId", forma === "DINHEIRO" ? "" : (comprovanteId ?? ""));
             fd.set("carteiraId", carteiraId);
             fd.set("data", data ? `${data}T12:00:00` : "");
             salvar(async () => {
@@ -170,6 +179,18 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
               />
             </div>
           </div>
+
+          {forma !== "DINHEIRO" && (
+            <CampoComprovante
+              valor={comprovanteId}
+              aoMudar={(id) => {
+                setComprovanteId(id);
+                setFaltou(false);
+              }}
+              obrigatorio
+              erro={faltou ? "Anexe o comprovante para registrar o recebimento." : null}
+            />
+          )}
 
           {carteiras.length > 0 && (
             <div className="space-y-1.5">

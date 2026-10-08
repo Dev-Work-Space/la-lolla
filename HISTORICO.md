@@ -907,6 +907,32 @@ branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
 escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
 pt).
 
+### 08/10 · Comprovante: anexar foto/galeria, obrigatório fora do dinheiro vivo
+
+Era a pendência mais antiga da seção 10 ("a baixa exige a carteira e a tela
+avisa que o anexo ainda vai ser obrigatório"). O João decidiu em 08/10:
+**dinheiro vivo não exige**, vendas/contas antigas ficam como estão, e disse
+que **o app ainda não está em produção** — por isso entrou migration sem medo.
+
+- `CampoComprovante` ("Tirar foto" / "Da galeria", aceita PDF): a foto é
+  reduzida no celular (~300 KB), sobe NA HORA e o formulário só guarda o id.
+  `VerComprovante` abre a foto no extrato do caixa e na ficha da venda.
+- **Onde exige** (o servidor barra, a tela só avisa): baixa de conta a pagar e
+  a receber (dispensa: carteira **espécie** ou parcela de venda paga em
+  **dinheiro**); pagamento de venda em Pix, débito e crédito — ao lançar a
+  venda e ao "Receber" depois. A compra à vista entra na etapa do pagamento
+  flexível.
+- **Onde fica o arquivo:** com o Supabase Storage ligado, no bucket privado
+  `comprovantes` (criado sozinho se faltar). **Sem as chaves — o caso de hoje
+  —, no próprio banco** (`comprovantes.dados`, já reduzido), para funcionar já.
+  Migration `20261008120000_comprovante_no_banco` (`path` ficou opcional, entrou
+  `dados`). Se o volume crescer, ligar o Storage resolve sem mexer em tela.
+- `serverActions.bodySizeLimit` subiu para 6 MB (o padrão, 1 MB, barrava PDF).
+
+> **Migration e deploy.** O deploy da Vercel NÃO aplica migration (o `build` só
+> gera o client). Quem roda `npm run db:deploy` no banco da loja é o João —
+> até lá, as telas que leem as colunas novas quebram no link de prévia.
+
 ### 08/10 · A Agenda usa o calendário do shadcn
 
 Pedido do João: "pegue o calendário do ui.shadcn.com e substitua na agenda".

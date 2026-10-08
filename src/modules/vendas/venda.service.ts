@@ -225,6 +225,7 @@ export type VendaPublica = {
     valor: number;
     parcelas: number;
     temComprovante: boolean;
+    comprovanteId: string | null;
     precisaComprovante: boolean;
     data: Date;
   }>;
@@ -326,6 +327,7 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
       valor: num(p.valor),
       parcelas: p.parcelas,
       temComprovante: !!p.comprovanteId,
+      comprovanteId: p.comprovanteId,
       precisaComprovante: PEDE_COMPROVANTE.includes(p.forma),
       data: p.data,
     })),

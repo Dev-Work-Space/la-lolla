@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { AcoesVenda, RemoverRecebimento } from "@/modules/vendas/components/acoes-venda";
 import { EmitirRecibo } from "@/modules/vendas/components/emitir-recibo";
+import { VerComprovante } from "@/modules/financeiro/components/ver-comprovante";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -272,6 +273,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                     {p.precisaComprovante && !p.temComprovante && (
                       <Pilula tom="accent">sem comprovante</Pilula>
                     )}
+                    {p.comprovanteId && <VerComprovante id={p.comprovanteId} rotulo="Comprovante" />}
                     <span className="shrink-0 text-sm font-medium tabular-nums">
                       {brl(p.valor)}
                     </span>

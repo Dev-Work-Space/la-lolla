@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
+import { CampoComprovante } from "@/modules/financeiro/components/campo-comprovante";
 import {
   buscarCarteirasDaVendaAction,
   buscarClientesAction,
@@ -56,7 +57,7 @@ type Insumo = { id: string; nome: string; unidade: string; custo: number | null;
 type Forma = "DINHEIRO" | "PIX" | "DEBITO" | "CREDITO";
 /* `parcelas` só no crédito: a cliente parcelou no CARTÃO (a maquininha),
    não com a loja. Fica registrado no pagamento e sai na venda e no recibo. */
-type Pago = { forma: Forma; valor: number; parcelas?: number };
+type Pago = { forma: Forma; valor: number; parcelas?: number; comprovanteId?: string | null };
 
 /* Os atalhos de parcelamento: 1x a 12x, que cobrem quase toda venda. O campo
    ao lado aceita qualquer número — o João pediu as duas coisas. */
@@ -219,9 +220,20 @@ export function NovaVenda({
   /** O pagamento que entra na lista; no crédito leva as vezes do cartão. */
   function novoPago(valor: number): Pago {
     const vezes = Math.max(1, Number(vezesCartao) || 1);
-    return formaNova === "CREDITO" && vezes > 1 ? { forma: formaNova, valor, parcelas: vezes } : { forma: formaNova, valor };
+    const comprovanteId = formaNova === "DINHEIRO" ? null : comprovanteNovo;
+    return formaNova === "CREDITO" && vezes > 1
+      ? { forma: formaNova, valor, parcelas: vezes, comprovanteId }
+      : { forma: formaNova, valor, comprovanteId };
   }
   const [formaNova, setFormaNova] = useState<Forma>("DINHEIRO");
+  /* Fora do dinheiro vivo o comprovante é obrigatório: sem ele o pagamento não entra na lista. */
+  const [comprovanteNovo, setComprovanteNovo] = useState<string | null>(null);
+  const [faltaComprovante, setFaltaComprovante] = useState(false);
+  function faltaAnexar() {
+    const falta = formaNova !== "DINHEIRO" && !comprovanteNovo;
+    setFaltaComprovante(falta);
+    return falta;
+  }
   const [valorNovo, setValorNovo] = useState("");
 
   const [parcelas, setParcelas] = useState(String(orcamento?.parcelas ?? 1));
@@ -416,6 +428,7 @@ export function NovaVenda({
           valor: ix === pagos.length - 1 ? r2(p.valor - contas.troco) : p.valor,
           parcelas: p.parcelas ?? 1,
           carteiraId: carteiraId || null,
+          comprovanteId: p.comprovanteId ?? null,
         })).filter((p) => p.valor > 0),
         aPrazo:
           contas.saldo > 0.005
@@ -898,6 +911,7 @@ export function NovaVenda({
                   <span className="flex-1">
                     {FORMAS.find((f) => f[0] === p.forma)?.[1]}
                     {p.parcelas && p.parcelas > 1 ? ` · ${p.parcelas}x` : ""}
+                    {p.comprovanteId ? <span className="text-xs text-ok"> · comprovante ✓</span> : ""}
                   </span>
                   <span className="tabular-nums">{brl(p.valor)}</span>
                   <Button
@@ -934,6 +948,18 @@ export function NovaVenda({
             ))}
           </div>
 
+          {formaNova !== "DINHEIRO" && (
+            <CampoComprovante
+              valor={comprovanteNovo}
+              aoMudar={(id) => {
+                setComprovanteNovo(id);
+                setFaltaComprovante(false);
+              }}
+              obrigatorio
+              erro={faltaComprovante ? "Anexe o comprovante antes de adicionar este pagamento." : null}
+            />
+          )}
+
           {formaNova === "CREDITO" && (
             <SeletorDeVezes
               id="vezes-cartao"
@@ -957,11 +983,12 @@ export function NovaVenda({
               variant="secondary"
               onClick={() => {
                 const v = paraNumero(valorNovo) || contas.saldo;
-                if (v <= 0) return;
+                if (v <= 0 || faltaAnexar()) return;
                 const pago = novoPago(v);
                 setPagos((a) => [...a, pago]);
                 setValorNovo("");
                 setVezesCartao("1");
+                setComprovanteNovo(null);
               }}
             >
               Adicionar
@@ -979,10 +1006,12 @@ export function NovaVenda({
               variant="outline"
               className="w-full"
               onClick={() => {
+                if (faltaAnexar()) return;
                 const pago = novoPago(contas.saldo);
                 setPagos((a) => [...a, pago]);
                 setValorNovo("");
                 setVezesCartao("1");
+                setComprovanteNovo(null);
               }}
             >
               Pagou tudo · {brl(contas.saldo)} em{" "}

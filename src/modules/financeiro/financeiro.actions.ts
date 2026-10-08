@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { ErroDominio, tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
+import { comprovanteExiste } from "./comprovante.service";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
   const out: ErrosDeCampo = {};
@@ -156,13 +157,11 @@ const baixaSchema = z.object({
 /*
  * BAIXA DE VENCIMENTO. Aqui o comprovante é OBRIGATÓRIO.
  *
- * É a única regra de comprovante que o João fez questão de manter rígida:
- * na venda o comprovante vira pendência (a cliente está esperando), mas dar
- * baixa numa conta é ato de conferência — sem o papel, não se confere nada
- * depois.
- *
- * Enquanto o upload de arquivo não existir, a baixa exige pelo menos a
- * carteira, e o comprovante fica registrado como pendência visível.
+ * Dar baixa numa conta é ato de conferência — sem o papel, não se confere
+ * nada depois. Desde 08/10/2026 (pedido do João) o arquivo é anexado na hora,
+ * por foto ou galeria. A única dispensa é o DINHEIRO VIVO: parcela de venda
+ * paga em dinheiro, ou conta movimentada na carteira "espécie" (a gaveta) —
+ * ali não existe papel de banco nem de maquininha.
  */
 export async function baixarContaAction(formData: FormData): Promise<Result<{ id: string }>> {
   const sessao = await exigirPermissao("financeiro", "editar");
@@ -189,6 +188,17 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
     if (!conta) throw new ErroDominio("NAO_ENCONTRADO", "Essa conta não existe mais.");
     if (conta.status !== "ABERTA") {
       throw new ErroDominio("REGRA_NEGOCIO", "Essa conta já foi baixada ou cancelada.");
+    }
+
+    const carteira = await prisma.carteira.findUnique({ where: { id: d.carteiraId }, select: { tipo: true } });
+    if (!carteira) throw new ErroDominio("NAO_ENCONTRADO", "Essa carteira não existe mais. Escolha outra.");
+    const paraVenda = conta.tipo === "RECEBER" && Boolean(conta.vendaId);
+    const dinheiroVivo = paraVenda ? (d.forma ?? "DINHEIRO") === "DINHEIRO" : carteira.tipo === "ESPECIE";
+    if (!dinheiroVivo && !(await comprovanteExiste(d.comprovanteId))) {
+      throw new ErroDominio(
+        "REGRA_NEGOCIO",
+        "Anexe o comprovante: tire uma foto ou escolha da galeria. Só o dinheiro vivo dispensa.",
+      );
     }
 
     /*

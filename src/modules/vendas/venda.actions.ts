@@ -54,6 +54,8 @@ const fecharSchema = z.object({
         valor: z.coerce.number().positive(),
         parcelas: z.coerce.number().int().min(1).optional(),
         carteiraId: z.string().optional().nullable(),
+        /* Obrigatório fora do dinheiro vivo — quem barra é o serviço. */
+        comprovanteId: z.string().trim().max(40).optional().nullable(),
       }),
     )
     .default([]),
@@ -172,6 +174,10 @@ const receberSchema = z.object({
   forma: FORMA,
   valor: z.coerce.number().positive("Informe um valor maior que zero"),
   contaId: z.string().optional().nullable(),
+  comprovanteId: z
+    .union([z.literal(""), z.string().trim().max(40)])
+    .optional()
+    .transform((v) => (v ? v : null)),
   /* Vazio vira null, e não string vazia: o banco recusaria "" como id de
      carteira, e a mensagem que chegaria à tela seria de erro de chave
      estrangeira — técnica e inútil para quem está no balcão. */

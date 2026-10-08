@@ -358,8 +358,14 @@ model ItemDevolucao {
 }
 
 model Comprovante {
-  id       String   @id @default(cuid())
-  path     String // bucket PRIVADO — documento financeiro
+  id String @id @default(cuid())
+
+  // Onde o arquivo está. Com o Supabase Storage ligado, o CAMINHO no bucket
+  // PRIVADO `comprovantes` (documento financeiro). Sem ele — enquanto as
+  // chaves não existem —, o próprio arquivo, já reduzido, em `dados`. Um dos
+  // dois sempre vem preenchido.
+  path     String?
+  dados    Bytes?
   mimeType String
   bytes    Int
   criadoEm DateTime @default(now())

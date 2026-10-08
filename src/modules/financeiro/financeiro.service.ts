@@ -212,6 +212,7 @@ export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Pro
       quando: l.data,
       origem: "lancamento",
       temComprovante: !!l.comprovanteId,
+      comprovanteId: l.comprovanteId,
       carteiraIds: l.carteiraId ? [l.carteiraId] : [],
     })),
     ...pagos.map<MovimentoCaixa>((p) => ({
@@ -225,6 +226,7 @@ export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Pro
       origem: "venda",
       href: `/vendas/${p.venda.id}`,
       temComprovante: !!p.comprovanteId,
+      comprovanteId: p.comprovanteId,
       carteiraIds: p.carteiraId ? [p.carteiraId] : [],
     })),
     ...transfs.map<MovimentoCaixa>((t) => ({
@@ -237,6 +239,7 @@ export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Pro
       quando: t.data,
       origem: "transferencia",
       temComprovante: true,
+      comprovanteId: null,
       carteiraIds: [t.origemId, t.destinoId],
     })),
   ];
