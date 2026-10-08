@@ -967,6 +967,15 @@ sem fundo e misturada com a de baixo. `DialogOverlay` agora usa
 nem perde o digitado quando a segunda abre (testado no PC e no celular).
 Também entrou a barra de rolagem fina da LaLolla (`globals.css`).
 
+**As camadas (z-index) das janelas.** O fundo da janela ficava na camada 50 e o
+menu lateral na 60: com uma janela aberta, o menu continuava CLARO, por cima
+do escurecido — era o "não está dando opacidade no fundo". Camadas hoje, de
+baixo para cima: barra de baixo do celular 40 · cabeçalho do celular 50 ·
+véu do menu do celular 55 · menu lateral e painel do celular 60 · **janelas
+70** · **listas de escolha (Select) 80**, que abrem dentro das janelas ·
+barrinha de carregamento 80. Janela nova que precise ficar acima do resto
+tem de respeitar isto; o aviso (toast) já fica acima de tudo.
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
