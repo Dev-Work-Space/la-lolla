@@ -21,19 +21,24 @@ function criarClient() {
   /*
    * O tamanho do pool depende de ONDE o app roda, e a diferença é grande.
    *
-   * Na Vercel cada requisição roda numa função própria: se cada uma abrisse
-   * 10 conexões, 50 acessos simultâneos viram 500 e o Supabase recusa. Lá o
-   * teto é 1, e é inegociável.
+   * Com teto de 1, as consultas que o código pede JUNTAS (`Promise.all`)
+   * viram fila, e cada uma paga a ida e volta até o banco. Medido no
+   * servidor local: 8 consultas levavam 228 ms enfileiradas contra 133 ms
+   * juntas. O Início pede umas 15.
    *
-   * No servidor local (desenvolvimento, ou `npm start` numa máquina) é UM
-   * processo só atendendo tudo. Com teto de 1, as consultas que eu escrevi
-   * para rodar juntas viram fila — e cada uma paga a ida e volta até o banco.
-   * Medido: 8 consultas levavam 228 ms enfileiradas contra 133 ms juntas.
+   * Na Vercel o teto era 1, pensando em "uma função por requisição": 50
+   * acessos com 10 conexões cada virariam 500. Mas a Vercel de hoje (Fluid)
+   * atende VÁRIAS requisições na mesma instância, e com 1 conexão uma tela
+   * esperava a outra — inclusive as buscas antecipadas do menu, que saem
+   * várias de uma vez. Foi a lentidão que o João sentiu na troca de telas
+   * (08/10/2026). 5 por instância, atrás do pooler do Supabase (modo
+   * transação, que divide as conexões reais entre todos), deixa as consultas
+   * correrem juntas sem chegar perto do limite de clientes do pooler.
    *
    * Dá para forçar pelo ambiente com PG_POOL_MAX, se algum dia precisar.
    */
   const naVercel = Boolean(process.env.VERCEL);
-  const max = Number(process.env.PG_POOL_MAX) || (naVercel ? 1 : 10);
+  const max = Number(process.env.PG_POOL_MAX) || (naVercel ? 5 : 10);
 
   const adapter = new PrismaPg({ connectionString, max });
 

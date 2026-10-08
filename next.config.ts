@@ -10,6 +10,17 @@ const nextConfig: NextConfig = {
    */
   cacheComponents: true,
 
+  experimental: {
+    /*
+     * Tela visitada há menos de 30 s volta na hora, sem ir ao servidor. O
+     * padrão do Next é 0: todo vaivém (Vendas → venda → Vendas) esperava o
+     * banco de novo. 30 s é curto para mostrar dado velho, e quem grava algo
+     * neste aparelho chama `recarregar`, que descarta essa memória na hora.
+     * Pedido do João: "faça ficar o mais rápido possível" (08/10/2026).
+     */
+    staleTimes: { dynamic: 30 },
+  },
+
   /*
    * O Next 16 bloqueia recursos de DESENVOLVIMENTO pedidos por um host que
    * não seja o que ele considera seu. Ao subir com `-H 0.0.0.0` (para abrir
