@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CaretDownIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { LinhaTema } from "./tema";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
-import { AJUSTES_NAV, categoriasVisiveis, opcaoAtual, veAjustes, type CategoriaNav } from "./navegacao";
+import { AJUSTES_NAV, categoriasVisiveis, fixosVisiveis, opcaoAtual, veAjustes, type CategoriaNav } from "./navegacao";
+import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
 import { logoutAction } from "@/modules/auth/auth.actions";
 
 /*
@@ -47,11 +48,10 @@ import { logoutAction } from "@/modules/auth/auth.actions";
  *
  * 3. CATEGORIAS E OPÇÕES (08/10/2026).
  *    As abas de dentro das telas viraram opções do menu, e o menu ganhou
- *    categorias por cima delas (ver navegacao.ts). Tocar na categoria abre as
- *    opções dela e fecha a que estava aberta — uma de cada vez, para a lista
- *    não virar um paredão. A categoria da tela aberta já vem aberta. Com a
- *    barra fechada as opções somem: no trilho de 68px não há onde escrever,
- *    e o título da tela diz onde se está.
+ *    categorias por cima delas (ver navegacao.ts). Início e IA são botões
+ *    fixos no topo, sem lista. Categoria aberta fica aberta até a pessoa
+ *    fechar (ver menu-arvore.tsx). Com a barra fechada as opções somem: no
+ *    trilho de 68px não há onde escrever, e o título da tela diz onde se está.
  *
  * A ordem segue o caminho do negócio, não a ordem em que as telas nasceram:
  * vende e compra → guarda no estoque → olha o dinheiro → consulta cadastros.
@@ -86,26 +86,24 @@ export function BarraLateral({
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const categorias = categoriasVisiveis(permissoes, papel, temIA);
+  const fixos = fixosVisiveis(temIA);
+  const categorias = categoriasVisiveis(permissoes, papel);
   const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
-  /* A escolha feita no clique vale só na tela em que foi feita: ao trocar de
-     tela, volta a abrir a categoria da tela nova — sem efeito, sem piscar. */
-  const rota = `${pathname}?${params.toString()}`;
-  const [escolha, setEscolha] = useState<{ rota: string; id: string | null } | null>(null);
-  const aberta = escolha?.rota === rota ? escolha.id : ativa;
+  const { abertas, alternar } = useMenuAberto(ativa);
 
   /*
    * BUSCAR ANTES DO CLIQUE.
    * O Next só busca a tela de um link quando ele aparece na tela, e as
    * opções das categorias fechadas nem existem na página. Então, ao montar,
-   * a barra pede a primeira opção de cada categoria e todas as da categoria
-   * aberta; passar o mouse (ou o foco) numa categoria pede as dela. Quando o
+   * a barra pede a primeira opção de cada categoria e todas as das
+   * categorias abertas; passar o mouse (ou o foco) numa categoria pede as
+   * dela. Quando o
    * clique vem, a tela já está aqui. Esta barra existe também no celular
    * (escondida), então o pedido vale para os dois.
    */
   const router = useRouter();
   const antecipar = categorias
-    .flatMap((c) => (c.id === ativa ? c.opcoes : c.opcoes.slice(0, 1)))
+    .flatMap((c) => (abertas.includes(c.id) ? c.opcoes : c.opcoes.slice(0, 1)))
     .map((o) => o.href)
     .join(" ");
   useEffect(() => {
@@ -180,6 +178,40 @@ export function BarraLateral({
           alta que a tela, e encolhida ela passava por cima do "Sair". Assim
           quem rola é a barra. */}
       <div className="flex flex-1 shrink-0 flex-col gap-1">
+        {fixos.map((f) => {
+          const Icone = f.icone;
+          const atual = f.atual(pathname);
+          return (
+            <Link
+              key={f.href}
+              href={f.href}
+              /* prefetch: o Next busca a tela ANTES do clique. Como a barra
+                 abre no hover, quando o mouse chega no item a tela já está
+                 vindo — ao clicar, está pronta. */
+              prefetch
+              aria-current={atual ? "page" : undefined}
+              title={f.nome}
+              className={cn(
+                LINHA,
+                "w-full",
+                atual
+                  ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
+                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+              )}
+            >
+              {/* trilho de largura fixa: é ele que mantém o ícone parado */}
+              <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+                <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
+              </span>
+              {/* opacidade + max-width, nunca display:none */}
+              <span data-rotulo className={ROTULO}>{f.nome}</span>
+            </Link>
+          );
+        })}
+
+        {/* Separa os botões fixos das categorias. */}
+        <span aria-hidden className="mx-3 my-2 h-px shrink-0 bg-border" />
+
         {categorias.map((c) => {
           const Icone = c.icone;
           const atual = c.id === ativa;
@@ -191,14 +223,13 @@ export function BarraLateral({
               : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
           );
           const icone = (
-            /* trilho de largura fixa: é ele que mantém o ícone parado */
             <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
               <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
             </span>
           );
 
-          /* Categoria de uma opção só (o Início sem a IA, ou um perfil que só
-             vê Vendas) é um link direto: abrir uma lista de um item é clique
+          /* Categoria de uma opção só (um perfil que só vê Vendas, por
+             exemplo) é um link direto: abrir uma lista de um item é clique
              à toa. */
           if (c.opcoes.length === 1)
             return (
@@ -214,17 +245,16 @@ export function BarraLateral({
                 className={classe}
               >
                 {icone}
-                {/* opacidade + max-width, nunca display:none */}
                 <span data-rotulo className={ROTULO}>{c.nome}</span>
               </Link>
             );
 
-          const mostra = aberta === c.id;
+          const mostra = abertas.includes(c.id);
           return (
             <div key={c.id} className="flex shrink-0 flex-col">
               <button
                 type="button"
-                onClick={() => setEscolha({ rota, id: mostra ? null : c.id })}
+                onClick={() => alternar(c.id)}
                 onPointerEnter={() => buscarOpcoes(c)}
                 onFocus={() => buscarOpcoes(c)}
                 aria-expanded={mostra}
@@ -243,7 +273,7 @@ export function BarraLateral({
                   )}
                 />
               </button>
-              {mostra && <Opcoes categoria={c} pathname={pathname} params={params} />}
+              {mostra && <OpcoesDaCategoria categoria={c} pathname={pathname} params={params} modo="lateral" />}
             </div>
           );
         })}
@@ -293,72 +323,5 @@ export function BarraLateral({
         </Button>
       </form>
     </nav>
-  );
-}
-
-/*
- * As opções de uma categoria, penduradas num trilho fino que desce da coluna
- * dos ícones: dá para ver de relance de quem elas são. Só aparecem com a
- * barra aberta.
- */
-function Opcoes({ categoria, pathname, params }: { categoria: CategoriaNav; pathname: string; params: URLSearchParams }) {
-  const acesa = opcaoAtual(categoria, pathname, params);
-  return (
-    <ul
-      aria-label={`Opções de ${categoria.nome}`}
-      className={cn(
-        "relative hidden flex-col gap-0.5 pt-0.5 pb-1.5",
-        "group-hover:flex group-has-[:focus-visible]:flex",
-        "before:absolute before:top-1 before:bottom-2 before:left-[calc(var(--nav-trilho)/2)] before:w-px before:bg-border",
-      )}
-    >
-      {categoria.opcoes.map((s, k) => {
-        const on = s === acesa;
-        const novoGrupo = s.grupo && s.grupo !== categoria.opcoes[k - 1]?.grupo;
-        return (
-          <li key={s.href} className="flex flex-col">
-            {novoGrupo && (
-              <span className="pt-1.5 pb-0.5 pl-(--nav-trilho) text-[10px] font-bold tracking-wide whitespace-nowrap text-muted-foreground/80 uppercase">
-                {s.grupo}
-              </span>
-            )}
-            <Link
-              href={s.href}
-              prefetch
-              aria-current={on ? "page" : undefined}
-              className={cn(
-                "relative flex h-8 items-center rounded-lg pr-3 pl-(--nav-trilho) text-[13px] whitespace-nowrap outline-none",
-                "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
-                on
-                  ? "font-semibold text-(--ll-accent)"
-                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
-              )}
-            >
-              <Ponto on={on} />
-              {s.nome}
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/*
- * O pontinho no trilho marca a opção da tela. Clicada e ainda chegando, ela
- * já acende e pulsa — o clique responde na hora, mesmo com o servidor
- * demorando.
- */
-function Ponto({ on }: { on: boolean }) {
-  const { pending } = useLinkStatus();
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "absolute top-1/2 left-[calc(var(--nav-trilho)/2)] -translate-x-1/2 -translate-y-1/2 rounded-full",
-        on || pending ? "size-2 bg-(--ll-accent)" : "size-1 bg-border",
-        pending && "animate-pulse",
-      )}
-    />
   );
 }

@@ -1,42 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { XIcon } from "@phosphor-icons/react/ssr";
+import { CaretDownIcon, ListIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
-import { categoriasVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
+import { categoriasVisiveis, fixosVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
+import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
 
 /*
- * Barra fixa de baixo, só no celular. No PC a navegação vive no cabeçalho.
- * A LISTA não mora aqui — está em ./navegacao.ts, que não é módulo cliente e
- * por isso pode ser lido também pelo servidor. Ver o comentário lá.
+ * Barra fixa de baixo, só no celular. No PC a navegação vive na barra
+ * lateral. A LISTA não mora aqui — está em ./navegacao.ts, que não é módulo
+ * cliente e por isso pode ser lido também pelo servidor. Ver o comentário lá.
  *
- * É cliente pela URL (qual botão acender) e pelo painel de opções.
- *
- * Os botões são as CATEGORIAS do menu (navegacao.ts), as mesmas do PC.
- * Tocar numa categoria com opções abre o painel logo acima da barra, em vez
- * de ir direto: é ali que se escolhe para onde ir. Ajustes não está aqui —
- * mora no cabeçalho, ao lado do tema, que é o "lá embaixo" do celular.
+ * O MESMO MENU DO PC, do jeito do celular (pedido do João, 08/10/2026):
+ * Início e IA são botões fixos, de um toque; "Menu" sobe uma gaveta com as
+ * categorias e as opções no mesmo desenho de árvore da barra lateral, e a
+ * categoria aberta continua aberta até a pessoa fechar. Ajustes não está
+ * aqui — mora no cabeçalho, ao lado do tema, que é o "lá embaixo" do celular.
  */
 export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permissoes; papel: Papel; temIA: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const visiveis = categoriasVisiveis(permissoes, papel, temIA);
-  const [aberto, setAberto] = useState<CategoriaNav | null>(null);
-  const fechar = useCallback(() => setAberto(null), []);
   const router = useRouter();
+  const fixos = fixosVisiveis(temIA);
+  const categorias = categoriasVisiveis(permissoes, papel);
+  const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
+  const { abertas, alternar } = useMenuAberto(ativa);
+  const [menu, setMenu] = useState(false);
+  const fechar = () => setMenu(false);
+
+  const botao = (acesa: boolean) =>
+    cn(
+      "flex h-full min-w-0 flex-col items-center justify-center gap-1 px-1 text-center",
+      "transition-colors duration-150",
+      acesa ? "text-(--ll-accent)" : "text-muted-foreground",
+    );
 
   return (
     <>
       {/* O véu fica FORA da <nav>: o `backdrop-blur` dela faz de qualquer
           `fixed` lá dentro um filho preso à barra, e o véu não cobriria a tela. */}
-      {aberto && (
+      {menu && (
         <button
           type="button"
-          aria-label="Fechar as opções"
+          aria-label="Fechar o menu"
           tabIndex={-1}
           onClick={fechar}
           className="fixed inset-0 z-30 bg-black/25 md:hidden"
@@ -57,138 +67,147 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
           className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl items-center"
           // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr) e não encolhe
           // abaixo do conteúdo — foi assim que a barra estourou no app antigo.
-          style={{ gridTemplateColumns: `repeat(${visiveis.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${fixos.length + 1}, minmax(0, 1fr))` }}
         >
-          {visiveis.map((i) => {
-            const Icone = i.icone;
-            const atual = Boolean(opcaoAtual(i, pathname, params));
-            const classe = cn(
-              "flex h-full min-w-0 flex-col items-center justify-center gap-1 px-1 text-center",
-              "transition-colors duration-150",
-              atual || aberto?.id === i.id ? "text-(--ll-accent)" : "text-muted-foreground",
-            );
-            const conteudo = (
-              <>
-                <Icone weight={aberto?.id === i.id ? "fill" : "regular"} className="size-5 shrink-0" aria-hidden />
-                <span className="w-full truncate text-[10px] font-medium leading-none">{i.curto}</span>
-              </>
-            );
-            if (i.opcoes.length > 1)
-              return (
-                <button
-                  key={i.id}
-                  type="button"
-                  onClick={() => setAberto((a) => (a?.id === i.id ? null : i))}
-                  /* O dedo encostou: começa a buscar as opções já, antes de o
-                     painel abrir e de a pessoa escolher. */
-                  onPointerDown={() => i.opcoes.forEach((o) => router.prefetch(o.href))}
-                  aria-expanded={aberto?.id === i.id}
-                  aria-haspopup="dialog"
-                  aria-current={atual ? "page" : undefined}
-                  className={classe}
-                >
-                  {conteudo}
-                </button>
-              );
+          {fixos.map((f) => {
+            const Icone = f.icone;
+            const atual = f.atual(pathname) && !menu;
             return (
               <Link
-                key={i.id}
-                href={i.opcoes[0].href}
+                key={f.href}
+                href={f.href}
                 /* No celular não existe hover: o Next busca quando o link entra
-                   na tela — e esta barra está sempre na tela. Na prática, todas
-                   as telas ficam prontas logo depois que o app abre. */
+                   na tela — e esta barra está sempre na tela. */
                 prefetch
                 onClick={fechar}
-                aria-current={atual ? "page" : undefined}
-                className={classe}
+                aria-current={f.atual(pathname) ? "page" : undefined}
+                className={botao(atual)}
               >
-                {conteudo}
+                <Icone weight={atual ? "fill" : "regular"} className="size-5 shrink-0" aria-hidden />
+                <span className="w-full truncate text-[10px] leading-none font-medium">{f.nome}</span>
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setMenu((m) => !m)}
+            /* O dedo encostou: começa a buscar as telas das categorias abertas
+               já, antes de a gaveta subir e de a pessoa escolher. */
+            onPointerDown={() => {
+              for (const c of categorias)
+                for (const o of abertas.includes(c.id) ? c.opcoes : c.opcoes.slice(0, 1)) router.prefetch(o.href);
+            }}
+            aria-expanded={menu}
+            aria-haspopup="dialog"
+            className={botao(menu || ativa !== null)}
+          >
+            {menu ? (
+              <XIcon weight="bold" className="size-5 shrink-0" aria-hidden />
+            ) : (
+              <ListIcon weight={ativa ? "bold" : "regular"} className="size-5 shrink-0" aria-hidden />
+            )}
+            <span className="w-full truncate text-[10px] leading-none font-medium">Menu</span>
+          </button>
         </div>
-        {aberto && <PainelOpcoes categoria={aberto} pathname={pathname} params={params} fechar={fechar} />}
+        {menu && (
+          <Gaveta
+            categorias={categorias}
+            ativa={ativa}
+            abertas={abertas}
+            alternar={alternar}
+            pathname={pathname}
+            params={params}
+            fechar={fechar}
+          />
+        )}
       </nav>
     </>
   );
 }
 
 /*
- * O painel que sobe da barra com as opções da seção. Fecha ao escolher, ao
- * tocar fora, no X ou no Esc. O foco entra no painel ao abrir, para quem usa
- * leitor de tela ouvir as opções em seguida.
+ * A gaveta que sobe da barra com as categorias. Fecha ao escolher uma opção,
+ * ao tocar fora, no X ou no Esc; abrir e fechar categoria NÃO fecha a gaveta.
+ * O foco entra nela ao abrir, para quem usa leitor de tela ouvir o menu.
  */
-function PainelOpcoes({
-  categoria,
+function Gaveta({
+  categorias,
+  ativa,
+  abertas,
+  alternar,
   pathname,
   params,
   fechar,
 }: {
-  categoria: CategoriaNav;
+  categorias: CategoriaNav[];
+  ativa: string | null;
+  abertas: string[];
+  alternar: (id: string) => void;
   pathname: string;
   params: URLSearchParams;
   fechar: () => void;
 }) {
   const painel = useRef<HTMLDivElement>(null);
-  const acesa = opcaoAtual(categoria, pathname, params);
 
+  /* Só ao abrir: abrir e fechar categoria redesenha a gaveta, e o foco não
+     pode pular de volta para o topo a cada toque. */
   useEffect(() => {
-    painel.current?.querySelector<HTMLElement>("a")?.focus({ preventScroll: true });
-    const tecla = (e: KeyboardEvent) => e.key === "Escape" && fechar();
-    window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
-  }, [categoria, fechar]);
+    painel.current?.querySelector<HTMLElement>("button, a")?.focus({ preventScroll: true });
+  }, []);
 
   return (
     <div
       ref={painel}
       role="dialog"
-      aria-label={`Opções de ${categoria.nome}`}
+      aria-label="Menu"
+      onKeyDown={(e) => e.key === "Escape" && fechar()}
       className={cn(
-        "absolute inset-x-0 bottom-full mx-auto max-w-3xl rounded-t-2xl border border-b-0 bg-card px-4 pt-3 pb-3",
+        "absolute inset-x-0 bottom-full mx-auto max-w-3xl rounded-t-2xl border border-b-0 bg-card px-3 pt-2 pb-3",
         "shadow-[0_-8px_30px_-12px_rgba(22,21,26,.35)]",
-        "max-h-[70dvh] overflow-y-auto",
+        "max-h-[75dvh] overflow-y-auto overscroll-contain",
       )}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-bold">{categoria.nome}</p>
-        <button
-          type="button"
-          onClick={fechar}
-          aria-label="Fechar"
-          className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-(--ll-surface-2)"
-        >
-          <XIcon className="size-4" aria-hidden />
-        </button>
-      </div>
-      <ul className="grid grid-cols-2 gap-2">
-        {categoria.opcoes.map((s, k) => {
-          const on = s === acesa;
-          const novoGrupo = s.grupo && s.grupo !== categoria.opcoes[k - 1]?.grupo;
-          return (
-            <li key={s.href} className="contents">
-              {novoGrupo && (
-                <span className="col-span-2 pt-1 text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-                  {s.grupo}
-                </span>
-              )}
-              <Link
-                href={s.href}
-                onClick={fechar}
-                aria-current={on ? "page" : undefined}
-                className={cn(
-                  "flex min-h-12 items-center rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
-                  on
-                    ? "border-(--ll-accent) bg-(--ll-accent-soft) font-semibold text-(--ll-accent)"
-                    : "hover:bg-(--ll-surface-2)",
-                )}
-              >
-                {s.nome}
+      {/* a alcinha diz "isto é uma gaveta" */}
+      <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-border" />
+      <div className="flex flex-col gap-1">
+        {categorias.map((c) => {
+          const Icone = c.icone;
+          const atual = c.id === ativa;
+          const classe = cn(
+            "flex h-12 w-full items-center rounded-xl text-left text-[15px] font-semibold transition-colors",
+            atual ? "bg-(--ll-accent-soft) text-(--ll-accent)" : "text-foreground hover:bg-(--ll-surface-2)",
+          );
+          const icone = (
+            <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+              <Icone weight={atual ? "fill" : "regular"} className="size-5" aria-hidden />
+            </span>
+          );
+          if (c.opcoes.length === 1)
+            return (
+              <Link key={c.id} href={c.opcoes[0].href} onClick={fechar} className={classe}>
+                {icone}
+                {c.nome}
               </Link>
-            </li>
+            );
+          const mostra = abertas.includes(c.id);
+          return (
+            <div key={c.id} className="flex flex-col">
+              <button type="button" onClick={() => alternar(c.id)} aria-expanded={mostra} className={classe}>
+                {icone}
+                {c.nome}
+                <CaretDownIcon
+                  weight="bold"
+                  aria-hidden
+                  className={cn("mr-4 ml-auto size-4 opacity-50 transition-transform duration-200", mostra && "rotate-180")}
+                />
+              </button>
+              {mostra && (
+                <OpcoesDaCategoria categoria={c} pathname={pathname} params={params} modo="gaveta" aoEscolher={fechar} />
+              )}
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

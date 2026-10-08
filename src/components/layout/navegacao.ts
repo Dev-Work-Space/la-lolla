@@ -1,5 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import { HouseIcon, StorefrontIcon, PackageIcon, WalletIcon, UsersIcon, GearIcon } from "@phosphor-icons/react/ssr";
+import { HouseIcon, SparkleIcon, StorefrontIcon, PackageIcon, WalletIcon, UsersIcon, GearIcon } from "@phosphor-icons/react/ssr";
 import type { Papel } from "@prisma/client";
 import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
 import { abaDaUrl } from "@/modules/financeiro/abas";
@@ -39,8 +39,6 @@ export type OpcaoNav = {
   area?: Area;
   /** Regra extra além da área (ex.: categorias exigem editar os ajustes). */
   pode?: (permissoes: Permissoes) => boolean;
-  /** Só com o assistente ligado (a chave do Gemini existe no servidor). */
-  ia?: boolean;
   /** É a opção da tela aberta? */
   atual: (pathname: string, params: URLSearchParams) => boolean;
 };
@@ -48,8 +46,6 @@ export type OpcaoNav = {
 export type CategoriaNav = {
   id: string;
   nome: string;
-  /** Rótulo da barra de baixo do celular, onde cabem ~12 letras. */
-  curto: string;
   icone: Icon;
   opcoes: OpcaoNav[];
 };
@@ -67,23 +63,26 @@ const fin = (qual: string, tipoOuVer?: string) => (pathname: string, params: URL
   return qual === "contas" ? a.tipo === tipoOuVer : a.ver === tipoOuVer;
 };
 
+/*
+ * Início e IA ficam FIXOS no topo, fora das categorias — pedido do João: são
+ * botões de um toque só, sem lista para abrir. A IA era um robô flutuando
+ * em toda tela; virou lugar próprio no menu.
+ */
+export type FixoNav = { href: string; nome: string; icone: Icon; ia?: boolean; atual: (pathname: string) => boolean };
+
+export const FIXOS_NAV: FixoNav[] = [
+  { href: "/", nome: "Início", icone: HouseIcon, atual: (p) => p === "/" },
+  { href: "/ia", nome: "IA", icone: SparkleIcon, ia: true, atual: (p) => dentro(p, "/ia") },
+];
+
+export function fixosVisiveis(temIA: boolean): FixoNav[] {
+  return FIXOS_NAV.filter((f) => !f.ia || temIA);
+}
+
 export const CATEGORIAS_NAV: CategoriaNav[] = [
-  {
-    id: "inicio",
-    nome: "Início",
-    curto: "Início",
-    icone: HouseIcon,
-    opcoes: [
-      { href: "/", nome: "Início", atual: (p) => p === "/" },
-      /* O assistente era um robô flutuando em toda tela; o João pediu que
-         virasse opção do Início, sem o ícone. */
-      { href: "/ia", nome: "IA", ia: true, atual: (p) => dentro(p, "/ia") },
-    ],
-  },
   {
     id: "comercio",
     nome: "Compra e venda",
-    curto: "Compra/venda",
     icone: StorefrontIcon,
     opcoes: [
       { href: "/vendas", nome: "Vendas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && q.get("aba") !== "orcamentos" },
@@ -99,7 +98,6 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
   {
     id: "estoque",
     nome: "Estoque",
-    curto: "Estoque",
     icone: PackageIcon,
     opcoes: [
       {
@@ -117,7 +115,6 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
   {
     id: "financeiro",
     nome: "Financeiro",
-    curto: "Caixa",
     icone: WalletIcon,
     opcoes: [
       { href: "/financeiro", nome: "Visão geral", area: "financeiro", atual: fin("geral") },
@@ -133,7 +130,6 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
   {
     id: "cadastros",
     nome: "Cadastros",
-    curto: "Cadastros",
     icone: UsersIcon,
     opcoes: [
       { href: "/cadastros", nome: "Clientes", area: "pessoas", atual: (p, q) => p === "/cadastros" && q.get("aba") !== "fornecedores" },
@@ -161,14 +157,12 @@ export function veAjustes(permissoes: Permissoes, papel: Papel): boolean {
  * As categorias que esta pessoa vê, cada uma só com as opções que ela pode
  * abrir. Categoria sem nenhuma opção some.
  */
-export function categoriasVisiveis(permissoes: Permissoes, papel: Papel, temIA: boolean): CategoriaNav[] {
+export function categoriasVisiveis(permissoes: Permissoes, papel: Papel): CategoriaNav[] {
   const admin = ehAdmin(papel);
   return CATEGORIAS_NAV.map((c) => ({
     ...c,
     opcoes: c.opcoes.filter(
-      (o) =>
-        (!o.ia || temIA) &&
-        (admin || ((!o.area || permissoes[o.area]?.ver === true) && (!o.pode || o.pode(permissoes)))),
+      (o) => admin || ((!o.area || permissoes[o.area]?.ver === true) && (!o.pode || o.pode(permissoes))),
     ),
   })).filter((c) => c.opcoes.length > 0);
 }

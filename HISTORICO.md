@@ -836,6 +836,13 @@ opções. O **assistente de IA** deixou de ser um robô flutuando em toda tela e
 virou a tela `/ia`, com as sugestões e os "Resumir" de cada tela em botões; o
 `chat-flutuante.tsx` saiu. Sem a `GEMINI_API_KEY`, a opção IA some do menu.
 
+Ajuste seguinte, a pedido dele: **Início e IA viraram botões fixos** no topo,
+fora das categorias, e **categoria aberta fica aberta até a pessoa fechar** —
+abrir outra não fecha a anterior, trocar de tela não fecha nada, e a escolha
+fica guardada no aparelho (`menu-arvore.tsx`). No celular a barra de baixo
+virou **Início · IA · Menu**, e o Menu sobe uma gaveta com a mesma árvore de
+categorias do PC.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

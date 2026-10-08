@@ -21,7 +21,7 @@ export default async function IaPage() {
         "h-[calc(100dvh-var(--cabecalho-celular)-var(--nav-inferior)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-dvh"
       }
     >
-      <TituloTela secao="Início" titulo="IA" />
+      <TituloTela secao="Assistente" titulo="IA" />
       {process.env.GEMINI_API_KEY ? (
         <ChatPagina />
       ) : (
