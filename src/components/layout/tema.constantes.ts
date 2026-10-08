@@ -35,6 +35,13 @@ export type Tema = "claro" | "escuro" | "sistema";
  * `data-theme` fica junto porque ajuda a enxergar o estado ao depurar, mas
  * quem pinta é a classe.
  *
+ * A COR DA BARRA tem DUAS tags theme-color na página: a do servidor e uma que
+ * o Next acrescenta ao hidratar, sempre com a cor clara. O script pintava só
+ * a primeira, e a segunda deixava o topo do navegador branco com o app no
+ * escuro (medido: `#191714` e `#F7F6F3` ao mesmo tempo). Agora todas são
+ * pintadas e um MutationObserver repinta qualquer uma que apareça ou que o
+ * Next volte a escrever; a cor certa fica em `data-cor-barra` no <html>.
+ *
  * Inserido por ScriptTema no HTML do servidor, antes da primeira pintura.
  * Não é renderizado novamente pelo React no cliente. Mantém a escolha salva e a cor da barra do navegador
  * sincronizadas sem depender de um efeito de componente cliente.
@@ -47,7 +54,14 @@ try {
   var r = document.documentElement;
   r.classList.toggle("dark", escuro);
   r.dataset.theme = escuro ? "dark" : "light";
-  var m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute("content", escuro ? ${JSON.stringify(COR_BARRA_ESCURA)} : ${JSON.stringify(COR_BARRA_CLARA)});
+  r.dataset.corBarra = escuro ? ${JSON.stringify(COR_BARRA_ESCURA)} : ${JSON.stringify(COR_BARRA_CLARA)};
+  var pintar = function () {
+    var c = r.dataset.corBarra;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      if (m.getAttribute("content") !== c) m.setAttribute("content", c);
+    });
+  };
+  pintar();
+  new MutationObserver(pintar).observe(document.head, { childList: true, subtree: true, attributes: true, attributeFilter: ["content"] });
 } catch (e) {}
 `.trim();

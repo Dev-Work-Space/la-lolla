@@ -57,6 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         discordar.
       */}
       <div
+        data-conteudo
         className={cn(
           "flex-1",
           // por cima: o cabeçalho agora é fixo e sairia por cima do conteúdo

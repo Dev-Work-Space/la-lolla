@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { CaretRightIcon, PlusIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
@@ -8,57 +8,58 @@ import { opcaoAtual, type AcaoNav, type CategoriaNav } from "./navegacao";
 
 /*
  * O que o menu do PC (painel da barra lateral) e o do celular (gaveta do
- * "Menu") dividem: o desenho das opções e dos atalhos de criar, e — só no
- * celular — quais categorias estão abertas. Um desenho só, para os dois
- * menus não saírem de sintonia.
+ * "Menu") dividem: o desenho das opções e dos atalhos de criar e o gesto de
+ * fechar. Um desenho só, para os dois menus não saírem de sintonia.
  */
-
-const CHAVE = "lalolla-menu-abertas";
-
-function salvar(abertas: string[]) {
-  try {
-    localStorage.setItem(CHAVE, JSON.stringify(abertas));
-  } catch {
-    /* navegador com armazenamento bloqueado: vale só até recarregar */
-  }
-}
 
 /*
- * Na gaveta do celular, CATEGORIA ABERTA FICA ABERTA ATÉ FECHAR — pedido do
- * João (08/10/2026). Abrir outra não fecha a anterior, trocar de tela não
- * fecha nada, e a escolha vale também depois de recarregar (fica neste
- * aparelho). Entrar numa tela de categoria fechada abre essa categoria, para
- * a opção acesa não ficar escondida; fechar, só a pessoa fecha.
+ * ARRASTAR PARA FECHAR (pedido do João, 08/10/2026): o menu fecha clicando no
+ * X ou deslizando — para baixo na gaveta do celular, para a esquerda no
+ * painel do PC. A tela acompanha o dedo (ou o mouse) e, soltando, fecha se
+ * passou de um terço do caminho ou foi um puxão rápido; senão volta.
+ *
+ * Só a "zona" (a alcinha e o cabeçalho) arrasta, não a lista inteira: assim
+ * rolar as opções continua rolando. Botões e links dentro da zona (o X)
+ * seguem clicáveis — capturar o ponteiro neles engoliria o clique.
  */
-export function useMenuAberto(ativa: string | null) {
-  const [abertas, setAbertas] = useState<string[]>(() => (ativa ? [ativa] : []));
+export function useArrastarParaFechar(sentido: "baixo" | "esquerda", fechar: () => void) {
+  const [desloc, setDesloc] = useState(0);
+  const [arrastando, setArrastando] = useState(false);
+  const inicio = useRef<{ p: number; t: number } | null>(null);
 
-  useEffect(() => {
-    // Leitura única de uma fonte que só existe no navegador. Ler no render
-    // faria servidor e navegador desenharem menus diferentes.
-    try {
-      const salvo: unknown = JSON.parse(localStorage.getItem(CHAVE) ?? "null");
-      if (Array.isArray(salvo))
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setAbertas(salvo.filter((x): x is string => typeof x === "string"));
-    } catch {
-      /* idem */
-    }
-  }, []);
+  const medida = (e: React.PointerEvent) =>
+    inicio.current ? (sentido === "baixo" ? e.clientY : -e.clientX) - inicio.current.p : 0;
 
-  const [ultimaAtiva, setUltimaAtiva] = useState(ativa);
-  if (ultimaAtiva !== ativa) {
-    setUltimaAtiva(ativa);
-    if (ativa && !abertas.includes(ativa)) setAbertas([...abertas, ativa]);
-  }
-
-  const alternar = (id: string) => {
-    const novas = abertas.includes(id) ? abertas.filter((x) => x !== id) : [...abertas, id];
-    setAbertas(novas);
-    salvar(novas);
+  const soltar = (e: React.PointerEvent, cancelou: boolean) => {
+    if (!inicio.current) return;
+    const d = Math.max(0, medida(e));
+    const ms = Math.max(1, Date.now() - inicio.current.t);
+    inicio.current = null;
+    setArrastando(false);
+    if (!cancelou && (d > 90 || (d > 30 && d / ms > 0.5))) fechar();
+    else setDesloc(0);
   };
 
-  return { abertas, alternar };
+  return {
+    zona: {
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if ((e.target as Element).closest("button, a")) return;
+        inicio.current = { p: sentido === "baixo" ? e.clientY : -e.clientX, t: Date.now() };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setArrastando(true);
+      },
+      onPointerMove: (e: React.PointerEvent) => {
+        if (inicio.current) setDesloc(Math.max(0, medida(e)));
+      },
+      onPointerUp: (e: React.PointerEvent) => soltar(e, false),
+      onPointerCancel: (e: React.PointerEvent) => soltar(e, true),
+    },
+    estilo: {
+      transform: desloc ? (sentido === "baixo" ? `translateY(${desloc}px)` : `translateX(${-desloc}px)`) : undefined,
+      transition: arrastando ? "none" : "transform 180ms var(--ll-ease)",
+    } as React.CSSProperties,
+  };
 }
 
 /*

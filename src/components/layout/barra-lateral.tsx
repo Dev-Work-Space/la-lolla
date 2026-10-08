@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { SignOutIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { TemaNoTrilho } from "./tema";
 import type { Papel } from "@prisma/client";
@@ -12,7 +12,7 @@ import type { Icon } from "@phosphor-icons/react";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { AJUSTES_NAV, categoriasVisiveis, fixosVisiveis, opcaoAtual, veAjustes, type CategoriaNav } from "./navegacao";
 import { logoutAction } from "@/modules/auth/auth.actions";
-import { Aquecer, AtalhosDeCriar, ListaDeOpcoes } from "./menu-arvore";
+import { Aquecer, AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from "./menu-arvore";
 
 /*
  * Barra lateral do monitor: TRILHO + PAINEL.
@@ -230,24 +230,37 @@ function Painel({
   fechar: () => void;
 }) {
   const Icone = c.icone;
+  /* Fecha no X, deslizando o cabeçalho para a esquerda, clicando fora ou no
+     Esc. A zona de arrastar é só o cabeçalho: a lista continua rolando. */
+  const { zona, estilo } = useArrastarParaFechar("esquerda", fechar);
   return (
     <div
       id={`painel-${c.id}`}
       role="group"
       aria-label={`Opções de ${c.nome}`}
+      style={estilo}
       className={cn(
         "ll-painel-entra absolute inset-y-0 left-full flex w-(--nav-painel) flex-col overflow-y-auto border-r bg-card px-3 py-5",
         "shadow-[12px_0_32px_-16px_rgba(22,21,26,.28)]",
       )}
     >
-      <div className="flex items-center gap-3 px-1.5">
+      <div {...zona} className="flex cursor-grab touch-none items-center gap-3 px-1.5 active:cursor-grabbing">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--ll-accent-soft) text-(--ll-accent)">
           <Icone weight="duotone" className="size-5" aria-hidden />
         </span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block text-[15px] leading-tight font-bold">{c.nome}</span>
           <span className="block text-xs text-muted-foreground">{c.desc}</span>
         </span>
+        <button
+          type="button"
+          onClick={fechar}
+          aria-label="Fechar o menu"
+          title="Fechar (Esc)"
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground"
+        >
+          <XIcon weight="bold" className="size-4" aria-hidden />
+        </button>
       </div>
 
       <div className="mt-5 px-1.5">

@@ -856,6 +856,22 @@ A barra que abria no hover (68 → 244px) e o acordeão saíram. Agora:
   categoria, clicar fora ou apertar Esc; pelo teclado, Enter abre.
 - A gaveta do celular usa as **mesmas** opções e atalhos (`menu-arvore.tsx`).
 
+**Ajustes do menu no celular (08/10, mesmo dia):**
+- A gaveta **abre sempre com tudo fechado** (as categorias abertas da última
+  vez saíram: a escolha não é mais guardada no aparelho).
+- Aberta, ela **trava a tela de trás**: véu escuro (55%) por cima do cabeçalho
+  também, página e cabeçalho `inert`, rolagem do `<html>` desligada.
+- **Fecha** no X, deslizando a alcinha/cabeçalho para baixo, tocando fora e no
+  Esc. No PC, o painel fecha no X, deslizando o cabeçalho para a esquerda,
+  clicando fora e no Esc (`useArrastarParaFechar` em `menu-arvore.tsx`). O
+  cabeçalho da gaveta é `sticky`: com uma categoria grande aberta ela rola, e
+  o X sumia.
+- **Cor da barra do navegador:** a página tinha DUAS tags `theme-color` (a do
+  servidor e uma que o Next acrescenta ao hidratar, sempre clara); o script
+  pintava só a primeira e o topo ficava branco com o app no escuro. Agora
+  todas são pintadas e um `MutationObserver` repinta qualquer uma nova
+  (`tema.constantes.ts`).
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
