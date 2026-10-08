@@ -4,6 +4,7 @@ import { logoutAction } from "@/modules/auth/auth.actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BotaoTema } from "./tema";
+import { AJUSTES_NAV, veAjustes } from "./navegacao";
 import type { Sessao } from "@/lib/auth/sessao";
 
 /*
@@ -48,6 +49,18 @@ export function Cabecalho({ sessao }: { sessao: Sessao }) {
         <div className="ml-auto flex items-center gap-0.5">
           <span className="max-w-20 truncate text-xs text-muted-foreground">{sessao.nome}</span>
           <BotaoTema className="size-10" />
+          {/* Ajustes saiu da barra de baixo e mora aqui, junto do tema e do
+              "Sair": no celular é este o "lá embaixo" do menu do PC. */}
+          {veAjustes(sessao.permissoes, sessao.papel) && (
+            <Link
+              href={AJUSTES_NAV.href}
+              aria-label={AJUSTES_NAV.nome}
+              title={AJUSTES_NAV.nome}
+              className="grid size-10 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <AJUSTES_NAV.icone weight="regular" className="size-5" aria-hidden />
+            </Link>
+          )}
           <form action={logoutAction}>
             <Button type="submit" variant="ghost" className="h-10 px-3">
               Sair

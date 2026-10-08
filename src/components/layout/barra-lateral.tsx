@@ -1,15 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { CaretDownIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { LinhaTema } from "./tema";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
-import { itensVisiveis } from "./navegacao";
+import { AJUSTES_NAV, categoriasVisiveis, fixosVisiveis, opcaoAtual, veAjustes, type CategoriaNav } from "./navegacao";
+import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
 import { logoutAction } from "@/modules/auth/auth.actions";
 
 /*
@@ -44,9 +46,16 @@ import { logoutAction } from "@/modules/auth/auth.actions";
  *    que na prática é o do teclado. Quem navega por Tab continua abrindo a
  *    barra; quem clica com o mouse não a deixa presa.
  *
+ * 3. CATEGORIAS E OPÇÕES (08/10/2026).
+ *    As abas de dentro das telas viraram opções do menu, e o menu ganhou
+ *    categorias por cima delas (ver navegacao.ts). Início e IA são botões
+ *    fixos no topo, sem lista. Categoria aberta fica aberta até a pessoa
+ *    fechar (ver menu-arvore.tsx). Com a barra fechada as opções somem: no
+ *    trilho de 68px não há onde escrever, e o título da tela diz onde se está.
+ *
  * A ordem segue o caminho do negócio, não a ordem em que as telas nasceram:
- * vende → compra para repor → guarda no estoque → olha o dinheiro →
- * consulta cadastros.
+ * vende e compra → guarda no estoque → olha o dinheiro → consulta cadastros.
+ * Ajustes é configuração, não trabalho: fica embaixo, com o tema e o "Sair".
  */
 
 /* O desenho de uma linha é o mesmo para item, tema e sair — fica num lugar só
@@ -68,16 +77,42 @@ export function BarraLateral({
   permissoes,
   papel,
   nome,
+  temIA,
 }: {
   permissoes: Permissoes;
   papel: Papel;
   nome: string;
+  temIA: boolean;
 }) {
   const pathname = usePathname();
-  const itens = itensVisiveis(permissoes, papel);
+  const params = useSearchParams();
+  const fixos = fixosVisiveis(temIA);
+  const categorias = categoriasVisiveis(permissoes, papel);
+  const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
+  const { abertas, alternar } = useMenuAberto(ativa);
 
-  const ativo = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  /*
+   * BUSCAR ANTES DO CLIQUE.
+   * O Next só busca a tela de um link quando ele aparece na tela, e as
+   * opções das categorias fechadas nem existem na página. Então, ao montar,
+   * a barra pede a primeira opção de cada categoria e todas as das
+   * categorias abertas; passar o mouse (ou o foco) numa categoria pede as
+   * dela. Quando o
+   * clique vem, a tela já está aqui. Esta barra existe também no celular
+   * (escondida), então o pedido vale para os dois.
+   */
+  const router = useRouter();
+  const antecipar = categorias
+    .flatMap((c) => (abertas.includes(c.id) ? c.opcoes : c.opcoes.slice(0, 1)))
+    .map((o) => o.href)
+    .join(" ");
+  useEffect(() => {
+    for (const href of antecipar.split(" ")) if (href) router.prefetch(href);
+  }, [antecipar, router]);
+  const buscarOpcoes = (c: CategoriaNav) => {
+    for (const o of c.opcoes) router.prefetch(o.href);
+  };
+  const ajustesAtual = pathname === AJUSTES_NAV.href || pathname.startsWith(AJUSTES_NAV.href + "/");
 
   return (
     <nav
@@ -139,22 +174,26 @@ export function BarraLateral({
         />
       </Link>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
-        {itens.map((i) => {
-          const Icone = i.icone;
-          const atual = ativo(i.href);
+      {/* `shrink-0` e não `min-h-0`: com as opções abertas a lista fica mais
+          alta que a tela, e encolhida ela passava por cima do "Sair". Assim
+          quem rola é a barra. */}
+      <div className="flex flex-1 shrink-0 flex-col gap-1">
+        {fixos.map((f) => {
+          const Icone = f.icone;
+          const atual = f.atual(pathname);
           return (
             <Link
-              key={i.href}
-              href={i.href}
+              key={f.href}
+              href={f.href}
               /* prefetch: o Next busca a tela ANTES do clique. Como a barra
                  abre no hover, quando o mouse chega no item a tela já está
                  vindo — ao clicar, está pronta. */
               prefetch
               aria-current={atual ? "page" : undefined}
-              title={i.nome}
+              title={f.nome}
               className={cn(
                 LINHA,
+                "w-full",
                 atual
                   ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
                   : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
@@ -162,14 +201,104 @@ export function BarraLateral({
             >
               {/* trilho de largura fixa: é ele que mantém o ícone parado */}
               <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-                <Icone weight="regular" className="size-[19px] shrink-0" aria-hidden />
+                <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
               </span>
               {/* opacidade + max-width, nunca display:none */}
-              <span data-rotulo className={ROTULO}>{i.nome}</span>
+              <span data-rotulo className={ROTULO}>{f.nome}</span>
             </Link>
           );
         })}
+
+        {/* Separa os botões fixos das categorias. */}
+        <span aria-hidden className="mx-3 my-2 h-px shrink-0 bg-border" />
+
+        {categorias.map((c) => {
+          const Icone = c.icone;
+          const atual = c.id === ativa;
+          const classe = cn(
+            LINHA,
+            "w-full",
+            atual
+              ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
+              : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+          );
+          const icone = (
+            <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+              <Icone weight={atual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
+            </span>
+          );
+
+          /* Categoria de uma opção só (um perfil que só vê Vendas, por
+             exemplo) é um link direto: abrir uma lista de um item é clique
+             à toa. */
+          if (c.opcoes.length === 1)
+            return (
+              <Link
+                key={c.id}
+                href={c.opcoes[0].href}
+                /* prefetch: o Next busca a tela ANTES do clique. Como a barra
+                   abre no hover, quando o mouse chega no item a tela já está
+                   vindo — ao clicar, está pronta. */
+                prefetch
+                aria-current={atual ? "page" : undefined}
+                title={c.nome}
+                className={classe}
+              >
+                {icone}
+                <span data-rotulo className={ROTULO}>{c.nome}</span>
+              </Link>
+            );
+
+          const mostra = abertas.includes(c.id);
+          return (
+            <div key={c.id} className="flex shrink-0 flex-col">
+              <button
+                type="button"
+                onClick={() => alternar(c.id)}
+                onPointerEnter={() => buscarOpcoes(c)}
+                onFocus={() => buscarOpcoes(c)}
+                aria-expanded={mostra}
+                title={c.nome}
+                className={cn(classe, "text-left")}
+              >
+                {icone}
+                <span data-rotulo className={ROTULO}>{c.nome}</span>
+                <CaretDownIcon
+                  weight="bold"
+                  aria-hidden
+                  className={cn(
+                    "mr-3 ml-auto size-3.5 shrink-0 opacity-0 transition-[opacity,rotate] duration-200",
+                    "group-hover:opacity-60 group-has-[:focus-visible]:opacity-60",
+                    mostra && "rotate-180",
+                  )}
+                />
+              </button>
+              {mostra && <OpcoesDaCategoria categoria={c} pathname={pathname} params={params} modo="lateral" />}
+            </div>
+          );
+        })}
       </div>
+
+      {veAjustes(permissoes, papel) && (
+        <Link
+          href={AJUSTES_NAV.href}
+          prefetch
+          aria-current={ajustesAtual ? "page" : undefined}
+          title={AJUSTES_NAV.nome}
+          className={cn(
+            LINHA,
+            "mt-4 w-full",
+            ajustesAtual
+              ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
+              : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+          )}
+        >
+          <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+            <AJUSTES_NAV.icone weight={ajustesAtual ? "fill" : "regular"} className="size-[19px] shrink-0" aria-hidden />
+          </span>
+          <span data-rotulo className={ROTULO}>{AJUSTES_NAV.nome}</span>
+        </Link>
+      )}
 
       {/*
         Claro/escuro fica junto do "Sair": são as duas coisas que não são
@@ -177,7 +306,7 @@ export function BarraLateral({
         coluna que os outros — antes ficava 7,5px fora com a barra aberta.
       */}
       <LinhaTema
-        className={cn(LINHA, "mt-4 w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
+        className={cn(LINHA, "mt-1 w-full text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground")}
       />
 
       <form action={logoutAction} className="mt-1 shrink-0">

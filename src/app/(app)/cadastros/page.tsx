@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
-import { Segmentado } from "@/components/padrao/indicadores";
+import { TituloTela } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { PainelClientes } from "@/modules/pessoas/components/painel-clientes";
 import { PainelFornecedores } from "@/modules/pessoas/components/painel-fornecedores";
@@ -38,14 +38,7 @@ export default async function CadastrosPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <Segmentado
-        opcoes={[
-          ["clientes", "Clientes"],
-          ["fornecedores", "Fornecedores"],
-        ]}
-        atual={qual}
-        href={(v) => `/cadastros?aba=${v}`}
-      />
+      <TituloTela secao="Cadastros" titulo={qual === "clientes" ? "Clientes" : "Fornecedores"} />
 
       <div className="mt-5">
         {/* As abas já estão na tela; a lista chega quando o banco responder. */}

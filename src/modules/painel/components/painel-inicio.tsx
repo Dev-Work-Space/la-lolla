@@ -3,6 +3,20 @@
 import { Suspense, use, useEffect, useState } from "react";
 import { COLUNAS, lerPainel, normalizarPainel, type ItemPainel } from "../widgets";
 import { RenderWidget, widgetTemConteudo, type DadosPainel } from "./widgets-render";
+import { cn } from "@/lib/utils";
+
+/*
+ * A largura de cada bloco só vale no monitor. Ela era um `style` solto e
+ * valia também no celular: numa grade de UMA coluna, "span 4" cria colunas
+ * novas, e a meta e o ritmo ficavam espremidos lado a lado. Classe escrita
+ * por extenso porque o Tailwind só gera o que lê no código.
+ */
+const LARGURA_NO_MONITOR: Record<number, string> = {
+  4: "lg:col-span-4",
+  6: "lg:col-span-6",
+  8: "lg:col-span-8",
+  12: "lg:col-span-12",
+};
 
 /*
  * Monta o Início a partir da configuração do aparelho.
@@ -81,14 +95,7 @@ function Grade({
     // Grade de 12 colunas no monitor; no celular tudo ocupa a largura.
     <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-12">
       {ligados.map((it) => (
-        <section
-          key={it.id}
-          data-wgt={it.id}
-          className="min-w-0"
-          style={{
-            gridColumn: `span ${COLUNAS[it.tam]} / span ${COLUNAS[it.tam]}`,
-          }}
-        >
+        <section key={it.id} data-wgt={it.id} className={cn("min-w-0", LARGURA_NO_MONITOR[COLUNAS[it.tam]])}>
           <RenderWidget id={it.id} dados={d} />
         </section>
       ))}

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
-import { Segmentado } from "@/components/padrao/indicadores";
+import { TituloTela } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { PainelCatalogo } from "@/modules/pecas/components/painel-catalogo";
 import { podeFazer } from "@/modules/usuarios/permissoes";
@@ -53,14 +53,7 @@ export default async function EstoquePage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <Segmentado
-        opcoes={[
-          ["catalogo", "Peças"],
-          ["insumos", "Insumos"],
-        ]}
-        atual={qual}
-        href={(v) => `/estoque?aba=${v}`}
-      />
+      <TituloTela secao="Estoque" titulo={qual === "catalogo" ? "Peças" : "Insumos"} />
 
       <div className="mt-5">
         <Suspense

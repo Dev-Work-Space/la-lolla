@@ -11,7 +11,7 @@ import {
   Linha,
   Lista,
   Pilula,
-  Segmentado,
+  TituloTela,
   Vazio,
 } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
@@ -66,12 +66,11 @@ export default async function VendasPage({
     return (
       <main className="mx-auto w-full max-w-7xl px-4 py-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de vendas</h1>
+          <TituloTela secao="Compra e venda" titulo="Orçamentos">
             <p className="mt-1 text-sm text-muted-foreground">
               A proposta que vai para a cliente antes de fechar.
             </p>
-          </div>
+          </TituloTela>
           {podeCriarOrc && (
             <Button nativeButton={false} render={<Link href="/orcamentos/novo" />}>
               Novo orçamento
@@ -79,16 +78,7 @@ export default async function VendasPage({
           )}
         </div>
 
-        <Segmentado
-          opcoes={[
-            ["vendas", "Vendas"],
-            ["orcamentos", "Orçamentos"],
-          ]}
-          atual="orcamentos"
-          href={(v) => (v === "vendas" ? "/vendas" : "/vendas?aba=orcamentos")}
-        />
-
-        <div className="mt-5">
+        <div>
           <Suspense
             key={`orc:${filtro ?? ""}:${busca ?? ""}`}
             fallback={
@@ -130,15 +120,14 @@ export default async function VendasPage({
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Portal de vendas</h1>
+        <TituloTela secao="Compra e venda" titulo="Vendas">
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}
           >
             <ContagemVendas promessa={pVendas} busca={busca} />
           </Suspense>
-        </div>
+        </TituloTela>
         {podeCriar && (
           <Button nativeButton={false} render={<Link href="/vendas/nova" />}>
             Nova venda
@@ -146,16 +135,7 @@ export default async function VendasPage({
         )}
       </div>
 
-      <Segmentado
-        opcoes={[
-          ["vendas", "Vendas"],
-          ["orcamentos", "Orçamentos"],
-        ]}
-        atual="vendas"
-        href={(v) => (v === "vendas" ? "/vendas" : "/vendas?aba=orcamentos")}
-      />
-
-      <div className="mt-5">
+      <div>
         <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
           <IndicadoresDeVendas veFinanceiro={fin} />
         </Suspense>

@@ -162,6 +162,26 @@ Na mesma data a **região das funções da Vercel** foi para São Paulo (`gru1`)
 do lado do banco: o projeto não tinha região escolhida, e o padrão da Vercel é
 Washington.
 
+**08/10 — "a troca de telas na Vercel ainda está lenta".** Três achados e um
+disfarce:
+
+- **Uma conexão só com o banco por instância.** `max: 1` na Vercel fazia toda
+  consulta "em paralelo" virar fila, e com a Vercel atendendo várias
+  requisições na mesma instância (Fluid), uma tela esperava a outra. Agora
+  são 5 por instância (`src/lib/prisma.ts`), atrás do pooler em modo
+  transação.
+- **O menu de categorias escondia os links**, e o Next só busca antes do
+  clique o link que está visível. A barra agora pede de antemão a primeira
+  opção de cada categoria e todas as da categoria aberta, e as de uma
+  categoria assim que o mouse passa nela (no celular, quando o dedo encosta).
+  Medido no build local: 7–41 ms do clique até a tela.
+- **Vaivém sem ir ao servidor:** `staleTimes.dynamic = 30` — tela vista há
+  menos de 30 s volta na hora (73 ms). Gravar algo chama `recarregar`, que
+  pelo `revalidatePath` descarta essa memória inteira.
+- **Disfarce:** barrinha dourada no topo a partir de 120 ms de espera
+  (`barra-progresso.tsx`), e a opção clicada no menu acende e pulsa até a
+  tela chegar (`useLinkStatus`).
+
 ---
 
 ## 7. O que foi feito nesta conversa
@@ -750,6 +770,78 @@ antigas dessas chaves na `Config` ficam no banco, sem uso.
 > caixa no dia da venda, como antes. Mostrar o depósito da maquininha mês a
 > mês muda a regra do caixa, e depende de a loja antecipar ou não os
 > recebimentos.
+
+### 07/10 · O Início abaixo do gráfico principal
+
+O João achou "uma bosta" tudo abaixo do gráfico principal e pediu mais
+opções e interatividade, sem mexer no gráfico. Os blocos que se mexem foram
+para `painel/components/widgets-interativos.tsx`; o servidor manda todos os
+recortes prontos, então trocar de aba não vai ao banco.
+
+- **Vendas** com abas Hoje / 7 dias / Mês / Ano, cada uma contra o mesmo
+  pedaço de antes (ontem, os 7 dias anteriores, 1º até o mesmo dia do mês
+  passado, o mesmo período do ano passado). O mês contra o mês passado
+  INTEIRO dava "-100%" todo começo de mês.
+- **Em caixa** com as próximas 4 semanas, pela mesma `previsao` do Financeiro.
+- **Precisa de você** separa conta a pagar vencida de cliente a cobrar. Antes
+  "Contas vencidas" somava as duas e o link abria só as a pagar.
+- **Meta** com a marca do "hoje", quanto vender por dia e onde o mês fecha.
+- **Ritmo** em 14 ou 30 dias, em R$ ou em vendas, tocando no dia.
+- **Mais vendidas** no mês ou no ano, por unidades ou por R$.
+- Novos: **Últimas vendas**, **Clientes para chamar** (aniversário na
+  semana e sumidas, com WhatsApp) e os **Atalhos** no lugar do "resumo".
+
+Margem, caixa e valores de conta só saem do servidor para quem vê o
+Financeiro.
+
+> **Dois tropeços.** (1) A largura de cada bloco era `style` solto e valia no
+> celular também: numa grade de uma coluna, "span 4" cria colunas e os blocos
+> ficavam espremidos lado a lado. Agora é `lg:col-span-*`. (2) "R$ 2 mil"
+> formatado no navegador sai "R$ 2,0 mil" no servidor: erro de hidratação.
+> Texto abreviado sai pronto do servidor.
+
+> **Fuso.** Na Vercel o servidor roda em UTC. Data feita lá e formatada no
+> navegador volta um dia — era o "Meta de setembro" em 7 de outubro. No
+> Início os nomes de mês agora vêm prontos do servidor. O corte de "hoje"
+> do app inteiro (`src/lib/dia.ts`) continua em UTC na Vercel: venda depois
+> das 21h cai no dia seguinte. Pendente, decisão do João.
+
+### 08/10 · As abas das telas foram para o menu
+
+"Não quero mais abas dentro das abas; ao clicar no botão do menu, aparecem
+as opções." As abas de Vendas (Vendas/Orçamentos), Estoque (Peças/Insumos e
+agora Categorias), Financeiro (as 4 abas e as de dentro de Contas e Fluxo,
+achatadas em 8 opções com dois títulos de grupo), Cadastros
+(Clientes/Fornecedores) e Ajustes (da loja/Criação de etiquetas) viraram
+opções da seção, em `navegacao.ts`.
+
+- **PC:** com o menu aberto, a seção da tela já mostra as opções num trilho
+  embaixo dela; as outras abrem na setinha, sem sair da tela.
+- **Celular:** tocar num botão com opções abre um painel acima da barra de
+  baixo. Botão sem opções (Início, Compras, Usuários) vai direto.
+- **Na tela:** a aba deu lugar ao `TituloTela` — a seção pequena em dourado
+  e a opção grande —, porque com o menu fechado é ele que diz onde se está.
+
+Os endereços continuam os mesmos, inclusive os antigos (`?aba=pagar`,
+`?aba=caixa`…). A leitura da URL do Financeiro saiu da página para
+`financeiro/abas.ts`, e o menu usa a mesma função: menu e tela não podem
+discordar sobre qual opção está aberta. O `Segmentado` ficou sem uso e saiu.
+
+No mesmo dia, o menu ganhou **categorias** por cima das opções: Início
+(Início, IA), Compra e venda (Vendas, Orçamentos, Compras), Estoque,
+Financeiro e Cadastros (Clientes, Fornecedores, Usuários). Tocar na categoria
+abre as opções e fecha a outra. **Ajustes** saiu das categorias e foi para
+baixo, junto do tema e do "Sair" (no celular, engrenagem no cabeçalho), sem
+opções. O **assistente de IA** deixou de ser um robô flutuando em toda tela e
+virou a tela `/ia`, com as sugestões e os "Resumir" de cada tela em botões; o
+`chat-flutuante.tsx` saiu. Sem a `GEMINI_API_KEY`, a opção IA some do menu.
+
+Ajuste seguinte, a pedido dele: **Início e IA viraram botões fixos** no topo,
+fora das categorias, e **categoria aberta fica aberta até a pessoa fechar** —
+abrir outra não fecha a anterior, trocar de tela não fecha nada, e a escolha
+fica guardada no aparelho (`menu-arvore.tsx`). No celular a barra de baixo
+virou **Início · IA · Menu**, e o Menu sobe uma gaveta com a mesma árvore de
+categorias do PC.
 
 ---
 
