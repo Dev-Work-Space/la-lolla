@@ -872,6 +872,14 @@ A barra que abria no hover (68 → 244px) e o acordeão saíram. Agora:
   todas são pintadas e um `MutationObserver` repinta qualquer uma nova
   (`tema.constantes.ts`).
 
+**Barra de baixo do celular, no mesmo desenho do PC (08/10).** O botão "Menu"
+e a gaveta com acordeão saíram: a barra tem agora **seis botões** — Início, IA,
+Compra e venda, Estoque, Financeiro e Cadastros. As categorias sobem o MESMO
+painel do PC (nome, frase, atalhos de Criar e opções com ícone e frase); Início
+e IA vão direto. Tocar noutra categoria troca o painel, tocar na mesma fecha.
+O rótulo quebra em duas linhas ("Compra e / venda"). Ajustes continua na
+engrenagem do cabeçalho. A trava da tela de trás, o X e o deslizar valem igual.
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,

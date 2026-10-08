@@ -76,9 +76,9 @@ export function BarraNavegacaoEsqueleto() {
         "pb-[env(safe-area-inset-bottom)]",
       )}
     >
-      {/* Início, IA e Menu — os três botões da barra de verdade. */}
-      <div className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl grid-cols-3 items-center">
-        {Array.from({ length: 3 }, (_, i) => (
+      {/* Início, IA e as quatro categorias — os seis botões da barra de verdade. */}
+      <div className="mx-auto grid h-(--nav-inferior) w-full max-w-3xl grid-cols-6 items-center">
+        {Array.from({ length: 6 }, (_, i) => (
           <span key={i} className="flex flex-col items-center justify-center gap-1.5">
             <span className={cn(BLOCO, "size-5 rounded-full")} />
             <span className={cn(BLOCO, "h-2 w-9")} />
