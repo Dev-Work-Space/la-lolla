@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { MinusIcon, PlusIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react/ssr";
+import { FileXlsIcon, MinusIcon, PlusIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,7 @@ import {
   MODELO_PADRAO,
   modelosDaImpressao,
 } from "../etiqueta.regras";
+import { csvNiimbot, linhasDaPlanilha, xlsxNiimbot } from "../etiqueta.planilha";
 import { usePreviaEtiqueta } from "./use-previa-etiqueta";
 import type { DesenhoEtiqueta } from "../etiqueta-desenho";
 
@@ -231,6 +232,47 @@ export function ImprimirEtiquetas({
       await compartilhar(arquivos);
     } catch {
       setAviso("Não consegui gerar a imagem da etiqueta. Tente de novo ou use Gerar PDF.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  /*
+   * A planilha do lote para o app da NIIMBOT: uma linha por etiqueta. No
+   * celular abre a folha de compartilhar (daí "Salvar em Arquivos", e o app
+   * da NIIMBOT escolhe o arquivo de lá); onde não há folha, baixa.
+   */
+  async function entregarPlanilha(formato: "xlsx" | "csv") {
+    setAviso(null);
+    setEnviando(true);
+    try {
+      const r = await gerarEtiquetasAction({ itens: pedido() });
+      if (!r.ok) {
+        setAviso(r.error.message);
+        return;
+      }
+      const linhas = linhasDaPlanilha(r.data.etiquetas);
+      const arquivo =
+        formato === "xlsx"
+          ? new File([xlsxNiimbot(linhas) as BlobPart], "etiquetas-lalolla.xlsx", {
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            })
+          : new File([csvNiimbot(linhas)], "etiquetas-lalolla.csv", { type: "text/csv" });
+      try {
+        if (!("canShare" in navigator) || !navigator.canShare({ files: [arquivo] })) throw new Error("sem folha");
+        await navigator.share({ files: [arquivo], title: "Etiquetas LaLolla" });
+      } catch (e) {
+        // A pessoa fechar a folha não é erro; o resto cai no download comum.
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        const url = URL.createObjectURL(arquivo);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = arquivo.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      setAviso("Não consegui gerar a planilha. Tente de novo.");
     } finally {
       setEnviando(false);
     }
@@ -457,6 +499,53 @@ export function ImprimirEtiquetas({
                   {aviso}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* O jeito de mandar VÁRIAS de uma vez: o app da NIIMBOT imprime uma
+              foto por vez, mas imprime uma planilha inteira. */}
+          {niimbot && (
+            <div className="space-y-2 rounded-lg border p-3">
+              <p className="text-sm font-medium">Muitas de uma vez</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                O app da NIIMBOT imprime uma <strong>planilha inteira</strong> de uma vez: uma etiqueta por linha.
+                Gere a planilha deste lote, salve em <strong>Arquivos</strong> e, no app dela, vincule o arquivo
+                em <strong>Fonte de dados</strong>.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={total === 0 || demais || enviando}
+                  onClick={() => entregarPlanilha("xlsx")}
+                >
+                  <FileXlsIcon className="mr-1.5 size-4" aria-hidden />
+                  {enviando ? "Gerando…" : "Planilha Excel"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={total === 0 || demais || enviando}
+                  onClick={() => entregarPlanilha("csv")}
+                >
+                  Em CSV
+                </Button>
+              </div>
+              <details className="text-xs leading-relaxed text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">Como montar na primeira vez</summary>
+                <ol className="mt-1.5 list-decimal space-y-1 pl-4">
+                  <li>No app da NIIMBOT, crie uma etiqueta do tamanho do seu rolo.</li>
+                  <li>
+                    Abra <strong>Fonte de dados</strong>, vincule a planilha e arraste as colunas{" "}
+                    <strong>Nome</strong>, <strong>Tamanho</strong> e <strong>Preco</strong> para a etiqueta.
+                  </li>
+                  <li>
+                    Adicione um QR code e ligue ele à coluna <strong>Codigo</strong>, para o &ldquo;Ler
+                    etiqueta&rdquo; do LaLolla funcionar.
+                  </li>
+                  <li>Salve o modelo. Nos próximos lotes, é só vincular a planilha nova e imprimir tudo.</li>
+                </ol>
+              </details>
             </div>
           )}
 
