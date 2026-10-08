@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { categoriasVisiveis, fixosVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
-import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
+import { AtalhosDeCriar, ListaDeOpcoes, useMenuAberto } from "./menu-arvore";
 
 /*
  * Barra fixa de baixo, só no celular. No PC a navegação vive na barra
@@ -17,8 +17,9 @@ import { OpcoesDaCategoria, useMenuAberto } from "./menu-arvore";
  *
  * O MESMO MENU DO PC, do jeito do celular (pedido do João, 08/10/2026):
  * Início e IA são botões fixos, de um toque; "Menu" sobe uma gaveta com as
- * categorias e as opções no mesmo desenho de árvore da barra lateral, e a
- * categoria aberta continua aberta até a pessoa fechar. Ajustes não está
+ * categorias; cada uma abre as mesmas opções do painel do PC (ícone, nome e
+ * frase, mais os atalhos de criar), e a categoria aberta continua aberta até
+ * a pessoa fechar. Ajustes não está
  * aqui — mora no cabeçalho, ao lado do tema, que é o "lá embaixo" do celular.
  */
 export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permissoes; papel: Papel; temIA: boolean }) {
@@ -174,19 +175,25 @@ function Gaveta({
           const Icone = c.icone;
           const atual = c.id === ativa;
           const classe = cn(
-            "flex h-12 w-full items-center rounded-xl text-left text-[15px] font-semibold transition-colors",
+            "flex min-h-14 w-full items-center rounded-xl py-1.5 text-left transition-colors",
             atual ? "bg-(--ll-accent-soft) text-(--ll-accent)" : "text-foreground hover:bg-(--ll-surface-2)",
           );
           const icone = (
-            <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+            <span className="grid w-12 shrink-0 place-items-center">
               <Icone weight={atual ? "fill" : "regular"} className="size-5" aria-hidden />
+            </span>
+          );
+          const nome = (
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold">{c.nome}</span>
+              <span className="block truncate text-xs font-normal text-muted-foreground">{c.desc}</span>
             </span>
           );
           if (c.opcoes.length === 1)
             return (
               <Link key={c.id} href={c.opcoes[0].href} onClick={fechar} className={classe}>
                 {icone}
-                {c.nome}
+                {nome}
               </Link>
             );
           const mostra = abertas.includes(c.id);
@@ -194,7 +201,7 @@ function Gaveta({
             <div key={c.id} className="flex flex-col">
               <button type="button" onClick={() => alternar(c.id)} aria-expanded={mostra} className={classe}>
                 {icone}
-                {c.nome}
+                {nome}
                 <CaretDownIcon
                   weight="bold"
                   aria-hidden
@@ -202,7 +209,14 @@ function Gaveta({
                 />
               </button>
               {mostra && (
-                <OpcoesDaCategoria categoria={c} pathname={pathname} params={params} modo="gaveta" aoEscolher={fechar} />
+                <div className="flex flex-col gap-2 pt-1 pb-2 pl-3">
+                  {(c.acoes?.length ?? 0) > 0 && (
+                    <div className="px-2.5">
+                      <AtalhosDeCriar acoes={c.acoes ?? []} aoEscolher={fechar} />
+                    </div>
+                  )}
+                  <ListaDeOpcoes categoria={c} pathname={pathname} params={params} aoEscolher={fechar} />
+                </div>
               )}
             </div>
           );

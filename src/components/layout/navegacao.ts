@@ -1,5 +1,30 @@
 import type { Icon } from "@phosphor-icons/react";
-import { HouseIcon, SparkleIcon, StorefrontIcon, PackageIcon, WalletIcon, UsersIcon, GearIcon } from "@phosphor-icons/react/ssr";
+import {
+  ArchiveIcon,
+  CalendarBlankIcon,
+  ChartLineUpIcon,
+  ChartPieSliceIcon,
+  CreditCardIcon,
+  DiamondIcon,
+  FileTextIcon,
+  GearIcon,
+  HandCoinsIcon,
+  HouseIcon,
+  InvoiceIcon,
+  ListBulletsIcon,
+  PackageIcon,
+  ShoppingBagIcon,
+  ShoppingCartIcon,
+  SparkleIcon,
+  StorefrontIcon,
+  TagIcon,
+  TrendUpIcon,
+  TruckIcon,
+  UserGearIcon,
+  UserIcon,
+  UsersIcon,
+  WalletIcon,
+} from "@phosphor-icons/react/ssr";
 import type { Papel } from "@prisma/client";
 import type { Area, Permissoes } from "@/modules/usuarios/permissoes";
 import { abaDaUrl } from "@/modules/financeiro/abas";
@@ -33,6 +58,9 @@ import { abaDaUrl } from "@/modules/financeiro/abas";
 export type OpcaoNav = {
   href: string;
   nome: string;
+  icone: Icon;
+  /** Uma frase do que tem lá — o painel do PC mostra embaixo do nome. */
+  desc: string;
   /** Título pequeno que junta opções vizinhas: "Contas", "Fluxo de caixa". */
   grupo?: string;
   /** Quem pode ver a TELA — a opção some para quem não pode. */
@@ -43,11 +71,19 @@ export type OpcaoNav = {
   atual: (pathname: string, params: URLSearchParams) => boolean;
 };
 
+/** Atalho de criar no topo do painel da categoria: "Nova venda", mostrado
+    curto ("Venda") num quadradinho com o "+". */
+export type AcaoNav = { href: string; nome: string; curto: string; area: Area };
+
 export type CategoriaNav = {
   id: string;
   nome: string;
+  /** Rótulo embaixo do ícone no trilho do PC: ~10 letras por linha, até 2. */
+  curto: string;
+  desc: string;
   icone: Icon;
   opcoes: OpcaoNav[];
+  acoes?: AcaoNav[];
 };
 
 const dentro = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -83,58 +119,75 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
   {
     id: "comercio",
     nome: "Compra e venda",
+    curto: "Compra e venda",
+    desc: "O que sai da loja e o que chega nela",
     icone: StorefrontIcon,
+    acoes: [
+      { href: "/vendas/nova", nome: "Nova venda", curto: "Venda", area: "vendas" },
+      { href: "/orcamentos/novo", nome: "Novo orçamento", curto: "Orçamento", area: "vendas" },
+      { href: "/compras/nova", nome: "Nova compra", curto: "Compra", area: "pecas" },
+    ],
     opcoes: [
-      { href: "/vendas", nome: "Vendas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && q.get("aba") !== "orcamentos" },
+      { href: "/vendas", nome: "Vendas", icone: ShoppingBagIcon, desc: "Fechadas, a prazo e devolvidas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && q.get("aba") !== "orcamentos" },
       {
         href: "/vendas?aba=orcamentos",
         nome: "Orçamentos",
+        icone: FileTextIcon,
+        desc: "Propostas antes de fechar",
         area: "vendas",
         atual: (p, q) => (p === "/vendas" && q.get("aba") === "orcamentos") || dentro(p, "/orcamentos"),
       },
-      { href: "/compras", nome: "Compras", area: "pecas", atual: (p) => dentro(p, "/compras") },
+      { href: "/compras", nome: "Compras", icone: ShoppingCartIcon, desc: "Pedidos aos fornecedores", area: "pecas", atual: (p) => dentro(p, "/compras") },
     ],
   },
   {
     id: "estoque",
     nome: "Estoque",
+    curto: "Estoque",
+    desc: "As peças e o que se usa para vender",
     icone: PackageIcon,
     opcoes: [
       {
         href: "/estoque",
         nome: "Peças",
+        icone: DiamondIcon,
+        desc: "Catálogo, preço e saldo",
         area: "pecas",
         atual: (p, q) =>
           (p === "/estoque" && q.get("aba") !== "insumos") || (dentro(p, "/estoque") && p !== "/estoque" && !dentro(p, "/estoque/categorias")),
       },
-      { href: "/estoque?aba=insumos", nome: "Insumos", area: "pecas", atual: (p, q) => p === "/estoque" && q.get("aba") === "insumos" },
+      { href: "/estoque?aba=insumos", nome: "Insumos", icone: ArchiveIcon, desc: "Embalagens e materiais", area: "pecas", atual: (p, q) => p === "/estoque" && q.get("aba") === "insumos" },
       /* Mesma permissão da tela: a lista de categorias é ajuste da loja. */
-      { href: "/estoque/categorias", nome: "Categorias", area: "pecas", pode: editaAjustes, atual: (p) => dentro(p, "/estoque/categorias") },
+      { href: "/estoque/categorias", nome: "Categorias", icone: TagIcon, desc: "Os grupos do catálogo", area: "pecas", pode: editaAjustes, atual: (p) => dentro(p, "/estoque/categorias") },
     ],
   },
   {
     id: "financeiro",
     nome: "Financeiro",
+    curto: "Financeiro",
+    desc: "Caixa, contas e o que vem pela frente",
     icone: WalletIcon,
     opcoes: [
-      { href: "/financeiro", nome: "Visão geral", area: "financeiro", atual: fin("geral") },
-      { href: "/financeiro?aba=contas&tipo=receber", nome: "A receber", grupo: "Contas", area: "financeiro", atual: fin("contas", "receber") },
-      { href: "/financeiro?aba=contas&tipo=pagar", nome: "A pagar", grupo: "Contas", area: "financeiro", atual: fin("contas", "pagar") },
-      { href: "/financeiro?aba=contas&tipo=calendario", nome: "Calendário", grupo: "Contas", area: "financeiro", atual: fin("contas", "calendario") },
-      { href: "/financeiro?aba=fluxo", nome: "Extrato", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "realizado") },
-      { href: "/financeiro?aba=fluxo&ver=entrar", nome: "Vai entrar", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "entrar") },
-      { href: "/financeiro?aba=fluxo&ver=previsto", nome: "Previsão", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "previsto") },
-      { href: "/financeiro?aba=carteiras", nome: "Carteiras e cartões", area: "financeiro", atual: fin("carteiras") },
+      { href: "/financeiro", nome: "Visão geral", icone: ChartPieSliceIcon, desc: "Resultado e o que vence", area: "financeiro", atual: fin("geral") },
+      { href: "/financeiro?aba=contas&tipo=receber", nome: "A receber", icone: HandCoinsIcon, desc: "Parcelas e recebimentos", grupo: "Contas", area: "financeiro", atual: fin("contas", "receber") },
+      { href: "/financeiro?aba=contas&tipo=pagar", nome: "A pagar", icone: InvoiceIcon, desc: "O que vence e quando", grupo: "Contas", area: "financeiro", atual: fin("contas", "pagar") },
+      { href: "/financeiro?aba=contas&tipo=calendario", nome: "Calendário", icone: CalendarBlankIcon, desc: "As contas no mês", grupo: "Contas", area: "financeiro", atual: fin("contas", "calendario") },
+      { href: "/financeiro?aba=fluxo", nome: "Extrato", icone: ListBulletsIcon, desc: "O que entrou e saiu", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "realizado") },
+      { href: "/financeiro?aba=fluxo&ver=entrar", nome: "Vai entrar", icone: TrendUpIcon, desc: "Tudo que a loja vai receber", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "entrar") },
+      { href: "/financeiro?aba=fluxo&ver=previsto", nome: "Previsão", icone: ChartLineUpIcon, desc: "O caixa nas próximas semanas", grupo: "Fluxo de caixa", area: "financeiro", atual: fin("fluxo", "previsto") },
+      { href: "/financeiro?aba=carteiras", nome: "Carteiras e cartões", icone: CreditCardIcon, desc: "Onde o dinheiro está", area: "financeiro", atual: fin("carteiras") },
     ],
   },
   {
     id: "cadastros",
     nome: "Cadastros",
+    curto: "Cadastros",
+    desc: "As pessoas da loja",
     icone: UsersIcon,
     opcoes: [
-      { href: "/cadastros", nome: "Clientes", area: "pessoas", atual: (p, q) => p === "/cadastros" && q.get("aba") !== "fornecedores" },
-      { href: "/cadastros?aba=fornecedores", nome: "Fornecedores", area: "pessoas", atual: (p, q) => p === "/cadastros" && q.get("aba") === "fornecedores" },
-      { href: "/usuarios", nome: "Usuários", area: "usuarios", atual: (p) => dentro(p, "/usuarios") },
+      { href: "/cadastros", nome: "Clientes", icone: UserIcon, desc: "Quem compra, quem deve, quem sumiu", area: "pessoas", atual: (p, q) => p === "/cadastros" && q.get("aba") !== "fornecedores" },
+      { href: "/cadastros?aba=fornecedores", nome: "Fornecedores", icone: TruckIcon, desc: "Quem vende para a loja", area: "pessoas", atual: (p, q) => p === "/cadastros" && q.get("aba") === "fornecedores" },
+      { href: "/usuarios", nome: "Usuários", icone: UserGearIcon, desc: "A equipe e o acesso de cada um", area: "usuarios", atual: (p) => dentro(p, "/usuarios") },
     ],
   },
 ];
@@ -164,6 +217,9 @@ export function categoriasVisiveis(permissoes: Permissoes, papel: Papel): Catego
     opcoes: c.opcoes.filter(
       (o) => admin || ((!o.area || permissoes[o.area]?.ver === true) && (!o.pode || o.pode(permissoes))),
     ),
+    /* O atalho de criar só aparece para quem pode criar ali — a tela de
+       destino confere de novo, mas não se oferece porta que não abre. */
+    acoes: c.acoes?.filter((a) => admin || permissoes[a.area]?.criar === true),
   })).filter((c) => c.opcoes.length > 0);
 }
 
