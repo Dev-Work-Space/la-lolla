@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { brl } from "@/lib/formato";
-import { Indicador, Indicadores, Segmentado } from "@/components/padrao/indicadores";
+import { Indicador, Indicadores, TituloTela } from "@/components/padrao/indicadores";
 import { EsqueletoIndicadores, EsqueletoLista } from "@/components/padrao/esqueleto";
 import { indicadoresFinanceiro, movimentoPorCarteira } from "@/modules/financeiro/financeiro.service";
 import { datasDaBarra, paramsDoPeriodo, periodoDaUrl, rotuloDoPeriodo } from "@/modules/financeiro/periodo";
@@ -16,53 +16,10 @@ import { PainelAEntrar } from "@/modules/financeiro/components/painel-a-entrar";
 import { PainelAgenda } from "@/modules/financeiro/components/painel-agenda";
 import { PainelPrevisao } from "@/modules/financeiro/components/painel-previsao";
 import { cartoesComLimite } from "@/modules/financeiro/cartao.service";
+import { abaDaUrl, tituloDaAba, type Aba, type TipoContas } from "@/modules/financeiro/abas";
 
 
 export const metadata = { title: "Financeiro · LaLolla" };
-
-type Aba = "geral" | "contas" | "fluxo" | "carteiras";
-type TipoContas = "receber" | "pagar" | "calendario";
-
-/*
- * Financeiro em QUATRO abas, reorganizado a pedido do João (07/10/2026), que
- * achou as seis de antes "bem desorganizadas":
- *
- *   Visão geral — o que está atrasado, o que entra e sai nos próximos 30
- *                 dias, para onde o caixa vai e onde o dinheiro está;
- *   Contas      — a pagar e a receber agrupadas por urgência, e o calendário
- *                 do mês (a antiga Agenda);
- *   Fluxo       — o extrato do que já aconteceu, tudo o que vai entrar
- *                 (de qualquer fonte) e a previsão do caixa;
- *   Carteiras   — onde o dinheiro está, com os cartões.
- *
- * Os indicadores ficam FORA das abas de propósito: "quanto tenho" e "quanto
- * devo" são a pergunta de abertura, independente do que se vá fazer depois.
- *
- * Os endereços antigos (?aba=caixa, pagar, receber, agenda, previsao)
- * continuam valendo: caem na aba nova equivalente. Link salvo e aviso do
- * Início não quebram.
- */
-function abaDaUrl(aba?: string, tipo?: string, ver?: string): { qual: Aba; tipo: TipoContas; ver: string } {
-  const tipoOk: TipoContas = tipo === "pagar" || tipo === "calendario" ? tipo : "receber";
-  switch (aba) {
-    case "contas":
-      return { qual: "contas", tipo: tipoOk, ver: "" };
-    case "pagar":
-    case "receber":
-      return { qual: "contas", tipo: aba, ver: "" };
-    case "agenda":
-      return { qual: "contas", tipo: "calendario", ver: "" };
-    case "fluxo":
-    case "caixa":
-      return { qual: "fluxo", tipo: tipoOk, ver: ver === "previsto" || ver === "entrar" ? ver : "realizado" };
-    case "previsao":
-      return { qual: "fluxo", tipo: tipoOk, ver: "previsto" };
-    case "carteiras":
-      return { qual: "carteiras", tipo: tipoOk, ver: "" };
-    default:
-      return { qual: "geral", tipo: tipoOk, ver: "" };
-  }
-}
 
 export default async function FinanceiroPage({
   searchParams,
@@ -93,48 +50,13 @@ export default async function FinanceiroPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <h1 className="ll-entra-cabecalho mb-4 text-xl font-bold tracking-tight">Financeiro</h1>
+      <div className="mb-4">
+        <TituloTela secao="Financeiro" titulo={tituloDaAba(qual, tipo, ver)} />
+      </div>
 
       <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>
         <IndicadoresDoCaixa />
       </Suspense>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Segmentado
-          opcoes={[
-            ["geral", "Visão geral"],
-            ["contas", "Contas"],
-            ["fluxo", "Fluxo de caixa"],
-            ["carteiras", "Carteiras"],
-          ]}
-          atual={qual}
-          href={(v) => (v === "geral" ? "/financeiro" : `/financeiro?aba=${v}`)}
-        />
-        {/* O segundo nível fica ao lado, na mesma linha: a pessoa vê de uma vez
-            em que aba está e qual recorte dela. */}
-        {qual === "contas" && (
-          <Segmentado
-            opcoes={[
-              ["receber", "A receber"],
-              ["pagar", "A pagar"],
-              ["calendario", "Calendário"],
-            ]}
-            atual={tipo}
-            href={(v) => `/financeiro?aba=contas&tipo=${v}`}
-          />
-        )}
-        {qual === "fluxo" && (
-          <Segmentado
-            opcoes={[
-              ["realizado", "Extrato"],
-              ["entrar", "A entrar"],
-              ["previsto", "Previsão"],
-            ]}
-            atual={ver}
-            href={(v) => (v === "realizado" ? "/financeiro?aba=fluxo" : `/financeiro?aba=fluxo&ver=${v}`)}
-          />
-        )}
-      </div>
 
       <div className="mt-5">
         <Suspense

@@ -786,6 +786,27 @@ Financeiro.
 > do app inteiro (`src/lib/dia.ts`) continua em UTC na Vercel: venda depois
 > das 21h cai no dia seguinte. Pendente, decisão do João.
 
+### 08/10 · As abas das telas foram para o menu
+
+"Não quero mais abas dentro das abas; ao clicar no botão do menu, aparecem
+as opções." As abas de Vendas (Vendas/Orçamentos), Estoque (Peças/Insumos e
+agora Categorias), Financeiro (as 4 abas e as de dentro de Contas e Fluxo,
+achatadas em 8 opções com dois títulos de grupo), Cadastros
+(Clientes/Fornecedores) e Ajustes (da loja/Criação de etiquetas) viraram
+opções da seção, em `navegacao.ts`.
+
+- **PC:** com o menu aberto, a seção da tela já mostra as opções num trilho
+  embaixo dela; as outras abrem na setinha, sem sair da tela.
+- **Celular:** tocar num botão com opções abre um painel acima da barra de
+  baixo. Botão sem opções (Início, Compras, Usuários) vai direto.
+- **Na tela:** a aba deu lugar ao `TituloTela` — a seção pequena em dourado
+  e a opção grande —, porque com o menu fechado é ele que diz onde se está.
+
+Os endereços continuam os mesmos, inclusive os antigos (`?aba=pagar`,
+`?aba=caixa`…). A leitura da URL do Financeiro saiu da página para
+`financeiro/abas.ts`, e o menu usa a mesma função: menu e tela não podem
+discordar sobre qual opção está aberta. O `Segmentado` ficou sem uso e saiu.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

@@ -1,15 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { usePathname, useSearchParams } from "next/navigation";
+import { CaretDownIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 import { LinhaTema } from "./tema";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
-import { itensVisiveis } from "./navegacao";
+import { itensVisiveis, opcaoAtual, secaoAtiva, type ItemNav } from "./navegacao";
 import { logoutAction } from "@/modules/auth/auth.actions";
 
 /*
@@ -44,6 +45,13 @@ import { logoutAction } from "@/modules/auth/auth.actions";
  *    que na prática é o do teclado. Quem navega por Tab continua abrindo a
  *    barra; quem clica com o mouse não a deixa presa.
  *
+ * 3. AS ABAS DAS TELAS MORAM AQUI (08/10/2026).
+ *    "Não quero abas dentro das abas": Peças/Insumos, Clientes/Fornecedores,
+ *    as abas do Financeiro… viraram opções embaixo da seção. A seção da tela
+ *    aberta já vem com as opções à mostra; as outras abrem na setinha.
+ *    Fechada, a barra esconde as opções — no trilho de 68px não há onde
+ *    escrever, e a tela diz no título onde se está.
+ *
  * A ordem segue o caminho do negócio, não a ordem em que as telas nasceram:
  * vende → compra para repor → guarda no estoque → olha o dinheiro →
  * consulta cadastros.
@@ -74,10 +82,11 @@ export function BarraLateral({
   nome: string;
 }) {
   const pathname = usePathname();
+  const params = useSearchParams();
   const itens = itensVisiveis(permissoes, papel);
-
-  const ativo = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  /* Aberta ou fechada pela setinha. Sem escolha, vale "aberta se é a seção
+     da tela" — e trocar de seção não deixa a anterior pendurada aberta. */
+  const [escolha, setEscolha] = useState<Record<string, boolean>>({});
 
   return (
     <nav
@@ -139,34 +148,63 @@ export function BarraLateral({
         />
       </Link>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
+      {/* `shrink-0` e não `min-h-0`: com as opções abertas a lista fica mais
+          alta que a tela, e encolhida ela passava por cima do "Sair". Assim
+          quem rola é a barra. */}
+      <div className="flex flex-1 shrink-0 flex-col gap-1">
         {itens.map((i) => {
           const Icone = i.icone;
-          const atual = ativo(i.href);
+          const atual = secaoAtiva(i, pathname);
+          const temOpcoes = (i.sub?.length ?? 0) > 1;
+          const mostra = temOpcoes && (escolha[i.href] ?? atual);
           return (
-            <Link
-              key={i.href}
-              href={i.href}
-              /* prefetch: o Next busca a tela ANTES do clique. Como a barra
-                 abre no hover, quando o mouse chega no item a tela já está
-                 vindo — ao clicar, está pronta. */
-              prefetch
-              aria-current={atual ? "page" : undefined}
-              title={i.nome}
-              className={cn(
-                LINHA,
-                atual
-                  ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
-                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
-              )}
-            >
-              {/* trilho de largura fixa: é ele que mantém o ícone parado */}
-              <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
-                <Icone weight="regular" className="size-[19px] shrink-0" aria-hidden />
-              </span>
-              {/* opacidade + max-width, nunca display:none */}
-              <span data-rotulo className={ROTULO}>{i.nome}</span>
-            </Link>
+            <div key={i.href} className="flex shrink-0 flex-col">
+              <div className="relative">
+                <Link
+                  href={i.href}
+                  /* prefetch: o Next busca a tela ANTES do clique. Como a barra
+                     abre no hover, quando o mouse chega no item a tela já está
+                     vindo — ao clicar, está pronta. */
+                  prefetch
+                  aria-current={atual ? "page" : undefined}
+                  title={i.nome}
+                  className={cn(
+                    LINHA,
+                    temOpcoes && "pr-9",
+                    atual
+                      ? "bg-(--ll-accent-soft) font-bold text-(--ll-accent)"
+                      : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+                  )}
+                >
+                  {/* trilho de largura fixa: é ele que mantém o ícone parado */}
+                  <span className="grid w-(--nav-trilho) shrink-0 place-items-center">
+                    <Icone weight="regular" className="size-[19px] shrink-0" aria-hidden />
+                  </span>
+                  {/* opacidade + max-width, nunca display:none */}
+                  <span data-rotulo className={ROTULO}>{i.nome}</span>
+                </Link>
+                {temOpcoes && (
+                  <button
+                    type="button"
+                    onClick={() => setEscolha((e) => ({ ...e, [i.href]: !mostra }))}
+                    aria-expanded={mostra}
+                    aria-label={`${mostra ? "Esconder" : "Mostrar"} as opções de ${i.nome}`}
+                    className={cn(
+                      "absolute top-1/2 right-1 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground outline-none",
+                      "hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
+                      /* Some com a barra fechada, como o rótulo — mas continua no
+                         Tab, e o foco do teclado abre a barra. */
+                      "pointer-events-none opacity-0 transition-opacity duration-200",
+                      "group-hover:pointer-events-auto group-hover:opacity-100",
+                      "group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100",
+                    )}
+                  >
+                    <CaretDownIcon weight="bold" className={cn("size-3.5 transition-transform duration-200", mostra && "rotate-180")} aria-hidden />
+                  </button>
+                )}
+              </div>
+              {mostra && <Opcoes item={i} pathname={pathname} params={params} />}
+            </div>
           );
         })}
       </div>
@@ -194,5 +232,60 @@ export function BarraLateral({
         </Button>
       </form>
     </nav>
+  );
+}
+
+/*
+ * As opções de uma seção, penduradas num trilho fino que desce da coluna dos
+ * ícones: dá para ver de relance de quem elas são. Só aparecem com a barra
+ * aberta.
+ */
+function Opcoes({ item, pathname, params }: { item: ItemNav; pathname: string; params: URLSearchParams }) {
+  const acesa = opcaoAtual(item, pathname, params);
+  return (
+    <ul
+      aria-label={`Opções de ${item.nome}`}
+      className={cn(
+        "relative hidden flex-col gap-0.5 pt-0.5 pb-1.5",
+        "group-hover:flex group-has-[:focus-visible]:flex",
+        "before:absolute before:top-1 before:bottom-2 before:left-[calc(var(--nav-trilho)/2)] before:w-px before:bg-border",
+      )}
+    >
+      {item.sub?.map((s, k) => {
+        const on = s === acesa;
+        const novoGrupo = s.grupo && s.grupo !== item.sub?.[k - 1]?.grupo;
+        return (
+          <li key={s.href} className="flex flex-col">
+            {novoGrupo && (
+              <span className="pt-1.5 pb-0.5 pl-(--nav-trilho) text-[10px] font-bold tracking-wide whitespace-nowrap text-muted-foreground/80 uppercase">
+                {s.grupo}
+              </span>
+            )}
+            <Link
+              href={s.href}
+              prefetch
+              aria-current={on ? "page" : undefined}
+              className={cn(
+                "relative flex h-8 items-center rounded-lg pr-3 pl-(--nav-trilho) text-[13px] whitespace-nowrap outline-none",
+                "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-(--ll-accent)",
+                on
+                  ? "font-semibold text-(--ll-accent)"
+                  : "text-muted-foreground hover:bg-(--ll-surface-2) hover:text-foreground",
+              )}
+            >
+              {/* o pontinho no trilho marca a opção da tela */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute top-1/2 left-[calc(var(--nav-trilho)/2)] -translate-x-1/2 -translate-y-1/2 rounded-full",
+                  on ? "size-2 bg-(--ll-accent)" : "size-1 bg-border",
+                )}
+              />
+              {s.nome}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

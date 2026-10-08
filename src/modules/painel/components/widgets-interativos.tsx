@@ -28,7 +28,7 @@ import type { DadosPainel } from "./widgets-render";
 
 const rotuloMini = "text-[11px] font-medium uppercase tracking-wide text-muted-foreground";
 
-/** As abinhas de troca local. Mesmo visual do `Segmentado`, sem mexer na URL. */
+/** As abinhas de troca local: só mudam a vista, sem mexer na URL. */
 function Abinhas<T extends string>({
   opcoes,
   atual,

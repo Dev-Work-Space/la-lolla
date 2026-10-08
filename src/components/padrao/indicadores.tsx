@@ -98,39 +98,6 @@ export function Vazio({ texto }: { texto: string }) {
   return <div className="px-6 py-10 text-center text-sm text-muted-foreground">{texto}</div>;
 }
 
-/** Grupo segmentado (`seg`) — escolha única, visual de abas. */
-export function Segmentado({
-  opcoes,
-  atual,
-  href,
-}: {
-  opcoes: ReadonlyArray<readonly [string, string]>;
-  atual: string;
-  href: (valor: string) => string;
-}) {
-  return (
-    // Fundo próprio e aba erguida em branco: a escolhida parece uma pastilha
-    // por cima, em vez de só mudar de cor. Fica óbvio onde se está.
-    <div className="ll-entra-cabecalho inline-flex rounded-xl border bg-(--ll-surface-2) p-1">
-      {opcoes.map(([valor, rotulo]) => (
-        <Link
-          key={valor}
-          href={href(valor)}
-          aria-current={atual === valor ? "page" : undefined}
-          className={cn(
-            "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all duration-200 ease-(--ll-ease)",
-            atual === valor
-              ? "bg-card text-foreground shadow-[0_1px_3px_rgba(26,24,20,.10)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {rotulo}
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 /** Fileira de filtros (`chips`) — rola de lado quando não cabe. */
 export function Chips({
   opcoes,
@@ -313,4 +280,27 @@ export function Pilula({
 
 export function TituloSecao({ children }: { children: React.ReactNode }) {
   return <h2 className="text-sm font-semibold text-muted-foreground">{children}</h2>;
+}
+
+/**
+ * Título das telas cujas abas foram para o menu (08/10/2026): a seção em
+ * cima, pequena, e a opção escolhida grande. Com o menu fechado é ele que diz
+ * onde se está — o papel que a aba acesa fazia.
+ */
+export function TituloTela({
+  secao,
+  titulo,
+  children,
+}: {
+  secao: string;
+  titulo: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-bold tracking-wide text-(--ll-accent) uppercase">{secao}</p>
+      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{titulo}</h1>
+      {children}
+    </div>
+  );
 }
