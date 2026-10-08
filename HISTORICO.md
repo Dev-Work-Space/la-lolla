@@ -907,6 +907,23 @@ branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
 escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
 pt).
 
+### 08/10 · Impressão de etiquetas: um botão "Imprimir" com as saídas
+
+Substitui o "Gerar PDF" que abria uma segunda janela e o bloco "Enviar para a
+impressora" da NIIMBOT. O rodapé tem só **Imprimir ▾**; ao tocar, abrem três
+saídas com ícone e o que cada uma faz:
+
+- **Imprimir na impressora** — no computador, a janela de impressão com o PDF
+  (`iframe` + `print()`); no celular, a folha de compartilhar com o PDF (onde
+  aparecem a impressora, o AirPrint e o app da NIIMBOT, se ele se registrar).
+- **Gerar PDF** — baixa direto, uma etiqueta por página. É o caminho da
+  NIIMBOT: o app dela imprime PDF com várias páginas (descoberta do João).
+- **Gerar imagem** — um PNG por etiqueta (até 12); no celular abre a folha de
+  compartilhar, no computador baixa um por vez com folga de 400 ms.
+
+O resultado fica na própria janela, com "Baixar de novo" e "Compartilhar". O
+`EnviarPdf` voltou a ser só o painel de escolha (orçamento e recibo).
+
 ### 08/10 · "A pagar" no estoque sem compra nenhuma
 
 O João viu peça com a pílula "A pagar" no estoque que nunca teve compra. A

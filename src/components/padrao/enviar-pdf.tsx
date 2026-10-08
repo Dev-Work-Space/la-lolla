@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { DownloadSimpleIcon, EyeIcon, FileTextIcon, ShareNetworkIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,13 +24,6 @@ import {
  * de verdade é a folha de compartilhar do próprio aparelho. Por isso
  * "Compartilhar" é o caminho para MANDAR, e a conversa da cliente é o atalho
  * para avisar. No computador a folha não existe, e o botão não aparece.
- *
- * MODO DIRETO (`direto`), para as etiquetas: o painel de escolha era uma
- * segunda janela por cima da primeira, e o João reclamou ("abre uma sub-aba,
- * não vê nada, nem baixa direto"). Nele um toque gera e JÁ BAIXA, e o
- * resultado aparece na própria tela, com "Baixar de novo" e "Compartilhar"
- * para o que der errado. Sem "Visualizar": no iPhone a aba com o PDF em
- * memória abre em branco. Orçamento e recibo seguem com o painel.
  */
 
 /** Só dígitos, com 55 na frente — é o formato que o wa.me aceita. */
@@ -61,8 +54,6 @@ export function EnviarPdf({
   nomeCliente,
   rotuloBotao = "Gerar PDF",
   desabilitado = false,
-  direto = false,
-  instrucao,
   gerar,
 }: {
   /** Como o documento se chama, para o título do compartilhamento. */
@@ -75,10 +66,6 @@ export function EnviarPdf({
   nomeCliente: string | null;
   rotuloBotao?: string;
   desabilitado?: boolean;
-  /** Gera e baixa num toque só, sem a janela de escolha. */
-  direto?: boolean;
-  /** Só no modo direto: o que fazer com o arquivo depois de baixado. */
-  instrucao?: string;
   gerar: () => Promise<{ blob: Blob; nome: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -98,28 +85,12 @@ export function EnviarPdf({
     !!navigator.canShare &&
     navigator.canShare({ files: [arquivo] });
 
-  /* Solta a memória do último PDF ao trocar por outro e ao sair da tela. */
-  const ultimoUrl = useRef<string | null>(null);
-  useEffect(
-    () => () => {
-      if (ultimoUrl.current) URL.revokeObjectURL(ultimoUrl.current);
-    },
-    [],
-  );
-
   function emitir() {
     setAviso(null);
     comecar(async () => {
       try {
         const r = await gerar();
-        const url = URL.createObjectURL(r.blob);
-        if (direto && ultimoUrl.current) URL.revokeObjectURL(ultimoUrl.current);
-        ultimoUrl.current = url;
-        setPdf({ ...r, url });
-        if (direto) {
-          baixarArquivo(url, r.nome);
-          return;
-        }
+        setPdf({ ...r, url: URL.createObjectURL(r.blob) });
         setAberto(true);
       } catch (e) {
         setAviso(e instanceof AvisoPdf ? e.message : "Não consegui gerar o PDF. Tente de novo.");
@@ -127,26 +98,14 @@ export function EnviarPdf({
     });
   }
 
-  function baixarArquivo(url: string, nome: string) {
+  function baixar() {
+    if (!pdf) return;
     const a = document.createElement("a");
-    a.href = url;
-    a.download = nome;
+    a.href = pdf.url;
+    a.download = pdf.nome;
     document.body.appendChild(a);
     a.click();
     a.remove();
-  }
-
-  function baixar() {
-    if (pdf) baixarArquivo(pdf.url, pdf.nome);
-  }
-
-  async function compartilhar() {
-    if (!arquivo) return;
-    try {
-      await navigator.share({ files: [arquivo], title: rotulo, text: mensagem });
-    } catch {
-      /* a pessoa fechou a folha de compartilhar — nada a fazer */
-    }
   }
 
   return (
@@ -162,40 +121,8 @@ export function EnviarPdf({
         </p>
       )}
 
-      {direto && pdf && (
-        <div className="w-full basis-full space-y-2 rounded-lg border bg-muted/40 p-3">
-          <p className="text-sm font-medium">PDF pronto e baixado</p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {pdf.nome}
-            {instrucao ? ` — ${instrucao}` : ""}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={baixar}>
-              <DownloadSimpleIcon className="mr-1.5 size-4" aria-hidden />
-              Baixar de novo
-            </Button>
-            {podeCompartilhar ? (
-              <Button type="button" size="sm" variant="outline" onClick={compartilhar}>
-                <ShareNetworkIcon className="mr-1.5 size-4" aria-hidden />
-                Compartilhar
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                nativeButton={false}
-                render={<a href={pdf.url} target="_blank" rel="noopener noreferrer" />}
-              >
-                <EyeIcon className="mr-1.5 size-4" aria-hidden />
-                Abrir
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       <Dialog
-        open={aberto && !direto}
+        open={aberto}
         onOpenChange={(v) => {
           setAberto(v);
           /* Solta a memória do arquivo ao fechar — sem isso cada PDF gerado
@@ -217,7 +144,13 @@ export function EnviarPdf({
               <div>
                 <Button
                   className="w-full"
-                  onClick={compartilhar}
+                  onClick={async () => {
+                    try {
+                      await navigator.share({ files: [arquivo!], title: rotulo, text: mensagem });
+                    } catch {
+                      /* a pessoa fechou a folha de compartilhar — nada a fazer */
+                    }
+                  }}
                 >
                   <ShareNetworkIcon className="mr-1.5 size-4" aria-hidden />
                   Compartilhar PDF
