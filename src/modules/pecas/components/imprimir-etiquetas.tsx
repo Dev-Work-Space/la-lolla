@@ -487,6 +487,12 @@ export function ImprimirEtiquetas({
               nomeCliente={null}
               rotuloBotao="Gerar PDF"
               desabilitado={total === 0 || demais}
+              direto
+              instrucao={
+                niimbot
+                  ? "Está em Arquivos › Downloads. No app da NIIMBOT, importe o PDF para imprimir todas de uma vez."
+                  : "Está na pasta de downloads do aparelho."
+              }
               gerar={gerar}
             />
           </div>

@@ -880,6 +880,33 @@ e IA vão direto. Tocar noutra categoria troca o painel, tocar na mesma fecha.
 O rótulo quebra em duas linhas ("Compra e / venda"). Ajustes continua na
 engrenagem do cabeçalho. A trava da tela de trás, o X e o deslizar valem igual.
 
+### 08/10 · Mandar VÁRIAS etiquetas para a NIIMBOT no iPhone
+
+O João usa uma **NIIMBOT D110-M**: salvava cada imagem no iPhone para
+importar no app dela, uma por vez. Pesquisado o que existe:
+
+- **Bluetooth direto não serve no iPhone.** A D110-M fala BLE (o app dela
+  também; ela só não aparece em Ajustes › Bluetooth do iPhone, é normal), mas
+  o Safari e o Chrome do iPhone não têm Web Bluetooth — só navegador especial
+  (Bluefy). A biblioteca aberta NiimBlueLib (MIT, não oficial) atende a
+  D110-M e funcionaria no PC/Android. O João mandou largar; nada entrou no
+  código.
+- **A USB-C da D110 só carrega**, não transmite dados.
+- **O app aberto "niim"** (iPhone/Mac, só D110) não faz lote e exige Xcode.
+- **A NIIMBOT não aparece na folha de compartilhar** (o app dela não publicou
+  a extensão), e isso o LaLolla não muda.
+- O app dela importa **planilha** (Excel ou CSV, até 5.000 linhas). Cheguei a
+  montar a exportação, mas o João **descobriu que o app dela imprime PDF com
+  várias páginas** e testou: funciona. A planilha saiu (commit revertido).
+
+**O que ficou:** "Gerar PDF" nas etiquetas agora é **direto** (`direto` no
+`EnviarPdf`): um toque gera e já baixa, e o resultado aparece na própria
+janela, com "Baixar de novo" e "Compartilhar". Antes abria uma segunda janela
+por cima (compartilhar, salvar, visualizar) e o "Visualizar" abria uma aba em
+branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
+escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
+pt).
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
