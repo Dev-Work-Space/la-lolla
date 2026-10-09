@@ -180,6 +180,22 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
             </div>
           </div>
 
+          {(forma === "DEBITO" || forma === "CREDITO") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="taxa-recebimento">Taxa da maquininha (opcional)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="taxa-recebimento"
+                  name="taxaPct"
+                  inputMode="decimal"
+                  placeholder="ex.: 2,5"
+                  className="w-24 text-base"
+                />
+                <span className="text-xs text-muted-foreground">% · vira uma despesa no caixa</span>
+              </div>
+            </div>
+          )}
+
           {forma !== "DINHEIRO" && (
             <CampoComprovante
               valor={comprovanteId}

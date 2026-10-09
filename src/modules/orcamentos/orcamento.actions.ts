@@ -39,6 +39,9 @@ const salvarSchema = z.object({
   formaPagamento: z.enum(["DINHEIRO", "PIX", "DEBITO", "CREDITO"]).optional().nullable(),
   parcelas: z.coerce.number().int().min(1).max(120).optional().nullable(),
   primeiroVencimento: z.coerce.date().optional().nullable(),
+  /* Entrada combinada, em reais; as parcelas cobrem o que sobra. */
+  entrada: z.coerce.number().min(0).optional().nullable(),
+  intervaloParcelas: z.enum(["mes", "quinzena", "semana"]).optional().nullable(),
 });
 
 export type SalvarOrcamentoInput = z.input<typeof salvarSchema>;
@@ -68,6 +71,9 @@ export async function salvarOrcamentoAction(
     return fail("REGRA_NEGOCIO", "O desconto é maior que o total das peças.");
   }
   const total = Math.max(0, r2(subtotal - d.desconto));
+  if (d.modoPagamento === "PARCELADO" && d.entrada && d.entrada >= total - 0.005) {
+    return fail("REGRA_NEGOCIO", "A entrada já cobre o total: escolha \"à vista\" ou diminua a entrada.");
+  }
 
   const comum = {
     clienteId: d.clienteId || null,
@@ -85,6 +91,8 @@ export async function salvarOrcamentoAction(
     formaPagamento: d.modoPagamento === "A_COMBINAR" ? null : (d.formaPagamento ?? null),
     parcelas: d.modoPagamento === "PARCELADO" ? (d.parcelas ?? 2) : null,
     primeiroVencimento: d.modoPagamento === "PARCELADO" ? (d.primeiroVencimento ?? null) : null,
+    entrada: d.modoPagamento === "PARCELADO" && d.entrada && d.entrada > 0 ? dec(d.entrada) : null,
+    intervaloParcelas: d.modoPagamento === "PARCELADO" ? (d.intervaloParcelas ?? "mes") : null,
   };
 
   try {
@@ -181,6 +189,8 @@ export async function revisarOrcamentoAction(id: string): Promise<Result<{ id: s
           formaPagamento: true,
           parcelas: true,
           primeiroVencimento: true,
+          entrada: true,
+          intervaloParcelas: true,
           itens: { select: { pecaId: true, quantidade: true, precoUnit: true } },
         },
       });
@@ -213,6 +223,8 @@ export async function revisarOrcamentoAction(id: string): Promise<Result<{ id: s
           formaPagamento: o.formaPagamento,
           parcelas: o.parcelas,
           primeiroVencimento: o.primeiroVencimento,
+          entrada: o.entrada,
+          intervaloParcelas: o.intervaloParcelas,
           revisaoDeId: o.id,
           itens: {
             create: o.itens.map((i) => ({

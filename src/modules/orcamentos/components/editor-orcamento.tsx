@@ -83,6 +83,9 @@ export type OrcamentoParaEditar = {
   formaPagamento: Forma | null;
   parcelas: number | null;
   primeiroVencimento: string | null;
+  /** Entrada combinada, em reais. */
+  entrada?: number | null;
+  intervaloParcelas?: "mes" | "quinzena" | "semana" | null;
   itens: Item[];
 };
 
@@ -111,6 +114,9 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
   const [modo, setModo] = useState<Modo>(orcamento?.modoPagamento ?? "A_COMBINAR");
   const [forma, setForma] = useState<Forma>(orcamento?.formaPagamento ?? "PIX");
   const [parcelas, setParcelas] = useState(String(orcamento?.parcelas ?? 2));
+  /* A entrada, em reais, e de quanto em quanto tempo vêm as parcelas do resto. */
+  const [entrada, setEntrada] = useState(orcamento?.entrada ? String(orcamento.entrada).replace(".", ",") : "");
+  const [intervalo, setIntervalo] = useState<"mes" | "quinzena" | "semana">(orcamento?.intervaloParcelas ?? "mes");
   const [primeiro, setPrimeiro] = useState(
     orcamento?.primeiroVencimento ??
       (() => {
@@ -156,8 +162,12 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
     const desc = r2((subtotal * pct) / 100);
     const total = r2(Math.max(0, subtotal - desc));
     const n = Math.max(1, Number(parcelas) || 1);
-    return { subtotal, desc, total, porParcela: r2(total / n) };
-  }, [itens, descontoPct, parcelas]);
+    /* A entrada só vale quando é menor que o total; as parcelas cobrem o resto. */
+    const ent = Math.min(Math.max(paraNumero(entrada), 0), total);
+    const entradaValida = ent > 0 && ent < total - 0.005 ? r2(ent) : 0;
+    const resto = r2(total - entradaValida);
+    return { subtotal, desc, total, entrada: entradaValida, resto, porParcela: r2(resto / n) };
+  }, [itens, descontoPct, parcelas, entrada]);
 
   const validoAte = useMemo(() => {
     const base = new Date(data + "T12:00:00");
@@ -217,6 +227,8 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
         formaPagamento: modo === "A_COMBINAR" ? null : forma,
         parcelas: modo === "PARCELADO" ? Number(parcelas) || 2 : null,
         primeiroVencimento: modo === "PARCELADO" ? new Date(primeiro + "T12:00:00") : null,
+        entrada: modo === "PARCELADO" && contas.entrada > 0 ? contas.entrada : null,
+        intervaloParcelas: modo === "PARCELADO" ? intervalo : null,
       });
 
       if (r.ok) {
@@ -503,6 +515,34 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
 
               {modo === "PARCELADO" && (
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 space-y-1.5">
+                    <Label htmlFor="orc-entrada">Entrada (opcional)</Label>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[20, 30, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setEntrada(String(r2((contas.total * pct) / 100)).replace(".", ","))}
+                          className="rounded-full border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-(--ll-accent-line) hover:bg-(--ll-accent-soft) hover:text-(--ll-accent)"
+                        >
+                          {pct}% · {brl(r2((contas.total * pct) / 100))}
+                        </button>
+                      ))}
+                      {entrada && (
+                        <button type="button" onClick={() => setEntrada("")} className="text-xs text-muted-foreground underline underline-offset-2">
+                          sem entrada
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="orc-entrada"
+                      inputMode="decimal"
+                      value={entrada}
+                      onChange={(e) => setEntrada(e.target.value.replace(/[^0-9,.]/g, ""))}
+                      placeholder="0,00"
+                      className="text-base"
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="orc-parcelas">Parcelas</Label>
                     <Input
@@ -523,8 +563,27 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
                       className="mt-1.5 text-base"
                     />
                   </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="orc-intervalo">A cada</Label>
+                    <Seletor
+                      id="orc-intervalo"
+                      value={intervalo}
+                      onValueChange={(v) => setIntervalo(v as typeof intervalo)}
+                      className="mt-1.5 h-10 w-full rounded-md border bg-transparent px-3 text-base"
+                      opcoes={[
+                        { value: "mes", label: "Mês" },
+                        { value: "quinzena", label: "15 dias" },
+                        { value: "semana", label: "Semana" },
+                      ]}
+                    />
+                  </div>
                   {contas.total > 0 && (
                     <p className="col-span-2 text-xs text-muted-foreground">
+                      {contas.entrada > 0 && (
+                        <>
+                          Entrada de <strong>{brl(contas.entrada)}</strong> e o resto em{" "}
+                        </>
+                      )}
                       {parcelas}× de <strong>{brl(contas.porParcela)}</strong>
                     </p>
                   )}

@@ -17,10 +17,11 @@ import { cn } from "@/lib/utils";
  *   celular  → cabeçalho em cima + barra fixa embaixo
  *   monitor  → barra LATERAL expansiva, que abre no hover
  *
- * O `md:pl-(--nav-fechada)` reserva a tira de 68px. A barra aberta passa POR
- * CIMA do conteúdo em vez de empurrá-lo: o João pediu isso explicitamente
- * ("faça com que quando abre a aba, ele cobre a superfície") — empurrar
- * recalcularia a largura de tudo e as tabelas dançavam.
+ * O `md:pl-(--nav-largura)` reserva o trilho da barra lateral e, quando o
+ * painel de opções está aberto (o João o deixa aberto enquanto trabalha), o
+ * painel também: ele EMPURRA a página em vez de cobri-la. Antes a barra
+ * abria por cima ("faça com que quando abre a aba, ele cobre a superfície");
+ * agora que o painel não fecha sozinho, cobrir deixaria o conteúdo escondido.
  *
  * A SESSÃO NÃO SEGURA MAIS A TELA. Antes o layout esperava a sessão (cookie +
  * banco) antes de mandar qualquer coisa, e o app inteiro ficava em branco
@@ -32,7 +33,7 @@ import { cn } from "@/lib/utils";
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col md:pl-(--nav-fechada)">
+    <div className="flex min-h-dvh flex-col transition-[padding-left] duration-200 ease-(--ll-ease) md:pl-(--nav-largura)">
       {/* Lê o endereço da tela, então mora no seu <Suspense>; sem esqueleto,
           porque sem clique não há o que mostrar. */}
       <Suspense fallback={null}>

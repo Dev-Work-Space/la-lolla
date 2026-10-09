@@ -56,6 +56,8 @@ const fecharSchema = z.object({
         carteiraId: z.string().optional().nullable(),
         /* Obrigatório fora do dinheiro vivo — quem barra é o serviço. */
         comprovanteId: z.string().trim().max(40).optional().nullable(),
+        /* Taxa da maquininha em %, opcional; só vale em débito e crédito. */
+        taxaPct: z.coerce.number().min(0).max(30, "A taxa da maquininha passa de 30%? Confira o valor.").optional().nullable(),
       }),
     )
     .default([]),
@@ -71,6 +73,8 @@ const fecharSchema = z.object({
       primeiroVencimento: z.coerce.date(),
       /** Uma data por parcela, quando a pessoa escolheu uma a uma. */
       vencimentos: z.array(z.coerce.date()).optional().nullable(),
+      /** O valor de cada parcela, quando escolhido à mão (deve somar o saldo). */
+      valores: z.array(z.coerce.number().min(0.01)).max(60).optional().nullable(),
     })
     .optional()
     .nullable(),
@@ -178,6 +182,10 @@ const receberSchema = z.object({
     .union([z.literal(""), z.string().trim().max(40)])
     .optional()
     .transform((v) => (v ? v : null)),
+  taxaPct: z
+    .union([z.literal(""), z.coerce.number().min(0).max(30, "A taxa da maquininha passa de 30%? Confira o valor.")])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
   /* Vazio vira null, e não string vazia: o banco recusaria "" como id de
      carteira, e a mensagem que chegaria à tela seria de erro de chave
      estrangeira — técnica e inútil para quem está no balcão. */
@@ -199,6 +207,7 @@ export async function receberAction(formData: FormData): Promise<Result<{ id: st
   const parsed = receberSchema.safeParse({
     ...bruto,
     valor: String(bruto.valor ?? "").replace(/\./g, "").replace(",", "."),
+    taxaPct: String(bruto.taxaPct ?? "").replace(",", "."),
   });
   if (!parsed.success) {
     return fail("DADOS_INVALIDOS", "Confira os campos.", campos(parsed.error));

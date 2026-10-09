@@ -1015,6 +1015,54 @@ tem de respeitar isto; o aviso (toast) já fica acima de tudo.
 Cada opção ganhou `icone` e `desc` em `navegacao.ts`; o tamanho mora em
 `--nav-fechada` e `--nav-painel` no `globals.css`.
 
+### 08/10 · Pagamento flexível em venda, compra e orçamento
+
+Pedido do João: o pagamento "bem ajustável" — entrada, parcelas com valor e
+data próprios, e o seu jeito em todas as telas de pagar. Ele também avisou que
+**o app ainda não está em produção**, então vendas antigas sem a regra nova
+ficam como estão e migration não assusta.
+
+- **Parcelas (`src/lib/parcelas.ts`, neutro).** A mesma conta na tela e no
+  servidor: `dividirEmParcelas` (centavos na última), `resolverParcelas`
+  (parcela escolhida à mão; o que sobra se divide entre as que ninguém
+  mexeu) e `valoresValidos` (o servidor recusa soma que não fecha). Intervalo
+  mensal, a cada 15 dias ou semanal. A tela é `padrao/parcelamento.tsx`
+  (`useParcelamento`, `EditorDeParcelas`), igual nas três telas.
+- **Venda.** `pagamento-da-venda.tsx`: vários pagamentos (Pix 60, crédito 3x…)
+  e o resto no crediário, cada parcela com a sua data e o seu valor. Pix,
+  débito e crédito pedem comprovante; dinheiro vivo não.
+- **Taxa da maquininha (opcional, só débito/crédito).** Vira um **lançamento
+  negativo** ("Taxa da maquininha · venda #N", categoria própria) ligado ao
+  pagamento por `Pagamento.taxaLancamentoId`. Assim o saldo da carteira já sai
+  certo, e remover o recebimento ou cancelar a venda apaga a taxa junto.
+  Acima de 30% a tela e o servidor pedem para conferir o número.
+- **Compra.** `pagamento-da-compra.tsx`: à vista, a prazo ou **entrada +
+  parcelas**. A entrada sai da carteira agora (comprovante, salvo gaveta) e o
+  resto vira contas a pagar; o comprovante dessas vem na baixa de cada uma.
+- **Orçamento.** Ganhou entrada e intervalo (`Orcamento.entrada`,
+  `intervaloParcelas`); o PDF diz "Entrada de R$ 60,00 e o restante em 2x de
+  R$ 70,00" e a conversão em venda já sugere a entrada.
+- **Menu lateral do PC.** O painel das opções **não fecha** ao escolher uma
+  opção nem ao clicar na página: só no X. Aberto, ele empurra a página
+  (`--nav-largura` = 364 px; fechado, 76 px).
+
+> **Armadilha de camadas do CSS.** A regra que empurra a página estava em
+> `@layer base`, mas `--nav-largura` também é definida em `:root` **fora de
+> camada**, que sempre vence a camada. O painel abria e a página não mexia.
+> A regra `:root[data-painel="aberto"]` mora fora de camada, depois do `:root`.
+
+> **Migrations desta rodada NÃO foram aplicadas no banco da loja:**
+> `20261008120000_comprovante_no_banco` e `20261008130000_pagamento_flexivel`.
+> Só o banco de teste local as recebeu. Antes do merge: combinar com o outro
+> desenvolvedor (ordem das migrations) e rodar `npm run db:deploy` com a
+> confirmação do João.
+
+Conferido no navegador (build de produção, banco de teste local): venda com
+Pix + crédito 3x com taxa + crediário editado à mão (50/25/25); soma errada
+bloqueia o envio; compra com entrada + 2 parcelas (comprovante obrigatório) e
+compra pela gaveta sem comprovante; orçamento com entrada (texto no PDF
+lido); "Receber" com taxa, remoção e cancelamento apagam o lançamento da taxa.
+
 ---
 
 ## 8. Armadilhas que já custaram tempo

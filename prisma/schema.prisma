@@ -287,6 +287,15 @@ model Pagamento {
   comprovanteId String?
   comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
 
+  // Taxa da maquininha (opcional, só débito e crédito): o percentual que a
+  // operadora fica. O valor da taxa sai do caixa como um LANÇAMENTO de saída,
+  // para o saldo da carteira e as despesas saírem certos sem mexer em nenhuma
+  // conta de saldo; este elo diz qual lançamento é desta taxa, para ele sumir
+  // junto quando o recebimento é removido.
+  taxaPct          Decimal?    @db.Decimal(5, 2)
+  taxaLancamentoId String?     @unique
+  taxaLancamento   Lancamento? @relation("taxaMaquininha", fields: [taxaLancamentoId], references: [id], onDelete: SetNull)
+
   criadoEm DateTime @default(now())
 
   @@index([vendaId])
@@ -426,6 +435,10 @@ model Orcamento {
   formaPagamento FormaPagamento?
   parcelas       Int?
   primeiroVencimento DateTime?
+  // Entrada combinada (em reais) e de quanto em quanto tempo vêm as parcelas
+  // do resto — "mes", "quinzena" ou "semana", como na venda.
+  entrada           Decimal? @db.Decimal(10, 2)
+  intervaloParcelas String?
 
   // Texto livre que SAI no PDF: condições, prazo de entrega, forma de envio.
   observacao String?
@@ -655,6 +668,9 @@ model Lancamento {
   comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
 
   conta Conta?
+
+  // Quando este lançamento é a taxa da maquininha de um recebimento.
+  taxaDe Pagamento? @relation("taxaMaquininha")
 
   criadoEm DateTime @default(now())
 

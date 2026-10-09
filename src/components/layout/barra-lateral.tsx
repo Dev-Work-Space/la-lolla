@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -33,12 +33,10 @@ import { Aquecer, AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from ".
  *     os atalhos de criar e as opções, cada uma com ícone e uma frase do que
  *     tem lá. Só no clique — o João testou abrindo no hover e pediu assim:
  *     o mouse passando a caminho da tela não pode cobrir nada;
- *   - o painel fica até a pessoa escolher uma opção, clicar de novo na
- *     categoria, clicar fora ou apertar Esc. Pelo teclado, Enter abre e o
- *     Tab entra nele.
- *
- * O painel mora DENTRO da <nav> (posição absoluta, colado à direita dela):
- * assim clicar nele não conta como "clicar fora".
+ *   - o painel fica aberto até a pessoa fechar: no X, clicando de novo na
+ *     categoria ou apertando Esc. Escolher opções, trocar de tela e mexer na
+ *     página NÃO o fecham, e ele empurra a página em vez de cobri-la.
+ *     Pelo teclado, Enter abre e o Tab entra nele.
  */
 
 const PASTILHA = cn(
@@ -67,28 +65,27 @@ export function BarraLateral({
   const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
   const ajustesAtual = pathname === AJUSTES_NAV.href || pathname.startsWith(AJUSTES_NAV.href + "/");
 
-  /* Qual painel está aberto — só o clique abre. */
+  /*
+   * Qual painel está aberto — só o clique abre, e SÓ O CLIQUE FECHA (no X ou
+   * na categoria de novo). Escolher uma opção, trocar de tela ou clicar na
+   * página não fecham: pedido do João (08/10/2026), que navega por várias
+   * opções da mesma categoria em sequência.
+   *
+   * Como ele fica aberto enquanto se trabalha, o painel não pode cobrir a
+   * página: avisamos o layout pelo <html>, e ele empurra o conteúdo (ver
+   * `--nav-largura` no globals.css).
+   */
   const [aberta, setAberta] = useState<string | null>(null);
   const fechar = () => setAberta(null);
-  const barra = useRef<HTMLElement>(null);
 
-  /* Clicou fora do menu (na tela): o painel fecha. */
   useEffect(() => {
-    if (!aberta) return;
-    const fora = (e: PointerEvent) => {
-      if (!barra.current?.contains(e.target as Node)) setAberta(null);
+    const html = document.documentElement;
+    if (aberta) html.dataset.painel = "aberto";
+    else delete html.dataset.painel;
+    return () => {
+      delete html.dataset.painel;
     };
-    document.addEventListener("pointerdown", fora);
-    return () => document.removeEventListener("pointerdown", fora);
   }, [aberta]);
-
-  /* Trocou de tela: o painel fecha. */
-  const rota = `${pathname}?${params.toString()}`;
-  const [ultimaRota, setUltimaRota] = useState(rota);
-  if (ultimaRota !== rota) {
-    setUltimaRota(rota);
-    setAberta(null);
-  }
 
   /* A categoria que o mouse (ou o foco) alcançou: as telas dela começam a
      ser buscadas antes do clique. Ver `Aquecer`. */
@@ -98,7 +95,6 @@ export function BarraLateral({
     <nav
       aria-label="Navegação principal"
       data-nav="lateral"
-      ref={barra}
       onKeyDown={(e) => e.key === "Escape" && fechar()}
       className="fixed inset-y-0 left-0 z-60 hidden w-(--nav-fechada) flex-col border-r bg-card py-4 md:flex"
     >
@@ -264,10 +260,10 @@ function Painel({
       </div>
 
       <div className="mt-5 px-1.5">
-        <AtalhosDeCriar acoes={c.acoes ?? []} aoEscolher={fechar} />
+        <AtalhosDeCriar acoes={c.acoes ?? []} />
       </div>
       <div className="mt-3">
-        <ListaDeOpcoes categoria={c} pathname={pathname} params={params} aoEscolher={fechar} />
+        <ListaDeOpcoes categoria={c} pathname={pathname} params={params} />
       </div>
     </div>
   );

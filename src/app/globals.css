@@ -103,6 +103,11 @@
   --nav-painel: 288px;
   /* Recuo das opções na gaveta do celular: a coluna dos ícones. */
   --nav-trilho: 52px;
+  /* O quanto a barra lateral toma da largura: só o trilho, ou o trilho mais o
+     painel quando ele está aberto (o <html> ganha data-painel="aberto"). O
+     layout usa isto de recuo, então o painel empurra a página em vez de
+     cobri-la. */
+  --nav-largura: var(--nav-fechada);
   /*
    * Altura da barra de baixo do celular, SEM a faixa de gestos do iPhone
    * (essa entra por fora, com env(safe-area-inset-bottom)).
@@ -120,6 +125,13 @@
   --ll-ease: cubic-bezier(.22, .72, .24, 1);
   --ll-duracao-hover: 150ms;
   --ll-duracao-suave: 180ms;
+}
+
+/* Fora de @layer de propósito: a variável nasce em `:root` (sem camada), e
+   regra em camada perde para regra sem camada, não importa a especificidade.
+   Com o painel aberto, o <html> ganha data-painel="aberto" e a página recua. */
+:root[data-painel="aberto"] {
+  --nav-largura: calc(var(--nav-fechada) + var(--nav-painel));
 }
 
 .dark {

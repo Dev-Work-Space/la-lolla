@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
 import { PEDE_COMPROVANTE, totalDe, vencimentoParcela, type Intervalo } from "./venda.service";
 import { comprovanteExiste } from "@/modules/financeiro/comprovante.service";
+import { dividirEmParcelas, valoresValidos } from "@/lib/parcelas";
 
 /*
  * O COMPROVANTE É OBRIGATÓRIO fora do dinheiro vivo (pedido do João,
@@ -55,7 +56,76 @@ export type PagamentoEntrada = {
   parcelas?: number;
   carteiraId?: string | null;
   comprovanteId?: string | null;
+  /** Taxa da maquininha, em %, opcional (só débito e crédito). */
+  taxaPct?: number | null;
 };
+
+/*
+ * O valor de cada parcela do saldo a prazo. Se a tela mandou valores
+ * escolhidos à mão, eles têm de somar o saldo (a tela já avisa, mas o servidor
+ * não confia); sem eles, divide por igual, com a sobra na última.
+ */
+function valoresDoPrazo(saldo: number, parcelas: number, valores?: number[] | null): number[] {
+  if (valores && valores.length > 0) {
+    if (!valoresValidos(saldo, parcelas, valores)) {
+      throw new ErroDominio(
+        "REGRA_NEGOCIO",
+        `As parcelas não fecham: o saldo a parcelar é ${saldo.toFixed(2)} e as parcelas somam ${valores
+          .reduce((s, v) => s + v, 0)
+          .toFixed(2)}. Ajuste os valores até a diferença zerar.`,
+      );
+    }
+    return valores.map((v) => r2(v));
+  }
+  return dividirEmParcelas(saldo, parcelas);
+}
+
+/*
+ * Grava UM recebimento da venda.
+ *
+ * Se houve TAXA DA MAQUININHA (só débito e crédito, e opcional), a taxa vira
+ * um lançamento de SAÍDA na mesma carteira, no mesmo dia. Assim o saldo da
+ * carteira, o extrato e as despesas ficam certos sem mexer em nenhuma das
+ * contas de saldo — e o elo `taxaLancamentoId` faz a taxa sumir junto quando o
+ * recebimento é removido. O faturamento segue pelo valor cheio da venda.
+ */
+async function gravarPagamento(
+  tx: Prisma.TransactionClient,
+  venda: { id: string; numero: number },
+  p: PagamentoEntrada,
+  data: Date,
+) {
+  const taxa =
+    (p.forma === "DEBITO" || p.forma === "CREDITO") && p.taxaPct && p.taxaPct > 0 ? r2(p.taxaPct) : null;
+  const pag = await tx.pagamento.create({
+    data: {
+      vendaId: venda.id,
+      forma: p.forma,
+      valor: new Prisma.Decimal(p.valor.toFixed(2)),
+      parcelas: p.parcelas ?? 1,
+      carteiraId: p.carteiraId || null,
+      comprovanteId: p.comprovanteId || null,
+      taxaPct: taxa === null ? null : new Prisma.Decimal(taxa.toFixed(2)),
+      /* O dinheiro entrou no dia indicado, não no dia do registro. */
+      data,
+    },
+    select: { id: true },
+  });
+  if (taxa !== null) {
+    const lanc = await tx.lancamento.create({
+      data: {
+        carteiraId: p.carteiraId || null,
+        descricao: `Taxa da maquininha · venda #${venda.numero}`,
+        valor: new Prisma.Decimal((-r2((p.valor * taxa) / 100)).toFixed(2)),
+        categoria: "Taxa de maquininha",
+        data,
+      },
+      select: { id: true },
+    });
+    await tx.pagamento.update({ where: { id: pag.id }, data: { taxaLancamentoId: lanc.id } });
+  }
+  return pag;
+}
 
 /*
  * A EMBALAGEM que saiu com a venda: o saquinho, a caixinha, o laço.
@@ -90,6 +160,8 @@ export type VendaEntrada = {
     intervalo: Intervalo;
     primeiroVencimento: Date;
     vencimentos?: Date[] | null;
+    /** O valor de cada parcela, quando escolhido à mão; deve somar o saldo. */
+    valores?: number[] | null;
   } | null;
   /*
    * A DATA DA VENDA, que não é a data do registro.
@@ -276,20 +348,13 @@ export async function fecharVenda(entrada: VendaEntrada) {
             custoUnit: porId.get(i.pecaId)!.custo,
           })),
         },
-        pagamentos: {
-          create: entrada.pagamentos.map((p) => ({
-            forma: p.forma,
-            valor: new Prisma.Decimal(p.valor.toFixed(2)),
-            parcelas: p.parcelas ?? 1,
-            carteiraId: p.carteiraId || null,
-            comprovanteId: p.comprovanteId || null,
-            /* O dinheiro entrou no dia da VENDA, não no dia do registro. */
-            data: dataVenda,
-          })),
-        },
       },
       select: { id: true, numero: true },
     });
+
+    /* Os recebimentos, um a um (a taxa da maquininha precisa do id de cada
+       um). O dinheiro entrou no dia da VENDA, não no dia do registro. */
+    for (const p of entrada.pagamentos) await gravarPagamento(tx, venda, p, dataVenda);
 
     // 3a — a embalagem consumida, com o custo congelado
     for (const i of insumos) {
@@ -337,19 +402,17 @@ export async function fecharVenda(entrada: VendaEntrada) {
       const vencimentoDe = (k: number) =>
         vencimentos?.[k] ??
         (k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo));
-      const valorBase = Math.floor((saldo / parcelas) * 100) / 100;
       // A sobra de centavos vai na ÚLTIMA parcela — documentação, seção 15:
-      // R$ 100,00 em 3 = 33,33 + 33,33 + 33,34.
-      const sobra = r2(saldo - valorBase * parcelas);
+      // R$ 100,00 em 3 = 33,33 + 33,33 + 33,34 (ver `dividirEmParcelas`).
+      const valores = valoresDoPrazo(saldo, parcelas, entrada.aPrazo.valores);
 
       for (let k = 0; k < parcelas; k++) {
-        const ultima = k === parcelas - 1;
         await tx.conta.create({
           data: {
             tipo: "RECEBER",
             status: "ABERTA",
             descricao: `Venda #${venda.numero} · parcela ${k + 1}/${parcelas}`,
-            valor: new Prisma.Decimal((ultima ? valorBase + sobra : valorBase).toFixed(2)),
+            valor: new Prisma.Decimal(valores[k].toFixed(2)),
             vencimento: vencimentoDe(k),
             vendaId: venda.id,
             parcela: k + 1,
@@ -414,6 +477,7 @@ export type EdicaoEntrada = {
     intervalo: Intervalo;
     primeiroVencimento: Date;
     vencimentos?: Date[] | null;
+    valores?: number[] | null;
   } | null;
 };
 
@@ -622,16 +686,14 @@ export async function editarVenda(entrada: EdicaoEntrada) {
       const vencimentoDe = (k: number) =>
         vencimentos?.[k] ??
         (k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo));
-      const valorBase = Math.floor((saldo / parcelas) * 100) / 100;
-      const sobra = r2(saldo - valorBase * parcelas);
+      const valores = valoresDoPrazo(saldo, parcelas, entrada.aPrazo.valores);
       for (let k = 0; k < parcelas; k++) {
-        const ultima = k === parcelas - 1;
         await tx.conta.create({
           data: {
             tipo: "RECEBER",
             status: "ABERTA",
             descricao: `Venda #${v.numero} · parcela ${k + 1}/${parcelas}`,
-            valor: new Prisma.Decimal((ultima ? valorBase + sobra : valorBase).toFixed(2)),
+            valor: new Prisma.Decimal(valores[k].toFixed(2)),
             vencimento: vencimentoDe(k),
             vendaId: v.id,
             parcela: k + 1,
@@ -717,6 +779,10 @@ export async function cancelarVenda(id: string, motivo: string) {
       data: { status: "CANCELADA" },
     });
 
+    /* O dinheiro de venda cancelada já não conta no saldo da carteira, e a
+       taxa da maquininha cobrada sobre ele também não pode contar. */
+    await tx.lancamento.deleteMany({ where: { taxaDe: { vendaId: id } } });
+
     return tx.venda.update({
       where: { id },
       data: { status: "CANCELADA", canceladaEm: new Date(), motivoCancelada: motivo },
@@ -743,6 +809,7 @@ export async function receberPagamento(entrada: {
   contaId?: string | null;
   carteiraId?: string | null;
   comprovanteId?: string | null;
+  taxaPct?: number | null;
   data?: Date | null;
 }) {
   await exigirComprovante(entrada.forma, entrada.comprovanteId);
@@ -777,17 +844,18 @@ export async function receberPagamento(entrada: {
 
     const quando = entrada.data ?? new Date();
 
-    const pag = await tx.pagamento.create({
-      data: {
-        vendaId: entrada.vendaId,
+    const pag = await gravarPagamento(
+      tx,
+      { id: v.id, numero: v.numero },
+      {
         forma: entrada.forma,
-        valor: new Prisma.Decimal(entrada.valor.toFixed(2)),
-        carteiraId: entrada.carteiraId || null,
-        comprovanteId: entrada.comprovanteId || null,
-        data: quando,
+        valor: entrada.valor,
+        carteiraId: entrada.carteiraId,
+        comprovanteId: entrada.comprovanteId,
+        taxaPct: entrada.taxaPct,
       },
-      select: { id: true },
-    });
+      quando,
+    );
 
     if (entrada.contaId) {
       const conta = await tx.conta.findUnique({
@@ -899,6 +967,7 @@ export async function removerPagamento(pagamentoId: string) {
         id: true,
         valor: true,
         vendaId: true,
+        taxaLancamentoId: true,
         venda: { select: { id: true, status: true } },
       },
     });
@@ -912,6 +981,9 @@ export async function removerPagamento(pagamentoId: string) {
 
     const valor = r2(Number(p.valor));
     await tx.pagamento.delete({ where: { id: pagamentoId } });
+    /* A taxa da maquininha deste recebimento some junto: sem o recebimento
+       não há o que a operadora cobrar. */
+    if (p.taxaLancamentoId) await tx.lancamento.deleteMany({ where: { id: p.taxaLancamentoId } });
 
     /*
      * Reabre da parcela paga MAIS RECENTE para trás — é a ordem inversa da que

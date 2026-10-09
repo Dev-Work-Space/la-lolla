@@ -133,6 +133,8 @@ const SELECAO = {
   formaPagamento: true,
   parcelas: true,
   primeiroVencimento: true,
+  entrada: true,
+  intervaloParcelas: true,
   vendaId: true,
   /* Documento, cidade e UF entram porque saem no PDF, no bloco do cliente —
      é o que faz a proposta parecer documento da loja e não recado. */
@@ -202,6 +204,9 @@ export type OrcamentoPublico = {
   formaPagamento: FormaPagamento | null;
   parcelas: number | null;
   primeiroVencimento: Date | null;
+  /** Entrada combinada, em reais. */
+  entrada: number | null;
+  intervaloParcelas: "mes" | "quinzena" | "semana" | null;
   vendaId: string | null;
   revisaoDe: { id: string; numero: number } | null;
   substituidoPor: { id: string; numero: number } | null;
@@ -259,6 +264,9 @@ function montar(o: LinhaCrua, veFinanceiro: boolean): Orcamento {
     formaPagamento: o.formaPagamento,
     parcelas: o.parcelas,
     primeiroVencimento: o.primeiroVencimento,
+    entrada: o.entrada === null ? null : Number(o.entrada),
+    intervaloParcelas:
+      o.intervaloParcelas === "quinzena" || o.intervaloParcelas === "semana" ? o.intervaloParcelas : o.intervaloParcelas ? "mes" : null,
     vendaId: o.vendaId,
     revisaoDe: o.revisaoDe,
     substituidoPor: o.substituidoPor,

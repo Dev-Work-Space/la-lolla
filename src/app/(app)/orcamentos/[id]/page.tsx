@@ -114,6 +114,8 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
                 formaPagamento: o.formaPagamento,
                 parcelas: o.parcelas,
                 primeiroVencimento: o.primeiroVencimento,
+                entrada: o.entrada,
+                intervaloParcelas: o.intervaloParcelas,
                 observacao: o.observacao,
               }}
             />

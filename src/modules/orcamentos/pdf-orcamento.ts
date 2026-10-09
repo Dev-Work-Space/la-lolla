@@ -16,6 +16,7 @@
  */
 
 import { jsPDF } from "jspdf";
+import { dividirEmParcelas, vencimentoParcela } from "@/lib/parcelas";
 import {
   CINZA,
   COL_T,
@@ -60,6 +61,9 @@ export type OrcamentoPdf = {
   formaPagamento: string | null;
   parcelas: number | null;
   primeiroVencimento: Date | null;
+  /** Entrada combinada, em reais; as parcelas cobrem o que sobra. */
+  entrada?: number | null;
+  intervaloParcelas?: "mes" | "quinzena" | "semana" | null;
   observacao: string | null;
 };
 
@@ -105,8 +109,14 @@ export async function gerarPdfOrcamento(o: OrcamentoPdf): Promise<{ blob: Blob; 
     cond.push(`Pagamento à vista${forma ? " em " + forma : ""}: ${dinheiro(o.total)}.`);
   } else if (o.modoPagamento === "PARCELADO") {
     const n = o.parcelas || 2;
-    const un = Math.round((o.total / n) * 100) / 100;
-    cond.push(`Parcelamento em ${n}x de ${dinheiro(un)}${forma ? " em " + forma : ""}.`);
+    const entrada = o.entrada && o.entrada > 0 && o.entrada < o.total ? o.entrada : 0;
+    const resto = Math.round((o.total - entrada) * 100) / 100;
+    const un = Math.round((resto / n) * 100) / 100;
+    cond.push(
+      entrada > 0
+        ? `Entrada de ${dinheiro(entrada)} e o restante em ${n}x de ${dinheiro(un)}${forma ? " em " + forma : ""}.`
+        : `Parcelamento em ${n}x de ${dinheiro(un)}${forma ? " em " + forma : ""}.`,
+    );
   }
   if (o.observacao) cond.push(o.observacao);
 
@@ -136,21 +146,27 @@ export async function gerarPdfOrcamento(o: OrcamentoPdf): Promise<{ blob: Blob; 
        elas, prometer data no papel seria inventar. */
     if (o.modoPagamento === "PARCELADO" && o.primeiroVencimento) {
       const n = o.parcelas || 2;
-      const base = Math.floor((o.total / n) * 100) / 100;
-      const sobra = Math.round((o.total - base * n) * 100) / 100;
+      const entrada = o.entrada && o.entrada > 0 && o.entrada < o.total ? o.entrada : 0;
+      const valores = dividirEmParcelas(Math.round((o.total - entrada) * 100) / 100, n);
       y += 3;
+      if (entrada > 0) {
+        doc.setTextColor(...CINZA);
+        doc.text("Entrada", M, y);
+        doc.setTextColor(...TINTA);
+        doc.text(dinheiro(entrada), COL_T, y, { align: "right" });
+        y += 5;
+      }
       for (let k = 0; k < n; k++) {
         if (y > 278) {
           doc.addPage();
           y = 24;
         }
-        const venc = new Date(o.primeiroVencimento);
-        venc.setMonth(venc.getMonth() + k);
-        const valor = k === n - 1 ? base + sobra : base;
+        /* O intervalo combinado (mês, 15 dias ou semana); antes era sempre mês. */
+        const venc = vencimentoParcela(new Date(o.primeiroVencimento), k, o.intervaloParcelas ?? "mes");
         doc.setTextColor(...CINZA);
         doc.text(`${k + 1}ª parcela · ${dataLonga(venc)}`, M, y);
         doc.setTextColor(...TINTA);
-        doc.text(dinheiro(valor), COL_T, y, { align: "right" });
+        doc.text(dinheiro(valores[k]), COL_T, y, { align: "right" });
         y += 5;
       }
     }
