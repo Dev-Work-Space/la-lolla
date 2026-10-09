@@ -98,6 +98,17 @@ export async function excluirFornecedorAction(id: string): Promise<Result<{ nome
  * a política de segurança do app bloqueia chamada externa pelo cliente, e
  * assim a chave/limite da API fica do nosso lado.
  */
+/*
+ * A BrasilAPI responde 403 a quem chega sem `User-Agent` — e o fetch do
+ * servidor do Node manda o dele ("node"), que ela barra: o botão Buscar do
+ * CNPJ falhava com "Sem resposta" mesmo com a API no ar. O CEP passava por
+ * sorte (outro provedor por trás). Um agente próprio resolve os dois.
+ */
+const CABECALHOS_BRASILAPI = {
+  accept: "application/json",
+  "user-agent": "LaLolla/1.0 (sistema de gestao da loja)",
+};
+
 export type DadosCNPJ = {
   razao?: string;
   fantasia?: string;
@@ -120,7 +131,7 @@ export async function consultarCnpjAction(doc: string): Promise<Result<DadosCNPJ
 
   try {
     const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${d}`, {
-      headers: { accept: "application/json" },
+      headers: CABECALHOS_BRASILAPI,
       // A base pública muda pouco; um dia de cache evita repetir consulta.
       next: { revalidate: 86_400 },
     });
@@ -164,7 +175,7 @@ export async function consultarCepAction(cep: string): Promise<
 
   try {
     const r = await fetch(`https://brasilapi.com.br/api/cep/v1/${d}`, {
-      headers: { accept: "application/json" },
+      headers: CABECALHOS_BRASILAPI,
       next: { revalidate: 86_400 },
     });
     if (r.status === 404) return fail("NAO_ENCONTRADO", "CEP não encontrado.");

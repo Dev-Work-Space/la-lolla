@@ -1166,6 +1166,11 @@ Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
     mostrava como faturada uma venda cuja mercadoria toda tinha voltado.
     Consulta de faturamento desconta `precoUnit × devolvido`; consulta de
     custo já descontava, e a margem saía inflada pela diferença.
+16. **BrasilAPI barra quem chega sem `User-Agent`.** O fetch do servidor do
+    Node manda "node" e o CNPJ voltava 403 — o botão Buscar mostrava "Sem
+    resposta da consulta" com a API no ar (no terminal, com `curl`, funcionava,
+    o que enganou). O CEP passava por sorte. Toda chamada a API pública de
+    fora leva um agente próprio (`CABECALHOS_BRASILAPI` em `pessoa.actions.ts`).
 
 
 ---
