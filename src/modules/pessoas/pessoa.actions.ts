@@ -109,6 +109,38 @@ const CABECALHOS_BRASILAPI = {
   "user-agent": "LaLolla/1.0 (sistema de gestao da loja)",
 };
 
+/*
+ * Tenta cada endereço em ordem e devolve o primeiro JSON que vier. Um 404 (ou
+ * 400) é resposta de verdade ("não existe") e encerra a busca; qualquer outra falha
+ * (403, 429, 5xx, tempo esgotado) passa para o próximo. A Minha Receita é a
+ * base que a própria BrasilAPI usa, então serve de reserva quando uma delas
+ * recusa o nosso servidor — o motivo fica no log da Vercel.
+ */
+async function consultarJson(
+  rotulo: string,
+  urls: string[],
+): Promise<
+  { estado: "ok"; json: Record<string, unknown>; url: string } | { estado: "inexistente" } | { estado: "falhou" }
+> {
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {
+        headers: CABECALHOS_BRASILAPI,
+        // A base pública muda pouco; um dia de cache evita repetir consulta.
+        next: { revalidate: 86_400 },
+        signal: AbortSignal.timeout(8_000),
+      });
+      // 400 é número que não passa na conferência (dígito verificador errado).
+      if (r.status === 404 || r.status === 400) return { estado: "inexistente" };
+      if (r.ok) return { estado: "ok", json: (await r.json()) as Record<string, unknown>, url };
+      console.error(`[${rotulo}] ${new URL(url).host} respondeu ${r.status}`);
+    } catch (e) {
+      console.error(`[${rotulo}] ${new URL(url).host} falhou:`, e instanceof Error ? e.message : e);
+    }
+  }
+  return { estado: "falhou" };
+}
+
 export type DadosCNPJ = {
   razao?: string;
   fantasia?: string;
@@ -130,16 +162,16 @@ export async function consultarCnpjAction(doc: string): Promise<Result<DadosCNPJ
   if (d.length !== 14) return fail("DADOS_INVALIDOS", "Digite um CNPJ válido para buscar.");
 
   try {
-    const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${d}`, {
-      headers: CABECALHOS_BRASILAPI,
-      // A base pública muda pouco; um dia de cache evita repetir consulta.
-      next: { revalidate: 86_400 },
-    });
+    const r = await consultarJson("cnpj", [
+      `https://brasilapi.com.br/api/cnpj/v1/${d}`,
+      `https://minhareceita.org/${d}`,
+    ]);
+    if (r.estado === "inexistente") return fail("NAO_ENCONTRADO", "CNPJ não encontrado na base pública.");
+    if (r.estado === "falhou") {
+      return fail("ERRO_INTERNO", "A consulta de CNPJ não respondeu agora. Tente de novo em instantes ou preencha à mão.");
+    }
 
-    if (r.status === 404) return fail("NAO_ENCONTRADO", "CNPJ não encontrado na base pública.");
-    if (!r.ok) return fail("ERRO_INTERNO", "Sem resposta da consulta. Preencha à mão.");
-
-    const j = (await r.json()) as Record<string, unknown>;
+    const j = r.json;
     const txt = (k: string) => {
       const v = j[k];
       return typeof v === "string" && v.trim() ? v.trim() : undefined;
@@ -174,20 +206,25 @@ export async function consultarCepAction(cep: string): Promise<
   if (d.length !== 8) return fail("DADOS_INVALIDOS", "CEP precisa ter 8 dígitos.");
 
   try {
-    const r = await fetch(`https://brasilapi.com.br/api/cep/v1/${d}`, {
-      headers: CABECALHOS_BRASILAPI,
-      next: { revalidate: 86_400 },
-    });
-    if (r.status === 404) return fail("NAO_ENCONTRADO", "CEP não encontrado.");
-    if (!r.ok) return fail("ERRO_INTERNO", "Sem resposta da consulta. Preencha à mão.");
+    const r = await consultarJson("cep", [
+      `https://brasilapi.com.br/api/cep/v1/${d}`,
+      `https://viacep.com.br/ws/${d}/json/`,
+    ]);
+    if (r.estado === "inexistente") return fail("NAO_ENCONTRADO", "CEP não encontrado.");
+    if (r.estado === "falhou") {
+      return fail("ERRO_INTERNO", "A consulta de CEP não respondeu agora. Tente de novo em instantes ou preencha à mão.");
+    }
 
-    const j = (await r.json()) as Record<string, unknown>;
+    const j = r.json;
     const txt = (k: string) => (typeof j[k] === "string" ? (j[k] as string) : undefined);
+    // O ViaCEP responde 200 com {"erro": true} para CEP que não existe.
+    if (j.erro) return fail("NAO_ENCONTRADO", "CEP não encontrado.");
+    const viacep = new URL(r.url).host === "viacep.com.br";
     return ok({
-      logradouro: txt("street"),
-      bairro: txt("neighborhood"),
-      cidade: txt("city"),
-      uf: txt("state"),
+      logradouro: viacep ? txt("logradouro") : txt("street"),
+      bairro: viacep ? txt("bairro") : txt("neighborhood"),
+      cidade: viacep ? txt("localidade") : txt("city"),
+      uf: viacep ? txt("uf") : txt("state"),
     });
   } catch (e) {
     return tratarErro(e, "consultarCepAction");
