@@ -86,20 +86,20 @@ export function PagamentoDaVenda({
   const [vezes, setVezes] = useState("1");
   const [taxa, setTaxa] = useState("");
   const [comprovante, setComprovante] = useState<string | null>(null);
-  const [faltaComprovante, setFaltaComprovante] = useState(false);
   const [carteiraEscolhida, setCarteiraEscolhida] = useState("");
   const carteiraNova = carteiraEscolhida || carteiras[0]?.id || "";
 
   const maquininha = forma === "DEBITO" || forma === "CREDITO";
   const pctPago = total > 0 ? Math.min(100, Math.round((pago / total) * 100)) : 0;
-  const taxas = r2(pagos.reduce((s, p) => s + (p.taxaPct ? (p.valor * p.taxaPct) / 100 : 0), 0));
+  const taxaDe = (p: Pago) => (p.taxaPct ? (p.valor * p.taxaPct) / 100 : 0);
+  const taxas = r2(pagos.reduce((s, p) => s + taxaDe(p), 0));
+  /* Pix, débito e crédito sem comprovante: pagos, mas ainda fora do caixa. */
+  const espera = (p: Pago) => p.forma !== "DINHEIRO" && !p.comprovanteId;
+  const esperando = r2(pagos.filter(espera).reduce((s, p) => s + p.valor, 0));
+  const noCaixa = r2(pago - esperando - pagos.filter((p) => !espera(p)).reduce((s, p) => s + taxaDe(p), 0));
 
   function adicionar(valor: number) {
     if (valor <= 0) return;
-    if (forma !== "DINHEIRO" && !comprovante) {
-      setFaltaComprovante(true);
-      return;
-    }
     const n = Math.max(1, Number(vezes) || 1);
     const pct = maquininha ? paraNumero(taxa) : 0;
     setPagos((a) => [
@@ -117,7 +117,6 @@ export function PagamentoDaVenda({
     setVezes("1");
     setTaxa("");
     setComprovante(null);
-    setFaltaComprovante(false);
   }
 
   return (
@@ -169,7 +168,7 @@ export function PagamentoDaVenda({
                     <span className="block truncate text-xs text-muted-foreground">
                       {carteiras.find((c) => c.id === p.carteiraId)?.nome ?? "sem carteira"}
                       {p.taxaPct ? ` · taxa ${String(p.taxaPct).replace(".", ",")}%` : ""}
-                      {p.comprovanteId ? " · comprovante ✓" : ""}
+                      {p.forma === "DINHEIRO" ? "" : p.comprovanteId ? " · comprovante ✓" : " · esperando comprovante"}
                     </span>
                   </span>
                   <span className="tabular-nums">{brl(p.valor)}</span>
@@ -214,10 +213,7 @@ export function PagamentoDaVenda({
                   key={v}
                   type="button"
                   aria-pressed={forma === v}
-                  onClick={() => {
-                    setForma(v);
-                    setFaltaComprovante(false);
-                  }}
+                  onClick={() => setForma(v)}
                   className={cn(
                     "h-auto gap-0 rounded-full border border-border p-0 px-3 py-1.5 text-xs font-medium whitespace-normal",
                     forma === v ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
@@ -272,15 +268,15 @@ export function PagamentoDaVenda({
             )}
 
             {forma !== "DINHEIRO" && (
-              <CampoComprovante
-                valor={comprovante}
-                aoMudar={(id) => {
-                  setComprovante(id);
-                  setFaltaComprovante(false);
-                }}
-                obrigatorio
-                erro={faltaComprovante ? "Anexe o comprovante antes de adicionar este pagamento." : null}
-              />
+              <div className="space-y-1">
+                <CampoComprovante valor={comprovante} aoMudar={setComprovante} rotulo="Comprovante (opcional agora)" />
+                {!comprovante && (
+                  <p className="text-xs text-muted-foreground">
+                    Sem ele a venda fecha, mas esse valor só entra no caixa quando você anexar, em Financeiro › Contas a
+                    receber.
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="flex gap-2">
@@ -338,16 +334,22 @@ export function PagamentoDaVenda({
           </div>
         )}
         {taxas > 0 && (
-          <>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Taxa da maquininha</dt>
-              <dd className="tabular-nums text-destructive">− {brl(taxas)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Fica no caixa</dt>
-              <dd className="font-medium tabular-nums">{brl(r2(pago - taxas))}</dd>
-            </div>
-          </>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Taxa da maquininha</dt>
+            <dd className="tabular-nums text-destructive">− {brl(taxas)}</dd>
+          </div>
+        )}
+        {esperando > 0 && (
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Esperando comprovante</dt>
+            <dd className="tabular-nums">{brl(esperando)}</dd>
+          </div>
+        )}
+        {(taxas > 0 || esperando > 0) && (
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Entra no caixa agora</dt>
+            <dd className="font-medium tabular-nums">{brl(noCaixa)}</dd>
+          </div>
         )}
       </dl>
     </div>

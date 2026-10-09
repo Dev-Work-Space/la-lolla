@@ -15,6 +15,7 @@ import {
   type MovimentoCaixa,
   type OrdemConta,
 } from "./financeiro.tipos";
+import { lancamentoNoCaixa, pagamentoNoCaixa } from "./caixa.regras";
 
 // Reexporta para quem já importava daqui — mas quem é Client Component deve
 // importar de ./financeiro.tipos, que não arrasta o Prisma junto.
@@ -66,9 +67,9 @@ export async function carteirasComSaldo(): Promise<CarteiraSaldo[]> {
       tipo: true,
       ordem: true,
       saldoInicial: true,
-      lancamentos: { where: { data: { lte: ate } }, select: { valor: true } },
+      lancamentos: { where: { data: { lte: ate }, ...lancamentoNoCaixa }, select: { valor: true } },
       pagamentos: {
-        where: { venda: { status: { not: "CANCELADA" } }, data: { lte: ate } },
+        where: { venda: { status: { not: "CANCELADA" } }, data: { lte: ate }, ...pagamentoNoCaixa },
         select: { valor: true },
       },
       transferenciasSai: { where: { data: { lte: ate } }, select: { valor: true } },
@@ -109,9 +110,9 @@ export async function movimentoPorCarteira(
 ): Promise<Record<string, { entradas: number; saidas: number }>> {
   const janela = { ...(de ? { gte: de } : {}), ...(ate ? { lte: ate } : {}) };
   const [lancs, pagos, transfs] = await Promise.all([
-    prisma.lancamento.findMany({ where: { data: janela, carteiraId: { not: null } }, select: { carteiraId: true, valor: true } }),
+    prisma.lancamento.findMany({ where: { data: janela, carteiraId: { not: null }, ...lancamentoNoCaixa }, select: { carteiraId: true, valor: true } }),
     prisma.pagamento.findMany({
-      where: { data: janela, carteiraId: { not: null }, venda: { status: { not: "CANCELADA" } } },
+      where: { data: janela, carteiraId: { not: null }, venda: { status: { not: "CANCELADA" } }, ...pagamentoNoCaixa },
       select: { carteiraId: true, valor: true },
     }),
     prisma.transferencia.findMany({ where: { data: janela }, select: { origemId: true, destinoId: true, valor: true } }),
@@ -138,9 +139,9 @@ export async function movimentoPorCarteira(
 /** Entrada e saída que ainda não foram atribuídas a nenhuma carteira. */
 export async function naoAtribuido() {
   const [lanc, pagos] = await Promise.all([
-    prisma.lancamento.aggregate({ where: { carteiraId: null }, _sum: { valor: true } }),
+    prisma.lancamento.aggregate({ where: { carteiraId: null, ...lancamentoNoCaixa }, _sum: { valor: true } }),
     prisma.pagamento.aggregate({
-      where: { carteiraId: null, venda: { status: { not: "CANCELADA" } } },
+      where: { carteiraId: null, venda: { status: { not: "CANCELADA" } }, ...pagamentoNoCaixa },
       _sum: { valor: true },
     }),
   ]);
@@ -161,7 +162,7 @@ export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Pro
 
   const [lancs, pagos, transfs] = await Promise.all([
     prisma.lancamento.findMany({
-      where: { data: janela },
+      where: { data: janela, ...lancamentoNoCaixa },
       select: {
         id: true,
         descricao: true,
@@ -174,7 +175,7 @@ export async function movimentoDoPeriodo(de: Date | null, ate: Date | null): Pro
       },
     }),
     prisma.pagamento.findMany({
-      where: { data: janela, venda: { status: { not: "CANCELADA" } } },
+      where: { data: janela, venda: { status: { not: "CANCELADA" } }, ...pagamentoNoCaixa },
       select: {
         id: true,
         forma: true,
@@ -266,11 +267,11 @@ export async function resumoMensal(meses = 6): Promise<MesResumo[]> {
 
   const [lancs, pagos] = await Promise.all([
     prisma.lancamento.findMany({
-      where: { data: { gte: inicio, lte: fim } },
+      where: { data: { gte: inicio, lte: fim }, ...lancamentoNoCaixa },
       select: { valor: true, data: true },
     }),
     prisma.pagamento.findMany({
-      where: { data: { gte: inicio, lte: fim }, venda: { status: { not: "CANCELADA" } } },
+      where: { data: { gte: inicio, lte: fim }, venda: { status: { not: "CANCELADA" } }, ...pagamentoNoCaixa },
       select: { valor: true, data: true },
     }),
   ]);
@@ -317,7 +318,7 @@ export async function resumoMensal(meses = 6): Promise<MesResumo[]> {
  */
 export async function saidasPorCategoria(de: Date, ate: Date): Promise<CategoriaGasto[]> {
   const lancs = await prisma.lancamento.findMany({
-    where: { data: { gte: de, lte: ate }, valor: { lt: 0 } },
+    where: { data: { gte: de, lte: ate }, valor: { lt: 0 }, ...lancamentoNoCaixa },
     select: { valor: true, categoria: true },
   });
 
@@ -466,7 +467,7 @@ export const indicadoresFinanceiro = cache(async () => {
       where: { status: "ABERTA", vencimento: { gte: hoje, lte: em7 } },
     }),
     prisma.lancamento.findMany({
-      where: { data: { gte: mes0 } },
+      where: { data: { gte: mes0 }, ...lancamentoNoCaixa },
       select: { valor: true, categoria: true },
     }),
   ]);

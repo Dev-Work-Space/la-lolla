@@ -667,6 +667,13 @@ model Lancamento {
   comprovanteId String?
   comprovante   Comprovante? @relation(fields: [comprovanteId], references: [id], onDelete: SetNull)
 
+  // Saída que depende de comprovante (Pix, banco, cartão — tudo, menos a
+  // gaveta). Enquanto `exigeComprovante` e sem `comprovanteId`, o dinheiro NÃO
+  // saiu do caixa: ele fica na lista de pendentes até o papel ser anexado. É um
+  // campo e não uma derivação porque, ao contrário do pagamento de venda (a
+  // forma diz tudo), o lançamento não sabe por si se foi Pix ou dinheiro.
+  exigeComprovante Boolean @default(false)
+
   conta Conta?
 
   // Quando este lançamento é a taxa da maquininha de um recebimento.

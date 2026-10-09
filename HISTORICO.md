@@ -1052,7 +1052,8 @@ ficam como estão e migration não assusta.
 > A regra `:root[data-painel="aberto"]` mora fora de camada, depois do `:root`.
 
 > **Migrations desta rodada NÃO foram aplicadas no banco da loja:**
-> `20261008120000_comprovante_no_banco` e `20261008130000_pagamento_flexivel`.
+> `20261008120000_comprovante_no_banco`, `20261008130000_pagamento_flexivel` e
+> `20261008140000_lancamento_exige_comprovante`.
 > Só o banco de teste local as recebeu. Antes do merge: combinar com o outro
 > desenvolvedor (ordem das migrations) e rodar `npm run db:deploy` com a
 > confirmação do João.
@@ -1062,6 +1063,48 @@ Pix + crédito 3x com taxa + crediário editado à mão (50/25/25); soma errada
 bloqueia o envio; compra com entrada + 2 parcelas (comprovante obrigatório) e
 compra pela gaveta sem comprovante; orçamento com entrada (texto no PDF
 lido); "Receber" com taxa, remoção e cancelamento apagam o lançamento da taxa.
+
+### 08/10 · O comprovante vem depois, e o caixa espera por ele
+
+O João voltou atrás no "comprovante obrigatório na hora": **venda e compra se
+fecham sem o papel, mas o dinheiro só entra (ou sai) do caixa quando o
+comprovante é anexado** — e só onde existe papel (Pix, débito, crédito; saída
+por banco ou cartão). Dinheiro vivo e a gaveta contam na hora. Vale para
+**receber e pagar**. Isto **substitui** o "obrigatório" das entradas
+"Comprovante" e "Pagamento flexível" acima, e volta à regra do PDF
+("pendente na venda, obrigatório na baixa", seção 4) com um passo a mais: a
+pendência agora tira o valor do caixa.
+
+- **Uma regra só: `caixa.regras.ts`.** `pagamentoNoCaixa` (dinheiro, ou com
+  comprovante) e `lancamentoNoCaixa` (fora: saída que exige comprovante e não
+  tem, e a taxa da maquininha de um recebimento ainda sem papel). Entra em
+  **toda** consulta que soma caixa: saldo e movimento por carteira, extrato,
+  "sem carteira", resumo mensal, despesas, previsão (agenda), resultado do
+  Início e saldo do assistente. Quem escrever uma soma de caixa nova tem de
+  espalhar uma das duas condições.
+- **Campo novo `Lancamento.exigeComprovante`** (migration
+  `20261008140000_lancamento_exige_comprovante`, linhas antigas = false). O
+  pagamento de venda continua DERIVADO (a forma já diz); o lançamento não sabe
+  se foi Pix ou dinheiro, então a compra e a baixa de conta gravam
+  `exigeComprovante` = carteira diferente de espécie.
+- **Anexar depois:** lista "Esperando comprovante" no topo de Contas a receber
+  (recebimentos) e de Contas a pagar (saídas), com botão **Anexar** (foto ou
+  galeria); também na ficha da venda, ao lado do pagamento. Serviço
+  `anexarAoMovimento` / ação `anexarAoMovimentoAction`: só anexa a quem está
+  esperando (não troca comprovante de movimento que já entrou).
+- O recebimento **mantém a data original** quando o comprovante chega depois:
+  o dinheiro entra no caixa do dia em que foi recebido, não do dia do anexo.
+  Meses já fechados mudam se o anexo for tardio.
+- Venda, recebimento, compra e baixa avisam na tela: "sem o comprovante o
+  valor só entra/sai do caixa quando você anexar". O resumo da venda mostra
+  "Esperando comprovante" e "Entra no caixa agora".
+- **Fatura do cartão** e lançamento manual NÃO entram nesta regra (nunca
+  tiveram comprovante); se o João quiser, é um passo à parte.
+
+Conferido (build de produção, banco de teste local): venda no Pix sem papel
+fecha e o saldo da carteira não muda; aparece em "Esperando comprovante";
+anexado, o saldo sobe. Compra pelo banco sem papel: saldo igual, aparece em
+Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
 
 ---
 

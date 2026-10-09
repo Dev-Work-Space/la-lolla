@@ -19,9 +19,10 @@ import { cn } from "@/lib/utils";
  *   - ENTRADA + PARCELAS: uma parte sai agora e o resto vira parcelas.
  * Pedido do João (08/10/2026): o pagamento "bem ajustável, também na compra".
  *
- * O dinheiro que sai AGORA pede o comprovante (foto ou galeria), a menos que
- * saia da gaveta (carteira espécie). O que fica para depois pede o
- * comprovante só quando for pago, na baixa da conta.
+ * O dinheiro que sai AGORA pode levar o comprovante (foto ou galeria) na hora
+ * ou depois; sem ele a compra vale, mas a saída só conta no caixa quando o
+ * papel for anexado. A gaveta (carteira espécie) conta na hora. O que fica
+ * para depois traz o comprovante na baixa da conta.
  */
 
 export type ModoCompra = "avista" | "prazo" | "entrada";
@@ -35,7 +36,6 @@ export function usePlanoDaCompra(total: number, carteiras: CarteiraSaldo[]) {
   const [carteiraEscolhida, setCarteiraEscolhida] = useState("");
   const [entrada, setEntrada] = useState("");
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
-  const [faltaComprovante, setFaltaComprovante] = useState(false);
 
   const carteiraId = carteiraEscolhida || carteiras[0]?.id || "";
   const agora = modo === "prazo" ? 0 : modo === "avista" ? total : r2(paraNumero(entrada));
@@ -59,8 +59,6 @@ export function usePlanoDaCompra(total: number, carteiras: CarteiraSaldo[]) {
     setEntrada,
     comprovanteId,
     setComprovanteId,
-    faltaComprovante,
-    setFaltaComprovante,
     agora,
     aPrazo,
     precisaComprovante,
@@ -71,10 +69,6 @@ export function usePlanoDaCompra(total: number, carteiras: CarteiraSaldo[]) {
       if (agora > 0 && !carteiraId) return "Escolha de qual carteira o dinheiro saiu.";
       if (modo === "entrada" && (agora <= 0 || agora >= total - 0.005)) {
         return "Na entrada + parcelas, a entrada tem de ser maior que zero e menor que o total.";
-      }
-      if (precisaComprovante && !comprovanteId) {
-        setFaltaComprovante(true);
-        return "Anexe o comprovante do pagamento de agora (foto ou galeria).";
       }
       if (aPrazo > 0.005 && !parc.confere) {
         return "As parcelas não fecham com o que falta pagar. Ajuste os valores até a diferença zerar.";
@@ -187,15 +181,15 @@ export function PagamentoDaCompra({
           </div>
 
           {p.precisaComprovante ? (
-            <CampoComprovante
-              valor={p.comprovanteId}
-              aoMudar={(id) => {
-                p.setComprovanteId(id);
-                p.setFaltaComprovante(false);
-              }}
-              obrigatorio
-              erro={p.faltaComprovante ? "Anexe o comprovante antes de registrar a compra." : null}
-            />
+            <div className="space-y-1">
+              <CampoComprovante valor={p.comprovanteId} aoMudar={p.setComprovanteId} rotulo="Comprovante (opcional agora)" />
+              {!p.comprovanteId && (
+                <p className="text-xs text-muted-foreground">
+                  Sem ele a compra é registrada, mas o dinheiro só sai do caixa quando você anexar, em Financeiro ›
+                  Contas a pagar.
+                </p>
+              )}
+            </div>
           ) : (
             <p className="text-xs text-muted-foreground">Dinheiro vivo (da gaveta) não precisa de comprovante.</p>
           )}

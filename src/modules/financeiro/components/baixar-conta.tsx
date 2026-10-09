@@ -21,12 +21,11 @@ import { baixarContaAction } from "../financeiro.actions";
 import type { CarteiraSaldo } from "../financeiro.tipos";
 
 /*
- * Dar baixa. O comprovante é regra rígida — decisão do João: dar baixa é ato
- * de CONFERÊNCIA, e sem o papel não se confere nada depois. Foto da câmera ou
- * da galeria, anexada aqui mesmo. Só o DINHEIRO VIVO dispensa: parcela de
- * venda paga em dinheiro, ou carteira "espécie" (a gaveta).
- *
- * O campo aparece só quando é exigido; quem barra de verdade é o servidor.
+ * Dar baixa. O comprovante (foto da câmera ou da galeria) pode ser anexado
+ * aqui ou depois — decisão do João, 08/10/2026. Sem ele a baixa vale, mas o
+ * dinheiro só entra ou sai do caixa quando o papel é anexado. Só o DINHEIRO
+ * VIVO dispensa: parcela de venda paga em dinheiro, ou carteira "espécie" (a
+ * gaveta) — ali o dinheiro conta na hora.
  */
 export function BaixarConta({
   contaId,
@@ -51,7 +50,6 @@ export function BaixarConta({
   const [carteiraId, setCarteiraId] = useState(carteiras[0]?.id ?? "");
   const [forma, setForma] = useState("DINHEIRO");
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
-  const [faltou, setFaltou] = useState(false);
 
   const pagar = tipo === "PAGAR";
   const tipoDaCarteira = carteiras.find((c) => c.id === carteiraId)?.tipo;
@@ -67,7 +65,6 @@ export function BaixarConta({
         aria-label={`Dar baixa em ${descricao}`}
         onClick={() => {
           setAviso(null);
-          setFaltou(false);
           setComprovanteId(null);
           setAberto(true);
         }}
@@ -86,10 +83,6 @@ export function BaixarConta({
 
           <form
             action={(fd) => {
-              if (precisaComprovante && !comprovanteId) {
-                setFaltou(true);
-                return;
-              }
               fd.set("contaId", contaId);
               if (comprovanteId) fd.set("comprovanteId", comprovanteId);
               salvar(async () => {
@@ -169,17 +162,17 @@ export function BaixarConta({
               )}
             </p>
 
-            {/* Só o dinheiro vivo dispensa o papel. */}
+            {/* Só o dinheiro vivo dispensa o papel; o resto pode anexar agora ou depois. */}
             {precisaComprovante ? (
-              <CampoComprovante
-                valor={comprovanteId}
-                aoMudar={(id) => {
-                  setComprovanteId(id);
-                  setFaltou(false);
-                }}
-                obrigatorio
-                erro={faltou ? "Anexe o comprovante para dar baixa." : null}
-              />
+              <div className="space-y-1">
+                <CampoComprovante valor={comprovanteId} aoMudar={setComprovanteId} rotulo="Comprovante (opcional agora)" />
+                {!comprovanteId && (
+                  <p className="text-xs text-muted-foreground">
+                    Sem ele a baixa é registrada, mas o dinheiro só {pagar ? "sai do" : "entra no"} caixa quando você
+                    anexar, nesta mesma tela.
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground">Dinheiro vivo não precisa de comprovante.</p>
             )}

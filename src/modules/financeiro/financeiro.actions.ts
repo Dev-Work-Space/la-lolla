@@ -155,13 +155,14 @@ const baixaSchema = z.object({
 });
 
 /*
- * BAIXA DE VENCIMENTO. Aqui o comprovante é OBRIGATÓRIO.
+ * BAIXA DE VENCIMENTO. O comprovante pode ser anexado na hora ou depois.
  *
- * Dar baixa numa conta é ato de conferência — sem o papel, não se confere
- * nada depois. Desde 08/10/2026 (pedido do João) o arquivo é anexado na hora,
- * por foto ou galeria. A única dispensa é o DINHEIRO VIVO: parcela de venda
- * paga em dinheiro, ou conta movimentada na carteira "espécie" (a gaveta) —
- * ali não existe papel de banco nem de maquininha.
+ * Pedido do João (08/10/2026): a conta é baixada sem ele, mas o dinheiro só
+ * entra (ou sai) do caixa quando o comprovante for anexado — pela lista
+ * "Comprovantes pendentes", em Contas a receber / a pagar. A única dispensa
+ * é o DINHEIRO VIVO: parcela de venda paga em dinheiro, ou conta movimentada
+ * na carteira "espécie" (a gaveta) — ali não existe papel de banco nem de
+ * maquininha, e o dinheiro conta na hora.
  */
 export async function baixarContaAction(formData: FormData): Promise<Result<{ id: string }>> {
   const sessao = await exigirPermissao("financeiro", "editar");
@@ -194,11 +195,8 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
     if (!carteira) throw new ErroDominio("NAO_ENCONTRADO", "Essa carteira não existe mais. Escolha outra.");
     const paraVenda = conta.tipo === "RECEBER" && Boolean(conta.vendaId);
     const dinheiroVivo = paraVenda ? (d.forma ?? "DINHEIRO") === "DINHEIRO" : carteira.tipo === "ESPECIE";
-    if (!dinheiroVivo && !(await comprovanteExiste(d.comprovanteId))) {
-      throw new ErroDominio(
-        "REGRA_NEGOCIO",
-        "Anexe o comprovante: tire uma foto ou escolha da galeria. Só o dinheiro vivo dispensa.",
-      );
+    if (d.comprovanteId && !(await comprovanteExiste(d.comprovanteId))) {
+      throw new ErroDominio("REGRA_NEGOCIO", "Não achei esse comprovante. Anexe a foto de novo.");
     }
 
     /*
@@ -251,6 +249,7 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
           valor: dec(conta.tipo === "PAGAR" ? -valor : valor),
           categoria: conta.tipo === "PAGAR" ? "Conta paga" : "Recebimento",
           comprovanteId: d.comprovanteId || null,
+          exigeComprovante: !dinheiroVivo,
           data: d.data,
         },
         select: { id: true },

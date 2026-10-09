@@ -139,6 +139,8 @@ export async function registrarCompra(entrada: CompraEntrada) {
     if (!agora && !prazo) {
       throw new ErroDominio("REGRA_NEGOCIO", "Diga como a compra será paga: agora, em parcelas, ou entrada mais parcelas.");
     }
+    /* Só a gaveta (dinheiro vivo) sai do caixa sem papel; o resto espera o comprovante. */
+    let saidaPedeComprovante = false;
     if (agora) {
       const c = await tx.carteira.findUnique({ where: { id: agora.carteiraId }, select: { id: true, tipo: true } });
       if (!c) {
@@ -148,13 +150,10 @@ export async function registrarCompra(entrada: CompraEntrada) {
         );
       }
       if (entradaValor <= 0) throw new ErroDominio("DADOS_INVALIDOS", "O valor pago agora precisa ser maior que zero.");
-      /* Comprovante: só o dinheiro vivo (carteira espécie) dispensa. */
-      if (c.tipo !== "ESPECIE" && !(await comprovanteExiste(agora.comprovanteId))) {
-        throw new ErroDominio(
-          "REGRA_NEGOCIO",
-          "Anexe o comprovante do pagamento: tire uma foto ou escolha da galeria. Só o dinheiro vivo dispensa.",
-        );
+      if (agora.comprovanteId && !(await comprovanteExiste(agora.comprovanteId))) {
+        throw new ErroDominio("REGRA_NEGOCIO", "Não achei esse comprovante. Anexe a foto de novo.");
       }
+      saidaPedeComprovante = c.tipo !== "ESPECIE";
     }
     const saldoAPrazo = r2(total - entradaValor);
     if (entradaValor > total + 0.005) {
@@ -235,6 +234,7 @@ export async function registrarCompra(entrada: CompraEntrada) {
           valor: dec(-entradaValor), // saída é negativa
           categoria: "Mercadoria",
           comprovanteId: agora.comprovanteId || null,
+          exigeComprovante: saidaPedeComprovante,
         },
       });
     }

@@ -3,22 +3,20 @@ import "server-only";
 import { Prisma, type FormaPagamento, type ResolucaoDevolucao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
-import { PEDE_COMPROVANTE, totalDe, vencimentoParcela, type Intervalo } from "./venda.service";
+import { totalDe, vencimentoParcela, type Intervalo } from "./venda.service";
 import { comprovanteExiste } from "@/modules/financeiro/comprovante.service";
 import { dividirEmParcelas, valoresValidos } from "@/lib/parcelas";
 
 /*
- * O COMPROVANTE É OBRIGATÓRIO fora do dinheiro vivo (pedido do João,
- * 08/10/2026): Pix, débito e crédito não se fecham sem a foto do
- * comprovante ou do papel da maquininha. Antes ele virava "pendência" — ainda
- * existe para a venda antiga —, mas a venda NOVA já nasce com ele.
+ * O COMPROVANTE PODE VIR DEPOIS (pedido do João, 08/10/2026): a venda fecha
+ * sem ele, mas o Pix, o débito e o crédito sem comprovante ficam pendentes e
+ * NÃO entram no caixa até ele ser anexado (ver `caixa.regras.ts`). Se um
+ * comprovante veio junto, ele precisa existir — senão o erro do banco chegaria
+ * à tela sem explicar nada.
  */
-async function exigirComprovante(forma: FormaPagamento, comprovanteId: string | null | undefined) {
-  if (PEDE_COMPROVANTE.includes(forma) && !(await comprovanteExiste(comprovanteId))) {
-    throw new ErroDominio(
-      "REGRA_NEGOCIO",
-      "Anexe o comprovante do pagamento: tire uma foto ou escolha da galeria. Só o dinheiro vivo dispensa.",
-    );
+async function conferirComprovante(comprovanteId: string | null | undefined) {
+  if (comprovanteId && !(await comprovanteExiste(comprovanteId))) {
+    throw new ErroDominio("REGRA_NEGOCIO", "Não achei esse comprovante. Anexe a foto de novo.");
   }
 }
 
@@ -186,7 +184,7 @@ export async function fecharVenda(entrada: VendaEntrada) {
     throw new ErroDominio("REGRA_NEGOCIO", "Adicione ao menos uma peça à venda.");
   }
 
-  for (const p of entrada.pagamentos) await exigirComprovante(p.forma, p.comprovanteId);
+  for (const p of entrada.pagamentos) await conferirComprovante(p.comprovanteId);
 
   return prisma.$transaction(async (tx) => {
     /*
@@ -812,7 +810,7 @@ export async function receberPagamento(entrada: {
   taxaPct?: number | null;
   data?: Date | null;
 }) {
-  await exigirComprovante(entrada.forma, entrada.comprovanteId);
+  await conferirComprovante(entrada.comprovanteId);
   return prisma.$transaction(async (tx) => {
     const v = await tx.venda.findUnique({
       where: { id: entrada.vendaId },

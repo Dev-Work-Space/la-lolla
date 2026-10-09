@@ -76,9 +76,8 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [forma, setForma] = useState<Forma>("PIX");
-  /* Fora do dinheiro vivo, o recebimento só entra com o comprovante. */
+  /* Pode vir depois: sem ele, o valor fica esperando e só entra no caixa quando for anexado. */
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
-  const [faltou, setFaltou] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
@@ -112,10 +111,6 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
 
         <form
           action={(fd) => {
-            if (forma !== "DINHEIRO" && !comprovanteId) {
-              setFaltou(true);
-              return;
-            }
             fd.set("vendaId", vendaId);
             fd.set("forma", forma);
             fd.set("comprovanteId", forma === "DINHEIRO" ? "" : (comprovanteId ?? ""));
@@ -197,15 +192,15 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
           )}
 
           {forma !== "DINHEIRO" && (
-            <CampoComprovante
-              valor={comprovanteId}
-              aoMudar={(id) => {
-                setComprovanteId(id);
-                setFaltou(false);
-              }}
-              obrigatorio
-              erro={faltou ? "Anexe o comprovante para registrar o recebimento." : null}
-            />
+            <div className="space-y-1">
+              <CampoComprovante valor={comprovanteId} aoMudar={setComprovanteId} rotulo="Comprovante (opcional agora)" />
+              {!comprovanteId && (
+                <p className="text-xs text-muted-foreground">
+                  Sem ele o recebimento é registrado, mas só entra no caixa quando você anexar, em Financeiro ›
+                  Contas a receber.
+                </p>
+              )}
+            </div>
           )}
 
           {carteiras.length > 0 && (

@@ -855,7 +855,7 @@ export function NovaVenda({
           <p className="text-center text-xs text-muted-foreground">
             {editando
               ? "As parcelas em aberto são refeitas com o novo saldo. As já pagas ficam como estão."
-              : "Pix, débito e crédito pedem o comprovante (foto ou galeria). Dinheiro vivo não precisa."}
+              : "O comprovante do Pix, débito e crédito pode vir depois: até lá, esse valor fica fora do caixa."}
           </p>
         </Card>
       </div>

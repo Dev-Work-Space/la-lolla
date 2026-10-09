@@ -18,6 +18,8 @@ import { FormConta } from "./form-conta";
 import { BaixarConta } from "./baixar-conta";
 import { PagarFatura } from "./pagar-fatura";
 import { faturaDoCartao } from "../cartao.service";
+import { comprovantesPendentes } from "../comprovante.service";
+import { ComprovantesPendentes } from "./comprovantes-pendentes";
 
 /*
  * Contas a pagar e a receber. É a MESMA tela para os dois: muda o rótulo e o
@@ -52,12 +54,10 @@ export async function PainelContas({
 
   /* Uma consulta com TODAS as situações do período: os três quadros e a lista
      saem dela, e a situação escolhida filtra em memória. */
-  const doPeriodo = await listarContas(tipo, "todas", {
-    de: periodo.de,
-    ate: periodo.ate,
-    busca: params.busca,
-    ordem,
-  });
+  const [doPeriodo, pendentes] = await Promise.all([
+    listarContas(tipo, "todas", { de: periodo.de, ate: periodo.ate, busca: params.busca, ordem }),
+    comprovantesPendentes(),
+  ]);
   const abertas = (c: ContaLinha) => !c.paga && !c.cancelada;
   const naSituacao = (c: ContaLinha) =>
     filtro === "abertas"
@@ -296,6 +296,9 @@ export async function PainelContas({
   return (
     <div className="space-y-4">
       <FiltroPeriodo params={params} {...datasDaBarra(periodo)} rotuloDatas="Vencimento" />
+
+      {/* O que já foi registrado mas o caixa ainda não viu: o comprovante falta. */}
+      <ComprovantesPendentes itens={pagar ? pendentes.pagar : pendentes.receber} entrada={!pagar} pode={pode.editar} />
 
       {/* Os três quadros, do período e da busca escolhidos. Tocar num deles
           mostra só aquela situação. */}

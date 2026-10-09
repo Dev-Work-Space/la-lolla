@@ -10,6 +10,7 @@ import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { AcoesVenda, RemoverRecebimento } from "@/modules/vendas/components/acoes-venda";
 import { EmitirRecibo } from "@/modules/vendas/components/emitir-recibo";
 import { VerComprovante } from "@/modules/financeiro/components/ver-comprovante";
+import { AnexarComprovante } from "@/modules/financeiro/components/comprovantes-pendentes";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -271,7 +272,19 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
                       </span>
                     </span>
                     {p.precisaComprovante && !p.temComprovante && (
-                      <Pilula tom="accent">sem comprovante</Pilula>
+                      <>
+                        <Pilula tom="accent">fora do caixa · sem comprovante</Pilula>
+                        {pode.editar && !v.cancelada && (
+                          <AnexarComprovante
+                            tipo="pagamento"
+                            id={p.id}
+                            descricao={`Venda #${v.numero} · ${rotuloForma(p.forma)}`}
+                            valor={p.valor}
+                            entrada
+                            rotulo="Anexar"
+                          />
+                        )}
+                      </>
                     )}
                     {p.comprovanteId && <VerComprovante id={p.comprovanteId} rotulo="Comprovante" />}
                     <span className="shrink-0 text-sm font-medium tabular-nums">

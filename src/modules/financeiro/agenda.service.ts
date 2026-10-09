@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { fimDoDia, fimDoMes, inicioDoDia, inicioDoMes, somaDias } from "@/lib/dia";
 import { carteirasComSaldo } from "./financeiro.service";
 import type { CompromissoAgenda, EntradaPrevista, SemanaPrevista } from "./financeiro.tipos";
+import { lancamentoNoCaixa } from "./caixa.regras";
 
 /*
  * AGENDA e PREVISÃO.
@@ -125,7 +126,7 @@ export async function entradasPrevistas(de: Date | null, ate: Date | null): Prom
       take: 1000,
     }),
     prisma.lancamento.findMany({
-      where: { valor: { gt: 0 }, data: futuro },
+      where: { valor: { gt: 0 }, data: futuro, ...lancamentoNoCaixa },
       orderBy: { data: "asc" },
       select: { id: true, descricao: true, valor: true, data: true, categoria: true, carteira: { select: { nome: true } } },
       take: 500,
@@ -216,7 +217,7 @@ export async function previsao(
       select: { tipo: true, valor: true },
     }),
     prisma.lancamento.findMany({
-      where: { data: { gt: fimDoDia(hoje), lt: fim } },
+      where: { data: { gt: fimDoDia(hoje), lt: fim }, ...lancamentoNoCaixa },
       select: { valor: true, data: true },
     }),
   ]);
