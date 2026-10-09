@@ -434,16 +434,37 @@ export type ImpactoExcluir = {
   aAcertar: boolean;
 };
 
+/*
+ * AS PEÇAS QUE A LOJA AINDA DEVE.
+ *
+ * "A pagar" vem do que existe de verdade: a peça está numa compra que ainda
+ * tem parcela em aberto no contas a pagar. Antes era a coluna
+ * `pagoFornecedor`, que nascia FALSA em toda peça — peça cadastrada e nunca
+ * comprada aparecia "A pagar" sem compra nenhuma (o João viu) — e que nunca
+ * era desligada: pagas as parcelas, a peça seguia devendo para sempre.
+ *
+ * Sem `pecaIds`, vale para o catálogo inteiro.
+ */
+export async function pecasComDividaAberta(pecaIds?: string[]): Promise<Set<string>> {
+  const itens = await prisma.itemCompra.findMany({
+    where: {
+      ...(pecaIds ? { pecaId: { in: pecaIds } } : {}),
+      compra: { parcelas: { some: { tipo: "PAGAR", status: "ABERTA" } } },
+    },
+    select: { pecaId: true },
+    distinct: ["pecaId"],
+  });
+  return new Set(itens.map((i) => i.pecaId));
+}
+
 export async function impactoDeExcluir(pecaId: string): Promise<ImpactoExcluir> {
-  const [peca, reserva] = await Promise.all([
+  const [peca, reserva, devendo] = await Promise.all([
     prisma.peca.findUnique({
       where: { id: pecaId },
       select: {
         nome: true,
         sku: true,
         custo: true,
-        pagoFornecedor: true,
-        fornecedorId: true,
         movimentos: { select: { delta: true } },
         // Venda cancelada não conta: ela não segura mais nada.
         itensVenda: {
@@ -457,6 +478,7 @@ export async function impactoDeExcluir(pecaId: string): Promise<ImpactoExcluir> 
       where: { pecaId, orcamento: { status: "ABERTO" } },
       _sum: { quantidade: true },
     }),
+    pecasComDividaAberta([pecaId]),
   ]);
   if (!peca) throw new ErroDominio("NAO_ENCONTRADO", "Peça não encontrada.");
 
@@ -472,7 +494,7 @@ export async function impactoDeExcluir(pecaId: string): Promise<ImpactoExcluir> 
     // Uma venda pode ter a peça em mais de uma linha; o que interessa à
     // pessoa é em quantas VENDAS ela aparece.
     vendas: new Set(peca.itensVenda.map((i) => i.vendaId)).size,
-    aAcertar: Boolean(peca.fornecedorId) && !peca.pagoFornecedor,
+    aAcertar: devendo.has(pecaId),
   };
 }
 

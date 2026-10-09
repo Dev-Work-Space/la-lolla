@@ -51,22 +51,9 @@ export const FORMAS: Array<[FormaPagamento, string]> = [
  */
 export const PEDE_COMPROVANTE: FormaPagamento[] = ["PIX", "DEBITO", "CREDITO"];
 
-export const INTERVALOS = [
-  ["mes", "Mensal"],
-  ["quinzena", "A cada 15 dias"],
-  ["semana", "Semanal"],
-] as const;
-
-export type Intervalo = (typeof INTERVALOS)[number][0];
-
-/** Vencimento da parcela k (1-based), a partir de uma data. */
-export function vencimentoParcela(base: Date, k: number, intervalo: Intervalo): Date {
-  const d = new Date(base);
-  if (intervalo === "semana") d.setDate(d.getDate() + 7 * k);
-  else if (intervalo === "quinzena") d.setDate(d.getDate() + 15 * k);
-  else d.setMonth(d.getMonth() + k);
-  return d;
-}
+/* Moraram aqui; foram para `lib/parcelas.ts` para a tela e o PDF usarem as
+   mesmas contas. Reexportados para quem já importava daqui. */
+export { INTERVALOS, vencimentoParcela, type Intervalo } from "@/lib/parcelas";
 
 /* ─────────────────────── cálculo ─────────────────────── */
 
@@ -225,6 +212,7 @@ export type VendaPublica = {
     valor: number;
     parcelas: number;
     temComprovante: boolean;
+    comprovanteId: string | null;
     precisaComprovante: boolean;
     data: Date;
   }>;
@@ -326,6 +314,7 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
       valor: num(p.valor),
       parcelas: p.parcelas,
       temComprovante: !!p.comprovanteId,
+      comprovanteId: p.comprovanteId,
       precisaComprovante: PEDE_COMPROVANTE.includes(p.forma),
       data: p.data,
     })),

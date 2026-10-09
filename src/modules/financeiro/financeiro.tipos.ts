@@ -99,6 +99,8 @@ export type MovimentoCaixa = {
   origem: "lancamento" | "venda" | "transferencia";
   href?: string;
   temComprovante: boolean;
+  /** O comprovante anexado, para abrir pelo extrato. */
+  comprovanteId: string | null;
   /** As carteiras da linha — duas na transferência — para o filtro por carteira. */
   carteiraIds: string[];
 };

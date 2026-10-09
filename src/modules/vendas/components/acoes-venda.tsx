@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
 import { campoDaData } from "@/lib/dia";
+import { CampoComprovante } from "@/modules/financeiro/components/campo-comprovante";
 import {
   buscarCarteirasDaVendaAction,
   cancelarVendaAction,
@@ -75,6 +76,8 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [forma, setForma] = useState<Forma>("PIX");
+  /* Pode vir depois: sem ele, o valor fica esperando e só entra no caixa quando for anexado. */
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
@@ -110,6 +113,7 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
           action={(fd) => {
             fd.set("vendaId", vendaId);
             fd.set("forma", forma);
+            fd.set("comprovanteId", forma === "DINHEIRO" ? "" : (comprovanteId ?? ""));
             fd.set("carteiraId", carteiraId);
             fd.set("data", data ? `${data}T12:00:00` : "");
             salvar(async () => {
@@ -170,6 +174,34 @@ function Receber({ vendaId, saldo }: { vendaId: string; saldo: number }) {
               />
             </div>
           </div>
+
+          {(forma === "DEBITO" || forma === "CREDITO") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="taxa-recebimento">Taxa da maquininha (opcional)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="taxa-recebimento"
+                  name="taxaPct"
+                  inputMode="decimal"
+                  placeholder="ex.: 2,5"
+                  className="w-24 text-base"
+                />
+                <span className="text-xs text-muted-foreground">% · vira uma despesa no caixa</span>
+              </div>
+            </div>
+          )}
+
+          {forma !== "DINHEIRO" && (
+            <div className="space-y-1">
+              <CampoComprovante valor={comprovanteId} aoMudar={setComprovanteId} rotulo="Comprovante (opcional agora)" />
+              {!comprovanteId && (
+                <p className="text-xs text-muted-foreground">
+                  Sem ele o recebimento é registrado, mas só entra no caixa quando você anexar, em Financeiro ›
+                  Contas a receber.
+                </p>
+              )}
+            </div>
+          )}
 
           {carteiras.length > 0 && (
             <div className="space-y-1.5">

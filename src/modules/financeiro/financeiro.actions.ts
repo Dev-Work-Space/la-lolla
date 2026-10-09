@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { ErroDominio, tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
+import { comprovanteExiste } from "./comprovante.service";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
   const out: ErrosDeCampo = {};
@@ -154,15 +155,14 @@ const baixaSchema = z.object({
 });
 
 /*
- * BAIXA DE VENCIMENTO. Aqui o comprovante é OBRIGATÓRIO.
+ * BAIXA DE VENCIMENTO. O comprovante pode ser anexado na hora ou depois.
  *
- * É a única regra de comprovante que o João fez questão de manter rígida:
- * na venda o comprovante vira pendência (a cliente está esperando), mas dar
- * baixa numa conta é ato de conferência — sem o papel, não se confere nada
- * depois.
- *
- * Enquanto o upload de arquivo não existir, a baixa exige pelo menos a
- * carteira, e o comprovante fica registrado como pendência visível.
+ * Pedido do João (08/10/2026): a conta é baixada sem ele, mas o dinheiro só
+ * entra (ou sai) do caixa quando o comprovante for anexado — pela lista
+ * "Comprovantes pendentes", em Contas a receber / a pagar. A única dispensa
+ * é o DINHEIRO VIVO: parcela de venda paga em dinheiro, ou conta movimentada
+ * na carteira "espécie" (a gaveta) — ali não existe papel de banco nem de
+ * maquininha, e o dinheiro conta na hora.
  */
 export async function baixarContaAction(formData: FormData): Promise<Result<{ id: string }>> {
   const sessao = await exigirPermissao("financeiro", "editar");
@@ -189,6 +189,14 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
     if (!conta) throw new ErroDominio("NAO_ENCONTRADO", "Essa conta não existe mais.");
     if (conta.status !== "ABERTA") {
       throw new ErroDominio("REGRA_NEGOCIO", "Essa conta já foi baixada ou cancelada.");
+    }
+
+    const carteira = await prisma.carteira.findUnique({ where: { id: d.carteiraId }, select: { tipo: true } });
+    if (!carteira) throw new ErroDominio("NAO_ENCONTRADO", "Essa carteira não existe mais. Escolha outra.");
+    const paraVenda = conta.tipo === "RECEBER" && Boolean(conta.vendaId);
+    const dinheiroVivo = paraVenda ? (d.forma ?? "DINHEIRO") === "DINHEIRO" : carteira.tipo === "ESPECIE";
+    if (d.comprovanteId && !(await comprovanteExiste(d.comprovanteId))) {
+      throw new ErroDominio("REGRA_NEGOCIO", "Não achei esse comprovante. Anexe a foto de novo.");
     }
 
     /*
@@ -241,6 +249,7 @@ export async function baixarContaAction(formData: FormData): Promise<Result<{ id
           valor: dec(conta.tipo === "PAGAR" ? -valor : valor),
           categoria: conta.tipo === "PAGAR" ? "Conta paga" : "Recebimento",
           comprovanteId: d.comprovanteId || null,
+          exigeComprovante: !dinheiroVivo,
           data: d.data,
         },
         select: { id: true },

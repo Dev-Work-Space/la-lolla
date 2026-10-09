@@ -8,6 +8,7 @@ import { compromissosEntre, mesDaUrl, urlDoMes } from "../agenda.service";
 import type { CompromissoAgenda } from "../financeiro.tipos";
 import { diaDoIso, grupoDe, inicioDaSemana, isoDoDia } from "../periodo";
 import { IrParaData } from "./filtros";
+import { CalendarioAgenda, type ValoresDoDia } from "./calendario-agenda";
 
 /*
  * CALENDÁRIO (a antiga Agenda) — o mês numa grade, ou a semana dia a dia.
@@ -84,18 +85,37 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
      que ele precisa de atenção, não no dia em que venceu. */
   const doDiaComAtraso = (dia: Date) => (ehHoje(dia) ? [...atrasados, ...doDia(dia)] : doDia(dia));
 
+  /* O que cada dia do mês tem a receber e a pagar — o calendário (cliente)
+     desenha as barras com isto. */
+  const valoresDosDias: Record<string, ValoresDoDia> = {};
+  if (vista === "mes") {
+    for (let k = 1; k <= fimDoMes(inicio).getDate(); k++) {
+      const d = new Date(inicio.getFullYear(), inicio.getMonth(), k);
+      const itens = doDiaComAtraso(d);
+      valoresDosDias[isoDoDia(d)] = {
+        rec: itens.filter((c) => c.tipo === "receber").reduce((s, c) => s + c.valor, 0),
+        pag: itens.filter((c) => c.tipo === "pagar").reduce((s, c) => s + c.valor, 0),
+      };
+    }
+  }
+
   return (
     <div className="ll-entra space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Link href={anterior} aria-label="Anterior" className="grid size-9 place-items-center rounded-lg border hover:bg-muted">
-            <CaretLeftIcon className="size-4" aria-hidden />
-          </Link>
-          <p className="min-w-44 text-center text-sm font-semibold first-letter:uppercase">{titulo}</p>
-          <Link href={proximo} aria-label="Próximo" className="grid size-9 place-items-center rounded-lg border hover:bg-muted">
-            <CaretRightIcon className="size-4" aria-hidden />
-          </Link>
-        </div>
+        {/* No mês, as setas e o título vêm no próprio calendário. */}
+        {vista === "semana" ? (
+          <div className="flex items-center gap-2">
+            <Link href={anterior} aria-label="Anterior" className="grid size-9 place-items-center rounded-lg border hover:bg-muted">
+              <CaretLeftIcon className="size-4" aria-hidden />
+            </Link>
+            <p className="min-w-44 text-center text-sm font-semibold first-letter:uppercase">{titulo}</p>
+            <Link href={proximo} aria-label="Próximo" className="grid size-9 place-items-center rounded-lg border hover:bg-muted">
+              <CaretRightIcon className="size-4" aria-hidden />
+            </Link>
+          </div>
+        ) : (
+          <span aria-hidden />
+        )}
 
         <div className="flex flex-wrap items-end gap-2">
           <Pilulas
@@ -152,7 +172,13 @@ export async function PainelAgenda({ params }: { params: Record<string, string> 
 
       {vista === "mes" ? (
         <>
-          <GradeDoMes inicio={inicio} doDia={doDiaComAtraso} irDia={irDia} diaSel={diaSel} />
+          <CalendarioAgenda
+            key={`${isoDoDia(inicio)}:${diaSel ? isoDoDia(diaSel) : ""}`}
+            mes={isoDoDia(inicio)}
+            selecionado={diaSel ? isoDoDia(diaSel) : null}
+            dias={valoresDosDias}
+            params={params}
+          />
           {diaSel ? (
             <section className="space-y-1.5">
               <div className="flex items-baseline justify-between gap-3">
@@ -200,83 +226,6 @@ function Pilulas({ rotulo, opcoes }: { rotulo: string; opcoes: Array<[string, st
         ))}
       </span>
     </span>
-  );
-}
-
-function GradeDoMes({
-  inicio,
-  doDia,
-  irDia,
-  diaSel,
-}: {
-  inicio: Date;
-  doDia: (d: Date) => CompromissoAgenda[];
-  irDia: (d: Date) => string;
-  diaSel: Date | null;
-}) {
-  const nDias = fimDoMes(inicio).getDate();
-  const celulas = Array.from({ length: nDias }, (_, k) => {
-    const dia = new Date(inicio.getFullYear(), inicio.getMonth(), k + 1);
-    const itens = doDia(dia);
-    return {
-      dia,
-      rec: itens.filter((c) => c.tipo === "receber").reduce((s, c) => s + c.valor, 0),
-      pag: itens.filter((c) => c.tipo === "pagar").reduce((s, c) => s + c.valor, 0),
-    };
-  });
-  const maior = Math.max(1, ...celulas.map((c) => Math.max(c.rec, c.pag)));
-  // Segunda = 0 … domingo = 6.
-  const vazios = (inicio.getDay() + 6) % 7;
-
-  return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wide text-muted-foreground">
-        {DIAS.map((d) => (
-          <span key={d}>{d}</span>
-        ))}
-      </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {Array.from({ length: vazios }, (_, k) => (
-          <span key={`vazio-${k}`} />
-        ))}
-        {celulas.map((c) => {
-          const alt = (v: number) => (v > 0 ? Math.max(3, Math.round((v / maior) * 16)) : 0);
-          const quanto =
-            (c.rec > 0 ? `a receber ${brl(c.rec)}` : "") +
-            (c.rec > 0 && c.pag > 0 ? ", " : "") +
-            (c.pag > 0 ? `a pagar ${brl(c.pag)}` : "");
-          return (
-            <Link
-              key={c.dia.toISOString()}
-              href={irDia(c.dia)}
-              aria-label={`${c.dia.getDate()} · ${quanto || "nada marcado"} · ver este dia`}
-              aria-current={diaSel && diaSel.getDate() === c.dia.getDate() ? "date" : undefined}
-              title={quanto || "nada marcado"}
-              className={cn(
-                "flex h-14 flex-col items-center justify-between rounded-lg border px-1 py-1.5 transition-colors hover:border-foreground/40",
-                ehHoje(c.dia) ? "border-(--ll-accent) bg-(--ll-accent-soft)" : "bg-card",
-                diaSel && diaSel.getDate() === c.dia.getDate() && "border-foreground ring-2 ring-foreground",
-              )}
-            >
-              <span className="text-[11px] tabular-nums text-muted-foreground">{c.dia.getDate()}</span>
-              <span className="flex items-end gap-0.5" aria-hidden>
-                {c.rec > 0 && <i className="block w-1.5 rounded-sm bg-emerald-600" style={{ height: alt(c.rec) }} />}
-                {c.pag > 0 && <i className="block w-1.5 rounded-sm bg-(--ll-danger)" style={{ height: alt(c.pag) }} />}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-      <p className="mt-2 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <i aria-hidden className="size-2 rounded-sm bg-emerald-600" /> A receber (barra da esquerda)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <i aria-hidden className="size-2 rounded-sm bg-(--ll-danger)" /> A pagar (barra da direita)
-        </span>
-        <span>Toque num dia para ver só ele.</span>
-      </p>
-    </div>
   );
 }
 

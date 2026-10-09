@@ -8,6 +8,7 @@ import { previsao } from "@/modules/financeiro/agenda.service";
 import { listarClientes } from "@/modules/pessoas/pessoa.service";
 import { CATEGORIAS_FORA_DA_DESPESA } from "@/modules/financeiro/financeiro.tipos";
 import { brl, brlCompacto } from "@/lib/formato";
+import { lancamentoNoCaixa } from "@/modules/financeiro/caixa.regras";
 
 /*
  * Dados do Início.
@@ -183,7 +184,7 @@ export async function dadosDoInicio(nome: string, veFinanceiro: boolean) {
        Retirada não são despesa — a peça já está no custo da margem, e
        retirada é do dono, não da loja. */
     prisma.lancamento.findMany({
-      where: { data: { gte: ano0, lt: new Date(agora.getFullYear() + 1, 0, 1) }, valor: { lt: 0 } },
+      where: { data: { gte: ano0, lt: new Date(agora.getFullYear() + 1, 0, 1) }, valor: { lt: 0 }, ...lancamentoNoCaixa },
       select: { valor: true, categoria: true },
     }),
 

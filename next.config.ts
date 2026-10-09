@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
 
   experimental: {
     /*
+     * O comprovante em PDF pode passar de 1 MB, que é o limite padrão de uma
+     * Server Action. A foto já chega reduzida (cerca de 300 KB); o teto de 6
+     * MB é para o PDF do banco.
+     */
+    serverActions: { bodySizeLimit: "6mb" },
+
+    /*
      * Tela visitada há menos de 30 s volta na hora, sem ir ao servidor. O
      * padrão do Next é 0: todo vaivém (Vendas → venda → Vendas) esperava o
      * banco de novo. 30 s é curto para mostrar dado velho, e quem grava algo

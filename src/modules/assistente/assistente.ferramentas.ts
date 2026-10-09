@@ -6,6 +6,7 @@ import { veFinanceiro } from "@/lib/auth/guard";
 import { brl } from "@/lib/formato";
 import type { Sessao } from "@/lib/auth/sessao";
 import { podeFazer } from "@/modules/usuarios/permissoes";
+import { lancamentoNoCaixa, pagamentoNoCaixa } from "@/modules/financeiro/caixa.regras";
 
 /*
  * FERRAMENTAS DE LEITURA para o assistente.
@@ -338,9 +339,9 @@ export async function resumirFinanceiro(
       where: { arquivada: false, tipo: { not: "CARTAO" } },
       select: {
         saldoInicial: true,
-        lancamentos: { select: { valor: true } },
+        lancamentos: { where: lancamentoNoCaixa, select: { valor: true } },
         pagamentos: {
-          where: { venda: { status: { not: "CANCELADA" } } },
+          where: { venda: { status: { not: "CANCELADA" } }, ...pagamentoNoCaixa },
           select: { valor: true },
         },
         transferenciasSai: { select: { valor: true } },

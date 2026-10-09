@@ -880,6 +880,128 @@ e IA vão direto. Tocar noutra categoria troca o painel, tocar na mesma fecha.
 O rótulo quebra em duas linhas ("Compra e / venda"). Ajustes continua na
 engrenagem do cabeçalho. A trava da tela de trás, o X e o deslizar valem igual.
 
+### 08/10 · Mandar VÁRIAS etiquetas para a NIIMBOT no iPhone
+
+O João usa uma **NIIMBOT D110-M**: salvava cada imagem no iPhone para
+importar no app dela, uma por vez. Pesquisado o que existe:
+
+- **Bluetooth direto não serve no iPhone.** A D110-M fala BLE (o app dela
+  também; ela só não aparece em Ajustes › Bluetooth do iPhone, é normal), mas
+  o Safari e o Chrome do iPhone não têm Web Bluetooth — só navegador especial
+  (Bluefy). A biblioteca aberta NiimBlueLib (MIT, não oficial) atende a
+  D110-M e funcionaria no PC/Android. O João mandou largar; nada entrou no
+  código.
+- **A USB-C da D110 só carrega**, não transmite dados.
+- **O app aberto "niim"** (iPhone/Mac, só D110) não faz lote e exige Xcode.
+- **A NIIMBOT não aparece na folha de compartilhar** (o app dela não publicou
+  a extensão), e isso o LaLolla não muda.
+- O app dela importa **planilha** (Excel ou CSV, até 5.000 linhas). Cheguei a
+  montar a exportação, mas o João **descobriu que o app dela imprime PDF com
+  várias páginas** e testou: funciona. A planilha saiu (commit revertido).
+
+**O que ficou:** "Gerar PDF" nas etiquetas agora é **direto** (`direto` no
+`EnviarPdf`): um toque gera e já baixa, e o resultado aparece na própria
+janela, com "Baixar de novo" e "Compartilhar". Antes abria uma segunda janela
+por cima (compartilhar, salvar, visualizar) e o "Visualizar" abria uma aba em
+branco no iPhone (PDF em memória). Orçamento e recibo seguem com o painel de
+escolha. Cada etiqueta é uma página do tamanho do rolo (30 × 15 mm = 85 × 42,5
+pt).
+
+### 08/10 · Comprovante: anexar foto/galeria, obrigatório fora do dinheiro vivo
+
+Era a pendência mais antiga da seção 10 ("a baixa exige a carteira e a tela
+avisa que o anexo ainda vai ser obrigatório"). O João decidiu em 08/10:
+**dinheiro vivo não exige**, vendas/contas antigas ficam como estão, e disse
+que **o app ainda não está em produção** — por isso entrou migration sem medo.
+
+- `CampoComprovante` ("Tirar foto" / "Da galeria", aceita PDF): a foto é
+  reduzida no celular (~300 KB), sobe NA HORA e o formulário só guarda o id.
+  `VerComprovante` abre a foto no extrato do caixa e na ficha da venda.
+- **Onde exige** (o servidor barra, a tela só avisa): baixa de conta a pagar e
+  a receber (dispensa: carteira **espécie** ou parcela de venda paga em
+  **dinheiro**); pagamento de venda em Pix, débito e crédito — ao lançar a
+  venda e ao "Receber" depois. A compra à vista entra na etapa do pagamento
+  flexível.
+- **Onde fica o arquivo:** com o Supabase Storage ligado, no bucket privado
+  `comprovantes` (criado sozinho se faltar). **Sem as chaves — o caso de hoje
+  —, no próprio banco** (`comprovantes.dados`, já reduzido), para funcionar já.
+  Migration `20261008120000_comprovante_no_banco` (`path` ficou opcional, entrou
+  `dados`). Se o volume crescer, ligar o Storage resolve sem mexer em tela.
+- `serverActions.bodySizeLimit` subiu para 6 MB (o padrão, 1 MB, barrava PDF).
+
+> **Migration e deploy.** O deploy da Vercel NÃO aplica migration (o `build` só
+> gera o client). Quem roda `npm run db:deploy` no banco da loja é o João —
+> até lá, as telas que leem as colunas novas quebram no link de prévia.
+
+### 08/10 · A Agenda usa o calendário do shadcn
+
+Pedido do João: "pegue o calendário do ui.shadcn.com e substitua na agenda".
+A grade do MÊS (feita à mão) saiu e entrou o componente oficial
+(`ui/calendar.tsx`, instalado com `npx shadcn add calendar`, que trouxe
+`react-day-picker` 10 e `date-fns`). O que continua nosso: as barrinhas de "a
+receber" (esquerda) e "a pagar" (direita) dentro de cada dia, os totais, a
+lista do mês ou só do dia tocado e a visão de SEMANA (que segue como estava).
+O calendário cuida das setas de mês, do teclado (setas, Home/End,
+PageUp/PageDown) e do leitor de tela, que lê "sábado, 10 de outubro · a
+receber R$ 300,00, a pagar R$ 800,00". Em português, semana na segunda. O
+dia e o mês continuam na URL (`CalendarioAgenda` é cliente só para navegar).
+
+> **Armadilha:** em `<Calendar classNames={{...}}>` cada chave SUBSTITUI a
+> classe padrão do shadcn, não se soma a ela. Passar só `day: "h-14"` apagou
+> `w-full` e as células encolheram; passar `months` sem `relative` jogou as
+> setas para o canto da página. Repita a classe inteira.
+
+Junto: `scroll-padding` no `<html>` do celular. O cabeçalho e a barra de baixo
+são fixos, e tudo que o navegador rola "para aparecer" (foco, Tab, tocar
+numa seta) ia parar por baixo deles.
+
+### 08/10 · Impressão de etiquetas: um botão "Imprimir" com as saídas
+
+Substitui o "Gerar PDF" que abria uma segunda janela e o bloco "Enviar para a
+impressora" da NIIMBOT. O rodapé tem só **Imprimir ▾**; ao tocar, abrem três
+saídas com ícone e o que cada uma faz:
+
+- **Imprimir na impressora** — no computador, a janela de impressão com o PDF
+  (`iframe` + `print()`); no celular, a folha de compartilhar com o PDF (onde
+  aparecem a impressora, o AirPrint e o app da NIIMBOT, se ele se registrar).
+- **Gerar PDF** — baixa direto, uma etiqueta por página. É o caminho da
+  NIIMBOT: o app dela imprime PDF com várias páginas (descoberta do João).
+- **Gerar imagem** — um PNG por etiqueta (até 12); no celular abre a folha de
+  compartilhar, no computador baixa um por vez com folga de 400 ms.
+
+O resultado fica na própria janela, com "Baixar de novo" e "Compartilhar". O
+`EnviarPdf` voltou a ser só o painel de escolha (orçamento e recibo).
+
+### 08/10 · "A pagar" no estoque sem compra nenhuma
+
+O João viu peça com a pílula "A pagar" no estoque que nunca teve compra. A
+marca vinha de `!pagoFornecedor`, coluna que **nasce falsa em toda peça** e
+que **nunca era desligada**: peça nunca comprada acendia "A pagar", e peça de
+compra a prazo seguia "A pagar" para sempre, mesmo depois de pagas as
+parcelas. Agora `pecasComDividaAberta()` (`peca.service.ts`) olha o que existe
+de verdade: a peça está numa compra que ainda tem **parcela em aberto** no
+contas a pagar. Vale para o catálogo, a ficha, o filtro "A acertar" e o aviso
+ao excluir. A coluna `pagoFornecedor` continua gravada pela compra, mas
+**ninguém mais a lê** (sem migration; pode sair numa limpeza futura).
+Conferido com quatro peças: nunca comprada, a prazo em aberto, a prazo já
+paga e à vista — só a segunda acende.
+
+**Janela sobre janela (mesmo dia).** O Base UI só desenha o fundo escuro da
+PRIMEIRA janela; a que abria por cima (Nova peça › Novo fornecedor) ficava
+sem fundo e misturada com a de baixo. `DialogOverlay` agora usa
+`forceRender`: cada janela tem o seu fundo. A primeira janela **não fecha**
+nem perde o digitado quando a segunda abre (testado no PC e no celular).
+Também entrou a barra de rolagem fina da LaLolla (`globals.css`).
+
+**As camadas (z-index) das janelas.** O fundo da janela ficava na camada 50 e o
+menu lateral na 60: com uma janela aberta, o menu continuava CLARO, por cima
+do escurecido — era o "não está dando opacidade no fundo". Camadas hoje, de
+baixo para cima: barra de baixo do celular 40 · cabeçalho do celular 50 ·
+véu do menu do celular 55 · menu lateral e painel do celular 60 · **janelas
+70** · **listas de escolha (Select) 80**, que abrem dentro das janelas ·
+barrinha de carregamento 80. Janela nova que precise ficar acima do resto
+tem de respeitar isto; o aviso (toast) já fica acima de tudo.
+
 > **Armadilha dos 300 ms.** Depois de mostrar um `loading.tsx`, o React
 > segura a tela nova por pelo menos **300 ms** para o "carregando" não piscar
 > — mesmo com o servidor respondendo em 29 ms (medido: 29 ms de servidor,
@@ -892,6 +1014,97 @@ engrenagem do cabeçalho. A trava da tela de trás, o X e o deslizar valem igual
 
 Cada opção ganhou `icone` e `desc` em `navegacao.ts`; o tamanho mora em
 `--nav-fechada` e `--nav-painel` no `globals.css`.
+
+### 08/10 · Pagamento flexível em venda, compra e orçamento
+
+Pedido do João: o pagamento "bem ajustável" — entrada, parcelas com valor e
+data próprios, e o seu jeito em todas as telas de pagar. Ele também avisou que
+**o app ainda não está em produção**, então vendas antigas sem a regra nova
+ficam como estão e migration não assusta.
+
+- **Parcelas (`src/lib/parcelas.ts`, neutro).** A mesma conta na tela e no
+  servidor: `dividirEmParcelas` (centavos na última), `resolverParcelas`
+  (parcela escolhida à mão; o que sobra se divide entre as que ninguém
+  mexeu) e `valoresValidos` (o servidor recusa soma que não fecha). Intervalo
+  mensal, a cada 15 dias ou semanal. A tela é `padrao/parcelamento.tsx`
+  (`useParcelamento`, `EditorDeParcelas`), igual nas três telas.
+- **Venda.** `pagamento-da-venda.tsx`: vários pagamentos (Pix 60, crédito 3x…)
+  e o resto no crediário, cada parcela com a sua data e o seu valor. Pix,
+  débito e crédito pedem comprovante; dinheiro vivo não.
+- **Taxa da maquininha (opcional, só débito/crédito).** Vira um **lançamento
+  negativo** ("Taxa da maquininha · venda #N", categoria própria) ligado ao
+  pagamento por `Pagamento.taxaLancamentoId`. Assim o saldo da carteira já sai
+  certo, e remover o recebimento ou cancelar a venda apaga a taxa junto.
+  Acima de 30% a tela e o servidor pedem para conferir o número.
+- **Compra.** `pagamento-da-compra.tsx`: à vista, a prazo ou **entrada +
+  parcelas**. A entrada sai da carteira agora (comprovante, salvo gaveta) e o
+  resto vira contas a pagar; o comprovante dessas vem na baixa de cada uma.
+- **Orçamento.** Ganhou entrada e intervalo (`Orcamento.entrada`,
+  `intervaloParcelas`); o PDF diz "Entrada de R$ 60,00 e o restante em 2x de
+  R$ 70,00" e a conversão em venda já sugere a entrada.
+- **Menu lateral do PC.** O painel das opções **não fecha** ao escolher uma
+  opção nem ao clicar na página: só no X. Aberto, ele empurra a página
+  (`--nav-largura` = 364 px; fechado, 76 px).
+
+> **Armadilha de camadas do CSS.** A regra que empurra a página estava em
+> `@layer base`, mas `--nav-largura` também é definida em `:root` **fora de
+> camada**, que sempre vence a camada. O painel abria e a página não mexia.
+> A regra `:root[data-painel="aberto"]` mora fora de camada, depois do `:root`.
+
+> **Migrations desta rodada NÃO foram aplicadas no banco da loja:**
+> `20261008120000_comprovante_no_banco`, `20261008130000_pagamento_flexivel` e
+> `20261008140000_lancamento_exige_comprovante`.
+> Só o banco de teste local as recebeu. Antes do merge: combinar com o outro
+> desenvolvedor (ordem das migrations) e rodar `npm run db:deploy` com a
+> confirmação do João.
+
+Conferido no navegador (build de produção, banco de teste local): venda com
+Pix + crédito 3x com taxa + crediário editado à mão (50/25/25); soma errada
+bloqueia o envio; compra com entrada + 2 parcelas (comprovante obrigatório) e
+compra pela gaveta sem comprovante; orçamento com entrada (texto no PDF
+lido); "Receber" com taxa, remoção e cancelamento apagam o lançamento da taxa.
+
+### 08/10 · O comprovante vem depois, e o caixa espera por ele
+
+O João voltou atrás no "comprovante obrigatório na hora": **venda e compra se
+fecham sem o papel, mas o dinheiro só entra (ou sai) do caixa quando o
+comprovante é anexado** — e só onde existe papel (Pix, débito, crédito; saída
+por banco ou cartão). Dinheiro vivo e a gaveta contam na hora. Vale para
+**receber e pagar**. Isto **substitui** o "obrigatório" das entradas
+"Comprovante" e "Pagamento flexível" acima, e volta à regra do PDF
+("pendente na venda, obrigatório na baixa", seção 4) com um passo a mais: a
+pendência agora tira o valor do caixa.
+
+- **Uma regra só: `caixa.regras.ts`.** `pagamentoNoCaixa` (dinheiro, ou com
+  comprovante) e `lancamentoNoCaixa` (fora: saída que exige comprovante e não
+  tem, e a taxa da maquininha de um recebimento ainda sem papel). Entra em
+  **toda** consulta que soma caixa: saldo e movimento por carteira, extrato,
+  "sem carteira", resumo mensal, despesas, previsão (agenda), resultado do
+  Início e saldo do assistente. Quem escrever uma soma de caixa nova tem de
+  espalhar uma das duas condições.
+- **Campo novo `Lancamento.exigeComprovante`** (migration
+  `20261008140000_lancamento_exige_comprovante`, linhas antigas = false). O
+  pagamento de venda continua DERIVADO (a forma já diz); o lançamento não sabe
+  se foi Pix ou dinheiro, então a compra e a baixa de conta gravam
+  `exigeComprovante` = carteira diferente de espécie.
+- **Anexar depois:** lista "Esperando comprovante" no topo de Contas a receber
+  (recebimentos) e de Contas a pagar (saídas), com botão **Anexar** (foto ou
+  galeria); também na ficha da venda, ao lado do pagamento. Serviço
+  `anexarAoMovimento` / ação `anexarAoMovimentoAction`: só anexa a quem está
+  esperando (não troca comprovante de movimento que já entrou).
+- O recebimento **mantém a data original** quando o comprovante chega depois:
+  o dinheiro entra no caixa do dia em que foi recebido, não do dia do anexo.
+  Meses já fechados mudam se o anexo for tardio.
+- Venda, recebimento, compra e baixa avisam na tela: "sem o comprovante o
+  valor só entra/sai do caixa quando você anexar". O resumo da venda mostra
+  "Esperando comprovante" e "Entra no caixa agora".
+- **Fatura do cartão** e lançamento manual NÃO entram nesta regra (nunca
+  tiveram comprovante); se o João quiser, é um passo à parte.
+
+Conferido (build de produção, banco de teste local): venda no Pix sem papel
+fecha e o saldo da carteira não muda; aparece em "Esperando comprovante";
+anexado, o saldo sobe. Compra pelo banco sem papel: saldo igual, aparece em
+Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
 
 ---
 
@@ -953,6 +1166,11 @@ Cada opção ganhou `icone` e `desc` em `navegacao.ts`; o tamanho mora em
     mostrava como faturada uma venda cuja mercadoria toda tinha voltado.
     Consulta de faturamento desconta `precoUnit × devolvido`; consulta de
     custo já descontava, e a margem saía inflada pela diferença.
+16. **BrasilAPI barra quem chega sem `User-Agent`.** O fetch do servidor do
+    Node manda "node" e o CNPJ voltava 403 — o botão Buscar mostrava "Sem
+    resposta da consulta" com a API no ar (no terminal, com `curl`, funcionava,
+    o que enganou). O CEP passava por sorte. Toda chamada a API pública de
+    fora leva um agente próprio (`CABECALHOS_BRASILAPI` em `pessoa.actions.ts`).
 
 
 ---

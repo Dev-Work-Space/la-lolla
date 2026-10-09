@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { MinusIcon, PlusIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react/ssr";
+import {
+  CaretDownIcon,
+  DownloadSimpleIcon,
+  FileTextIcon,
+  ImageIcon,
+  MinusIcon,
+  PlusIcon,
+  PrinterIcon,
+  ShareNetworkIcon,
+} from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AvisoPdf, EnviarPdf } from "@/components/padrao/enviar-pdf";
+import { AvisoPdf } from "@/components/padrao/enviar-pdf";
 import { Seletor } from "@/components/padrao/seletor";
 import { cn } from "@/lib/utils";
 import { gerarEtiquetasAction } from "../etiqueta.actions";
@@ -57,6 +66,7 @@ export type PecaEtiqueta = {
 };
 
 type Modo = "um" | "estoque" | "lista" | "n";
+type Saida = "imprimir" | "pdf" | "imagem";
 
 /* O modelo escolhido é do APARELHO: o celular do balcão manda para a NIIMBOT,
    o computador do escritório imprime a folha A4. */
@@ -105,11 +115,12 @@ export function ImprimirEtiquetas({
   const [modeloId, setModeloId] = useState(MODELO_PADRAO);
   const [mostrarPreco, setMostrarPreco] = useState(true);
   const [incluirQr, setIncluirQr] = useState(true);
-  const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  /* Celular que recusou abrir a folha logo depois de gerar (o Safari exige o
-     toque "fresco"): as imagens ficam prontas para um segundo toque. */
-  const [prontas, setProntas] = useState<File[] | null>(null);
+  /* O painel "Imprimir": as três saídas. `fazendo` é a que está sendo gerada;
+     `resultado` guarda o que saiu, para baixar de novo ou compartilhar. */
+  const [saidas, setSaidas] = useState(false);
+  const [fazendo, setFazendo] = useState<Saida | null>(null);
+  const [resultado, setResultado] = useState<{ saida: Saida; arquivos: File[] } | null>(null);
   // A folha de compartilhar com arquivo só existe no navegador — no servidor, falso.
   const compartilha = useSyncExternalStore(assinarNada, podeCompartilharImagem, () => false);
 
@@ -138,7 +149,8 @@ export function ImprimirEtiquetas({
     setMostrarPreco(true);
     setIncluirQr(true);
     setAviso(null);
-    setProntas(null);
+    setResultado(null);
+    setSaidas(false);
     if (unica) {
       // Uma peça: o normal é etiquetar o que tem na prateleira.
       const p = pecas[0];
@@ -152,7 +164,7 @@ export function ImprimirEtiquetas({
   function escolherModelo(id: string) {
     setModeloId(id);
     guardarModelo(id);
-    setProntas(null);
+    setResultado(null);
   }
 
   const escolhidas = pecas.filter((p) => (qtd[p.id] ?? 0) > 0);
@@ -177,7 +189,7 @@ export function ImprimirEtiquetas({
   );
 
   const mudar = (id: string, valor: number) => {
-    setProntas(null);
+    setResultado(null);
     setQtd((q) => ({ ...q, [id]: Math.max(0, Math.min(200, Math.round(valor) || 0)) }));
   };
 
@@ -194,45 +206,93 @@ export function ImprimirEtiquetas({
     return itens;
   }
 
-  async function gerar() {
+  async function arquivoPdf(): Promise<File> {
     const r = await gerarEtiquetasAction({ itens: pedido() });
     if (!r.ok) throw new AvisoPdf(r.error.message);
-    return gerarPdfEtiquetas(r.data.etiquetas, modelo, opc);
+    const pdf = await gerarPdfEtiquetas(r.data.etiquetas, modelo, opc);
+    return new File([pdf.blob], pdf.nome, { type: "application/pdf" });
   }
 
+  async function arquivosImagem(): Promise<File[]> {
+    const r = await gerarEtiquetasAction({ itens: pedido(MAX_IMAGENS_NIIMBOT) });
+    if (!r.ok) throw new AvisoPdf(r.error.message);
+    return imagensNiimbot(r.data.etiquetas, modelo, opc);
+  }
+
+  /* Baixa um arquivo por vez, com uma folga entre eles: o navegador recusa
+     vários downloads colados no mesmo instante. */
+  function baixar(arquivos: File[]) {
+    arquivos.forEach((f, i) =>
+      setTimeout(() => {
+        const url = URL.createObjectURL(f);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      }, i * 400),
+    );
+  }
+
+  /* A folha de compartilhar. O Safari só deixa abri-la logo depois de um
+     toque; se ele recusar (gerar demora), o resultado fica na tela com o
+     botão "Compartilhar" para o segundo toque — por isso não é erro. */
   async function compartilhar(arquivos: File[]) {
     let lista = arquivos;
-    // Alguns aparelhos aceitam um arquivo mas recusam a lista inteira.
     if (!navigator.canShare({ files: lista }) && lista.length > 1 && navigator.canShare({ files: [lista[0]] })) {
       lista = [lista[0]];
     }
     try {
-      await navigator.share({ files: lista, title: "Etiqueta LaLolla" });
-      setAberto(false);
-    } catch (e) {
-      if (e instanceof DOMException && e.name === "NotAllowedError") {
-        setProntas(lista);
-        return;
-      }
-      // a pessoa fechou a folha — não é erro
+      await navigator.share({ files: lista, title: "Etiquetas LaLolla" });
+    } catch {
+      /* a pessoa fechou a folha, ou o aparelho pediu outro toque */
     }
   }
 
-  async function enviarNiimbot() {
+  /* Abre a janela de impressão do computador com o PDF das etiquetas. */
+  function imprimirNoComputador(f: File) {
+    const url = URL.createObjectURL(f);
+    const quadro = document.createElement("iframe");
+    quadro.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0";
+    quadro.src = url;
+    quadro.onload = () => {
+      try {
+        quadro.contentWindow?.focus();
+        quadro.contentWindow?.print();
+      } catch {
+        window.open(url, "_blank");
+      }
+    };
+    document.body.appendChild(quadro);
+    setTimeout(() => {
+      quadro.remove();
+      URL.revokeObjectURL(url);
+    }, 120_000);
+  }
+
+  async function fazer(saida: Saida) {
     setAviso(null);
-    setEnviando(true);
+    setResultado(null);
+    setFazendo(saida);
     try {
-      const r = await gerarEtiquetasAction({ itens: pedido(MAX_IMAGENS_NIIMBOT) });
-      if (!r.ok) {
-        setAviso(r.error.message);
+      if (saida === "imagem") {
+        const arquivos = await arquivosImagem();
+        if (compartilha) await compartilhar(arquivos);
+        else baixar(arquivos);
+        setResultado({ saida, arquivos });
         return;
       }
-      const arquivos = await imagensNiimbot(r.data.etiquetas, modelo, opc);
-      await compartilhar(arquivos);
-    } catch {
-      setAviso("Não consegui gerar a imagem da etiqueta. Tente de novo ou use Gerar PDF.");
+      const pdf = await arquivoPdf();
+      if (saida === "pdf") baixar([pdf]);
+      else if (compartilha && navigator.canShare({ files: [pdf] })) await compartilhar([pdf]);
+      else imprimirNoComputador(pdf);
+      setResultado({ saida, arquivos: [pdf] });
+    } catch (e) {
+      setAviso(e instanceof AvisoPdf ? e.message : "Não consegui gerar. Tente de novo.");
     } finally {
-      setEnviando(false);
+      setFazendo(null);
     }
   }
 
@@ -420,46 +480,6 @@ export function ImprimirEtiquetas({
             </label>
           </div>
 
-          {/* Caminho do celular: a folha de compartilhar do aparelho é onde o app
-              da NIIMBOT aparece. O botão só existe onde a folha existe — no PC
-              ele seria mentira. */}
-          {niimbot && compartilha && (
-            <div className="space-y-2 rounded-lg border p-3">
-              {prontas ? (
-                <Button type="button" className="w-full" onClick={() => compartilhar(prontas)}>
-                  <ShareNetworkIcon className="mr-1.5 size-4" aria-hidden />
-                  Abrir a folha de compartilhar
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={total === 0 || demais || enviando}
-                  onClick={enviarNiimbot}
-                >
-                  <ShareNetworkIcon className="mr-1.5 size-4" aria-hidden />
-                  {enviando ? "Gerando…" : "Enviar para a impressora"}
-                </Button>
-              )}
-              {/* Só o iPhone decide quais apps entram na folha (o app precisa
-                  publicar uma Share Extension). Se a NIIMBOT não estiver lá, o
-                  caminho é salvar na galeria e importar no app dela — por isso
-                  o texto ensina os dois. */}
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Abre a folha de compartilhar. Se a <strong>NIIMBOT</strong> aparecer na lista, toque nela. Se
-                não aparecer, toque em <strong>Salvar Imagem</strong> e depois importe a foto dentro do app da
-                NIIMBOT.
-                {total > MAX_IMAGENS_NIIMBOT &&
-                  ` Vão as ${MAX_IMAGENS_NIIMBOT} primeiras — para todas de uma vez, use Gerar PDF.`}
-              </p>
-              {aviso && (
-                <p role="alert" className="text-sm text-destructive">
-                  {aviso}
-                </p>
-              )}
-            </div>
-          )}
-
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
             <p className={cn("text-sm", demais ? "font-medium text-destructive" : "text-muted-foreground")}>
               {demais
@@ -471,28 +491,145 @@ export function ImprimirEtiquetas({
                       ? ` · ${folhas} folha${folhas === 1 ? "" : "s"} A4`
                       : " no rolo")}
             </p>
-            <EnviarPdf
-              rotulo="Etiquetas LaLolla"
-              titulo="Etiquetas prontas"
-              descricao={
-                `${total} etiqueta${total === 1 ? "" : "s"}. ` +
-                (niimbot
-                  ? "No celular, toque em Compartilhar e escolha o app da NIIMBOT. No computador, salve e mande o arquivo para o celular."
-                  : modelo.tipo === "folha"
-                    ? "Imprima em tamanho real (100%, sem ajustar à página) e recorte."
-                    : `Imprima na térmica configurada para ${modelo.largura} × ${modelo.altura} mm.`)
-              }
-              mensagem="Etiquetas LaLolla"
-              telefone={null}
-              nomeCliente={null}
-              rotuloBotao="Gerar PDF"
-              desabilitado={total === 0 || demais}
-              gerar={gerar}
-            />
+            <Button
+              type="button"
+              disabled={total === 0 || demais}
+              aria-expanded={saidas}
+              onClick={() => setSaidas((v) => !v)}
+            >
+              <PrinterIcon className="mr-1.5 size-4" aria-hidden />
+              Imprimir
+              <CaretDownIcon
+                weight="bold"
+                className={cn("ml-1.5 size-3.5 transition-transform duration-200", saidas && "rotate-180")}
+                aria-hidden
+              />
+            </Button>
           </div>
+
+          {/* As três saídas, uma embaixo da outra e com o que cada uma faz. */}
+          {saidas && (
+            <div className="space-y-2 rounded-xl border bg-muted/30 p-2.5" aria-label="Como você quer sair">
+              <Saida
+                icone={PrinterIcon}
+                titulo="Imprimir na impressora"
+                texto={
+                  compartilha
+                    ? niimbot
+                      ? "Abre as opções do celular com o PDF — escolha o app da NIIMBOT."
+                      : "Abre as opções do celular (impressora, AirDrop, apps) com o PDF."
+                    : "Abre a janela de impressão do computador com as etiquetas."
+                }
+                fazendo={fazendo === "imprimir"}
+                desabilitado={fazendo !== null}
+                onClick={() => fazer("imprimir")}
+              />
+              <Saida
+                icone={FileTextIcon}
+                titulo="Gerar PDF"
+                texto={
+                  niimbot
+                    ? "Baixa um PDF com uma etiqueta por página. O app da NIIMBOT imprime todas de uma vez."
+                    : "Baixa um PDF com as etiquetas, para guardar ou imprimir depois."
+                }
+                fazendo={fazendo === "pdf"}
+                desabilitado={fazendo !== null}
+                onClick={() => fazer("pdf")}
+              />
+              <Saida
+                icone={ImageIcon}
+                titulo="Gerar imagem"
+                texto={
+                  total > MAX_IMAGENS_NIIMBOT
+                    ? `Uma imagem PNG por etiqueta. Vão as ${MAX_IMAGENS_NIIMBOT} primeiras — para todas, use o PDF.`
+                    : "Uma imagem PNG por etiqueta, para mandar ou importar em outro app."
+                }
+                fazendo={fazendo === "imagem"}
+                desabilitado={fazendo !== null}
+                onClick={() => fazer("imagem")}
+              />
+            </div>
+          )}
+
+          {aviso && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {aviso}
+            </p>
+          )}
+
+          {resultado && (
+            <div className="space-y-2 rounded-xl border p-3">
+              <p className="text-sm font-medium">
+                {resultado.saida === "imagem"
+                  ? resultado.arquivos.length === 1
+                    ? "1 imagem pronta"
+                    : `${resultado.arquivos.length} imagens prontas`
+                  : resultado.saida === "pdf"
+                    ? "PDF pronto e baixado"
+                    : "PDF pronto para imprimir"}
+              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {resultado.arquivos[0].name}
+                {resultado.arquivos.length > 1 ? ` e mais ${resultado.arquivos.length - 1}` : ""}
+                {resultado.saida === "pdf" || (resultado.saida === "imagem" && !compartilha)
+                  ? " — está na pasta de downloads (no iPhone, em Arquivos › Downloads)."
+                  : ""}
+                {niimbot && resultado.saida === "pdf" ? " No app da NIIMBOT, importe o PDF para imprimir todas de uma vez." : ""}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => baixar(resultado.arquivos)}>
+                  <DownloadSimpleIcon className="mr-1.5 size-4" aria-hidden />
+                  Baixar de novo
+                </Button>
+                {compartilha && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => compartilhar(resultado.arquivos)}>
+                    <ShareNetworkIcon className="mr-1.5 size-4" aria-hidden />
+                    Compartilhar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* Uma das três saídas do botão Imprimir: ícone, o nome e o que ela faz. */
+function Saida({
+  icone: Icone,
+  titulo,
+  texto,
+  fazendo,
+  desabilitado,
+  onClick,
+}: {
+  icone: typeof PrinterIcon;
+  titulo: string;
+  texto: string;
+  fazendo: boolean;
+  desabilitado: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={desabilitado}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors",
+        "hover:border-(--ll-accent-line) hover:bg-(--ll-accent-soft) disabled:opacity-60",
+      )}
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-(--ll-accent-soft) text-(--ll-accent)">
+        <Icone weight="duotone" className={cn("size-5", fazendo && "animate-pulse")} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{fazendo ? "Gerando…" : titulo}</span>
+        <span className="block text-xs leading-snug text-muted-foreground">{texto}</span>
+      </span>
+    </button>
   );
 }
 

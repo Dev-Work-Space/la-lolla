@@ -103,6 +103,11 @@
   --nav-painel: 288px;
   /* Recuo das opções na gaveta do celular: a coluna dos ícones. */
   --nav-trilho: 52px;
+  /* O quanto a barra lateral toma da largura: só o trilho, ou o trilho mais o
+     painel quando ele está aberto (o <html> ganha data-painel="aberto"). O
+     layout usa isto de recuo, então o painel empurra a página em vez de
+     cobri-la. */
+  --nav-largura: var(--nav-fechada);
   /*
    * Altura da barra de baixo do celular, SEM a faixa de gestos do iPhone
    * (essa entra por fora, com env(safe-area-inset-bottom)).
@@ -120,6 +125,13 @@
   --ll-ease: cubic-bezier(.22, .72, .24, 1);
   --ll-duracao-hover: 150ms;
   --ll-duracao-suave: 180ms;
+}
+
+/* Fora de @layer de propósito: a variável nasce em `:root` (sem camada), e
+   regra em camada perde para regra sem camada, não importa a especificidade.
+   Com o painel aberto, o <html> ganha data-painel="aberto" e a página recua. */
+:root[data-painel="aberto"] {
+  --nav-largura: calc(var(--nav-fechada) + var(--nav-painel));
 }
 
 .dark {
@@ -202,6 +214,19 @@
   }
 
   /*
+   * O cabeçalho e a barra de baixo do celular são FIXOS. Quando o navegador
+   * rola um campo ou um botão para "aparecer" (foco, Tab, tocar numa seta),
+   * ele o encosta na borda da tela — ou seja, por baixo dessas barras. Estas
+   * margens dizem a ele para parar antes delas.
+   */
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-top: calc(var(--cabecalho-celular) + env(safe-area-inset-top) + 12px);
+      scroll-padding-bottom: calc(var(--nav-inferior) + env(safe-area-inset-bottom) + 12px);
+    }
+  }
+
+  /*
    * O CONTORNO QUE APARECIA DO NADA.
    *
    * Depois de clicar num item da barra lateral, o link continuava com o foco
@@ -214,6 +239,41 @@
    */
   :focus:not(:focus-visible) {
     outline: none;
+  }
+
+  /*
+   * A BARRA DE ROLAGEM DA LALOLLA (pedido do João, 08/10/2026: "vem aquele
+   * padrão do Google, não é bonitinho").
+   *
+   * Fina, sem trilho, na cor da linha do app — e um tom mais forte ao apontar
+   * ou arrastar. `scrollbar-width`/`scrollbar-color` valem no Chrome, Edge e
+   * Firefox; o bloco `::-webkit-scrollbar` é para o Safari/iPhone, que ainda
+   * não os lê. No celular a barra some sozinha depois de rolar, como o
+   * sistema já faz. A cor muda sozinha com o tema porque vem das variáveis.
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ll-line) transparent;
+  }
+  *:hover {
+    scrollbar-color: var(--ll-line-2) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--ll-line);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ll-line-2);
   }
 
   /*

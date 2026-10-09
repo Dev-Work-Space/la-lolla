@@ -9,7 +9,6 @@ import { PlusIcon, MagnifyingGlassIcon, TrashIcon, XIcon } from "@phosphor-icons
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
 import {
   buscarCarteirasAction,
@@ -18,6 +17,7 @@ import {
   registrarCompraAction,
 } from "../compra.actions";
 import type { CarteiraSaldo } from "@/modules/financeiro/financeiro.tipos";
+import { PagamentoDaCompra, usePlanoDaCompra } from "./pagamento-da-compra";
 
 /*
  * Nova compra. Peças e insumos entram pelo MESMO fluxo — decisão do João.
@@ -68,16 +68,6 @@ export function NovaCompra({
   );
   const [observacao, setObservacao] = useState("");
 
-  const [forma, setForma] = useState<"avista" | "prazo">("avista");
-  const [carteiraId, setCarteiraId] = useState("");
-  const [parcelas, setParcelas] = useState("1");
-  const [intervalo, setIntervalo] = useState<"mes" | "quinzena" | "semana">("mes");
-  const [primeiro, setPrimeiro] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 10);
-  });
-
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
@@ -91,7 +81,6 @@ export function NovaCompra({
     buscarCarteirasAction().then((r) => {
       if (r.ok) {
         setCarteiras(r.data);
-        if (r.data[0]) setCarteiraId(r.data[0].id);
       }
     });
   }, []);
@@ -119,6 +108,7 @@ export function NovaCompra({
     () => r2(itens.reduce((s, i) => s + i.custoUnit * i.quantidade, 0)),
     [itens],
   );
+  const plano = usePlanoDaCompra(total, carteiras);
 
   function adicionar(p: ItemCompra) {
     setItens((a) => {
@@ -135,9 +125,8 @@ export function NovaCompra({
     if (!fornecedorId) return setAviso("Escolha o fornecedor.");
     if (itens.length === 0) return setAviso("Adicione ao menos um item.");
     if (total <= 0) return setAviso("O total precisa ser maior que zero.");
-    if (forma === "avista" && !carteiraId) {
-      return setAviso("Escolha de qual carteira o dinheiro saiu.");
-    }
+    const problema = plano.problema();
+    if (problema) return setAviso(problema);
 
     salvar(async () => {
       const r = await registrarCompraAction({
@@ -148,15 +137,7 @@ export function NovaCompra({
           quantidade: i.quantidade,
           custoUnit: i.custoUnit,
         })),
-        pagamento:
-          forma === "avista"
-            ? { tipo: "avista", carteiraId }
-            : {
-                tipo: "prazo",
-                parcelas: Number(parcelas) || 1,
-                intervalo,
-                primeiroVencimento: new Date(primeiro + "T12:00:00"),
-              },
+        pagamento: plano.montar(),
       });
 
       if (r.ok) {
@@ -370,101 +351,7 @@ export function NovaCompra({
           <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Como pagou o fornecedor
           </h2>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Dar entrada em peça é uma saída de caixa. À vista sai da carteira agora; a prazo vira
-            conta a pagar.
-          </p>
-
-          <div className="grid grid-cols-2 gap-1 rounded-lg border p-1">
-            {(
-              [
-                ["avista", "À vista"],
-                ["prazo", "A prazo"],
-              ] as const
-            ).map(([v, r]) => (
-              <Button
-                variant="ghost"
-                key={v}
-                type="button"
-                aria-pressed={forma === v}
-                onClick={() => setForma(v)}
-                className={cn(
-                  "h-auto gap-0 border-0 p-0 whitespace-normal rounded-md px-3 py-2 text-sm font-medium",
-                  forma === v
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {r}
-              </Button>
-            ))}
-          </div>
-
-          {forma === "avista" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="carteira-compra">De qual carteira saiu</Label>
-              <Seletor
-                id="carteira-compra"
-                className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
-                value={carteiraId}
-                onValueChange={(valor) => setCarteiraId(valor)}
-                opcoes={[
-                  ...(carteiras.length === 0 ? [{ value: "", label: "Nenhuma carteira cadastrada" }] : []),
-                  ...carteiras.map((c) => ({ value: c.id, label: <>{c.nome} · {brl(c.saldo)}</> }))
-                ]}
-              />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="parcelas-compra" className="text-xs">
-                    Em quantas vezes
-                  </Label>
-                  <Input
-                    id="parcelas-compra"
-                    inputMode="numeric"
-                    value={parcelas}
-                    onChange={(e) => setParcelas(e.target.value.replace(/\D/g, "") || "1")}
-                    className="text-base"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="intervalo-compra" className="text-xs">
-                    A cada
-                  </Label>
-                    <Seletor
-                      id="intervalo-compra"
-                      className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
-                      value={intervalo}
-                      onValueChange={(valor) => setIntervalo(valor as typeof intervalo)}
-                      opcoes={[
-                        { value: "mes", label: "Mês" },
-                        { value: "quinzena", label: "15 dias" },
-                        { value: "semana", label: "Semana" }
-                      ]}
-                    />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="venc-compra" className="text-xs">
-                  Primeiro vencimento
-                </Label>
-                <Input
-                  id="venc-compra"
-                  type="date"
-                  value={primeiro}
-                  onChange={(e) => setPrimeiro(e.target.value)}
-                  className="text-base"
-                />
-              </div>
-              {total > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {parcelas}× de <strong>{brl(total / (Number(parcelas) || 1))}</strong>
-                </p>
-              )}
-            </div>
-          )}
+          <PagamentoDaCompra total={total} carteiras={carteiras} plano={plano} />
         </Card>
 
         <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">

@@ -2,7 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calcularCusto, calcularMargem } from "./peca.service";
+import { calcularCusto, calcularMargem, pecasComDividaAberta } from "./peca.service";
 import { urlAssinada, urlsAssinadas } from "@/lib/storage";
 
 /*
@@ -72,7 +72,6 @@ const SELECAO = {
   totalRecebido: true,
   codigoFornecedor: true,
   custo: true,
-  pagoFornecedor: true,
   fornecedor: { select: { id: true, nome: true } },
   imagens: { where: { principal: true }, take: 1, select: { pathThumb: true } },
   movimentos: { select: { delta: true, motivo: true } },
@@ -109,7 +108,7 @@ export async function listarCatalogo(opcoes: {
       : {}),
   };
 
-  const [pecas, totalCatalogo, reservas, comVenda] = await Promise.all([
+  const [pecas, totalCatalogo, reservas, comVenda, devendo] = await Promise.all([
     prisma.peca.findMany({ where, select: SELECAO, orderBy: { nome: "asc" } }),
     prisma.peca.count({ where: { tipo: "PECA", arquivada: false } }),
     /*
@@ -131,6 +130,8 @@ export async function listarCatalogo(opcoes: {
       where: { venda: { status: { not: "CANCELADA" } } },
       _count: true,
     }),
+    // Só quem vê dinheiro precisa saber o que se deve: a consulta nem roda para os outros.
+    veFinanceiro ? pecasComDividaAberta() : Promise.resolve(new Set<string>()),
   ]);
 
   const porReserva = new Map(reservas.map((r) => [r.pecaId, r._sum.quantidade ?? 0]));
@@ -167,7 +168,7 @@ export async function listarCatalogo(opcoes: {
 
     // Os campos de dinheiro só existem no objeto de quem pode vê-los.
     if (!veFinanceiro) return base;
-    return { ...base, custo, margem: calcularMargem(custo, vigente), aPagar: !p.pagoFornecedor };
+    return { ...base, custo, margem: calcularMargem(custo, vigente), aPagar: devendo.has(p.id) };
   });
 
   // Os mesmos sete filtros, com o mesmo significado.
@@ -393,7 +394,6 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       codigoFornecedor: true,
       fator: true,
       custo: true,
-      pagoFornecedor: true,
       totalRecebido: true,
       ultimaSerie: true,
       criadoEm: true,
@@ -467,7 +467,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
           fator: dec(p.fator),
           custo,
           margem: calcularMargem(custo, preco),
-          aPagar: !p.pagoFornecedor,
+          aPagar: (await pecasComDividaAberta([p.id])).has(p.id),
           valorEmEstoque: (custo ?? 0) * Math.max(0, acumulado),
         }
       : {}),

@@ -26,6 +26,7 @@ import { ErroDominio } from "./errors";
  */
 
 export const BUCKET_PECAS = "pecas";
+export const BUCKET_COMPROVANTES = "comprovantes";
 
 /** Quanto tempo a URL assinada vale. Uma hora cobre a sessão de uso. */
 const VALIDADE_URL = 60 * 60;
@@ -243,4 +244,32 @@ export async function urlAssinada(caminho: string | null): Promise<string | null
   if (!caminho) return null;
   const m = await urlsAssinadas([caminho]);
   return m.get(caminho) ?? null;
+}
+
+/**
+ * Guarda um arquivo num bucket PRIVADO e devolve o caminho. Se o bucket ainda
+ * não existe, cria — comprovante é documento financeiro, então ele nasce
+ * privado, nunca público.
+ */
+export async function subirArquivoPrivado(
+  bucket: string,
+  caminho: string,
+  dados: Uint8Array,
+  contentType: string,
+): Promise<string> {
+  const tentar = () => storage().storage.from(bucket).upload(caminho, dados, { contentType, upsert: false });
+  let { error } = await tentar();
+  if (error && /not found|does not exist/i.test(error.message)) {
+    await storage().storage.createBucket(bucket, { public: false });
+    ({ error } = await tentar());
+  }
+  if (error) throw new ErroDominio("REGRA_NEGOCIO", `Não consegui guardar o arquivo: ${error.message}`);
+  return caminho;
+}
+
+/** Endereço temporário (uma hora) para ver um arquivo de um bucket privado. */
+export async function urlAssinadaDoBucket(bucket: string, caminho: string): Promise<string | null> {
+  if (!fotosConfiguradas()) return null;
+  const { data, error } = await storage().storage.from(bucket).createSignedUrl(caminho, VALIDADE_URL);
+  return error || !data ? null : data.signedUrl;
 }

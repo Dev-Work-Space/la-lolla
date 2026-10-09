@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
+import { PagamentoDaVenda, type Forma, type Pago } from "./pagamento-da-venda";
+import { useParcelamento } from "@/components/padrao/parcelamento";
 import {
   buscarCarteirasDaVendaAction,
   buscarClientesAction,
@@ -20,7 +22,7 @@ import {
   fecharVendaAction,
   ultimosInsumosAction,
 } from "../venda.actions";
-import { campoDaData, somaDias, somaMeses } from "@/lib/dia";
+import { campoDaData, somaMeses } from "@/lib/dia";
 
 /*
  * O carrinho. Tela nova — no app antigo a venda era um formulário em etapas
@@ -53,22 +55,6 @@ type ItemCarrinho = Peca & { quantidade: number; precoUnit: number };
  * ver quanto vale, igual ao resto do app.
  */
 type Insumo = { id: string; nome: string; unidade: string; custo: number | null; saldo: number };
-type Forma = "DINHEIRO" | "PIX" | "DEBITO" | "CREDITO";
-/* `parcelas` só no crédito: a cliente parcelou no CARTÃO (a maquininha),
-   não com a loja. Fica registrado no pagamento e sai na venda e no recibo. */
-type Pago = { forma: Forma; valor: number; parcelas?: number };
-
-/* Os atalhos de parcelamento: 1x a 12x, que cobrem quase toda venda. O campo
-   ao lado aceita qualquer número — o João pediu as duas coisas. */
-const ATALHOS_PARCELAS = Array.from({ length: 12 }, (_, k) => k + 1);
-
-const FORMAS: Array<[Forma, string]> = [
-  ["DINHEIRO", "Dinheiro"],
-  ["PIX", "Pix"],
-  ["DEBITO", "Débito"],
-  ["CREDITO", "Crédito"],
-];
-
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const paraNumero = (s: string) => Number(String(s).replace(/\./g, "").replace(",", ".")) || 0;
 
@@ -95,6 +81,10 @@ export type VendaDeOrcamento = {
   subtotal: number;
   parcelas: number | null;
   primeiroVencimento: string | null;
+  /** Entrada combinada no orçamento, em reais — vem sugerida no pagamento. */
+  entrada?: number | null;
+  intervaloParcelas?: "mes" | "quinzena" | "semana" | null;
+  formaPagamento?: Forma | null;
   itens: Array<{
     pecaId: string;
     sku: string;
@@ -204,7 +194,6 @@ export function NovaVenda({
    * que é como o app antigo se comportava.
    */
   const [carteiras, setCarteiras] = useState<Array<{ id: string; nome: string; saldo: number }>>([]);
-  const [carteiraId, setCarteiraId] = useState("");
 
   /* Embalagem: catálogo à esquerda, o que foi usado à direita. */
   const [insumos, setInsumos] = useState<Insumo[]>([]);
@@ -214,34 +203,6 @@ export function NovaVenda({
   const [ultimos, setUltimos] = useState<Array<{ pecaId: string; quantidade: number }>>([]);
 
   const [pagos, setPagos] = useState<Pago[]>([]);
-  const [vezesCartao, setVezesCartao] = useState("1");
-
-  /** O pagamento que entra na lista; no crédito leva as vezes do cartão. */
-  function novoPago(valor: number): Pago {
-    const vezes = Math.max(1, Number(vezesCartao) || 1);
-    return formaNova === "CREDITO" && vezes > 1 ? { forma: formaNova, valor, parcelas: vezes } : { forma: formaNova, valor };
-  }
-  const [formaNova, setFormaNova] = useState<Forma>("DINHEIRO");
-  const [valorNovo, setValorNovo] = useState("");
-
-  const [parcelas, setParcelas] = useState(String(orcamento?.parcelas ?? 1));
-  const [intervalo, setIntervalo] = useState<"mes" | "quinzena" | "semana">("mes");
-  /* Um mês a partir de hoje, em hora LOCAL. Com `toISOString` o vencimento
-     saltava um dia toda noite depois das 21h — é o fuso de Brasília virando o
-     dia em UTC antes de virar aqui. */
-  const [primeiro, setPrimeiro] = useState(
-    orcamento?.primeiroVencimento ?? campoDaData(somaMeses(new Date(), 1)),
-  );
-  /*
-   * As datas escolhidas parcela a parcela.
-   *
-   * Vazio = seguir o atalho (primeiro vencimento + intervalo). Quando a
-   * pessoa mexe numa data, ela passa a mandar naquela parcela — a cliente
-   * combina "uma em dezembro e outra só em fevereiro" e o app tem de
-   * conseguir escrever isso.
-   */
-  const [datas, setDatas] = useState<Record<number, string>>({});
-
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
 
@@ -258,7 +219,6 @@ export function NovaVenda({
     buscarCarteirasDaVendaAction().then((r) => {
       if (r.ok) {
         setCarteiras(r.data);
-        if (r.data[0]) setCarteiraId(r.data[0].id);
       }
     });
   }, []);
@@ -295,6 +255,16 @@ export function NovaVenda({
     return { subtotal, desc, total, pago, saldo, troco: r2(Math.max(0, pago - total)) };
   }, [itens, descontoPct, pagos, edicao]);
 
+  /* O crediário do que sobrar. Um mês a partir de hoje, em hora LOCAL: com
+     `toISOString` o vencimento saltava um dia toda noite depois das 21h — é o
+     fuso de Brasília virando o dia em UTC antes de virar aqui. */
+  const parc = useParcelamento({
+    total: contas.saldo,
+    parcelasIniciais: String(orcamento?.parcelas ?? 1),
+    intervaloInicial: orcamento?.intervaloParcelas ?? "mes",
+    primeiroInicial: orcamento?.primeiroVencimento ?? campoDaData(somaMeses(new Date(), 1)),
+  });
+
   /* Só quem vê financeiro tem `custo`; para a vendedora o total fica nulo e
      a linha de custo nem aparece. */
   const custoEmbalagem = useMemo(() => {
@@ -309,25 +279,6 @@ export function NovaVenda({
     }
     return temCusto ? r2(soma) : null;
   }, [usados, insumos]);
-
-  /* A data da parcela k: a escolhida à mão, ou a do atalho. */
-  function dataDaParcela(k: number): string {
-    const escolhida = datas[k];
-    if (escolhida) return escolhida;
-    const base = new Date(primeiro + "T12:00:00");
-    if (k === 0) return campoDaData(base);
-    if (intervalo === "semana") return campoDaData(somaDias(base, 7 * k));
-    if (intervalo === "quinzena") return campoDaData(somaDias(base, 15 * k));
-    return campoDaData(somaMeses(base, k));
-  }
-
-  /* O valor de cada parcela, com a sobra de centavos na ÚLTIMA — a mesma
-     conta que o servidor refaz na hora de gravar. */
-  function valorDaParcela(k: number, n: number): number {
-    const base = Math.floor((contas.saldo / n) * 100) / 100;
-    const sobra = r2(contas.saldo - base * n);
-    return k === n - 1 ? r2(base + sobra) : base;
-  }
 
   function mexerInsumo(pecaId: string, delta: number) {
     setUsados((a) => {
@@ -357,8 +308,10 @@ export function NovaVenda({
       setAviso("Adicione ao menos uma peça.");
       return;
     }
-    if (contas.saldo > 0.005 && Number(parcelas) < 1) {
-      setAviso("Informe em quantas vezes o saldo será pago.");
+    if (contas.saldo > 0.005 && !parc.confere) {
+      setAviso(
+        "As parcelas não fecham com o que falta pagar. Ajuste os valores até a diferença zerar, ou use “Dividir por igual”.",
+      );
       return;
     }
 
@@ -377,13 +330,11 @@ export function NovaVenda({
         aPrazo:
           contas.saldo > 0.005
             ? {
-                parcelas: Number(parcelas) || 1,
-                intervalo,
-                primeiroVencimento: new Date(primeiro + "T12:00:00"),
-                vencimentos: Array.from(
-                  { length: Number(parcelas) || 1 },
-                  (_, k) => new Date(dataDaParcela(k) + "T12:00:00"),
-                ),
+                parcelas: parc.n,
+                intervalo: parc.intervalo,
+                primeiroVencimento: new Date(parc.primeiro + "T12:00:00"),
+                vencimentos: parc.lista.map((x) => new Date(x.vencimento + "T12:00:00")),
+                valores: parc.lista.map((x) => x.valor),
               }
             : null,
       };
@@ -415,18 +366,18 @@ export function NovaVenda({
           forma: p.forma,
           valor: ix === pagos.length - 1 ? r2(p.valor - contas.troco) : p.valor,
           parcelas: p.parcelas ?? 1,
-          carteiraId: carteiraId || null,
+          carteiraId: p.carteiraId || null,
+          comprovanteId: p.comprovanteId ?? null,
+          taxaPct: p.taxaPct ?? null,
         })).filter((p) => p.valor > 0),
         aPrazo:
           contas.saldo > 0.005
             ? {
-                parcelas: Number(parcelas) || 1,
-                intervalo,
-                primeiroVencimento: new Date(primeiro + "T12:00:00"),
-                vencimentos: Array.from(
-                  { length: Number(parcelas) || 1 },
-                  (_, k) => new Date(dataDaParcela(k) + "T12:00:00"),
-                ),
+                parcelas: parc.n,
+                intervalo: parc.intervalo,
+                primeiroVencimento: new Date(parc.primeiro + "T12:00:00"),
+                vencimentos: parc.lista.map((x) => new Date(x.vencimento + "T12:00:00")),
+                valores: parc.lista.map((x) => x.valor),
               }
             : null,
         // O orçamento vira Aprovado na MESMA transação da venda.
@@ -855,294 +806,19 @@ export function NovaVenda({
             {editando ? "Pagamento" : "Como pagou"}
           </h2>
 
-          {/* Na edição o dinheiro é FATO CONSUMADO: ele já entrou, já caiu numa
-              carteira e já tem comprovante pendente ou não. Mexer nele aqui
-              seria reescrever a história do caixa. */}
-          {editando && (
-            <p className="rounded-lg border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
-              Já recebido: <strong className="text-foreground">{brl(contas.pago)}</strong>. Para
-              desfazer um valor, use “remover recebimento” na ficha da venda.
-            </p>
-          )}
-
-          {!editando && (
-          <>
-          {/* Só aparece quando há dinheiro entrando AGORA e a pessoa pode ver
-              o financeiro. Perguntar "onde entrou" antes de existir entrada
-              seria pergunta sem assunto. */}
-          {carteiras.length > 0 && contas.pago > 0 && (
-            <div className="space-y-1.5">
-              <Label htmlFor="carteira-venda">Onde o dinheiro entrou</Label>
-              <select
-                id="carteira-venda"
-                className="h-10 w-full rounded-lg border bg-card px-3 text-sm"
-                value={carteiraId}
-                onChange={(e) => setCarteiraId(e.target.value)}
-              >
-                {carteiras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} · {brl(c.saldo)}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Carteira é onde o dinheiro está, não como a cliente pagou.
-              </p>
-            </div>
-          )}
-
-          {pagos.length > 0 && (
-            <ul className="divide-y rounded-lg border">
-              {pagos.map((p, ix) => (
-                <li key={ix} className="flex items-center gap-2 px-3 py-2 text-sm">
-                  <span className="flex-1">
-                    {FORMAS.find((f) => f[0] === p.forma)?.[1]}
-                    {p.parcelas && p.parcelas > 1 ? ` · ${p.parcelas}x` : ""}
-                  </span>
-                  <span className="tabular-nums">{brl(p.valor)}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Remover pagamento"
-                    onClick={() => setPagos((a) => a.filter((_, i) => i !== ix))}
-                  >
-                    <XIcon weight="regular" className="size-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="flex flex-wrap gap-1">
-            {FORMAS.map(([v, r]) => (
-              <Button
-                variant="ghost"
-                key={v}
-                type="button"
-                aria-pressed={formaNova === v}
-                onClick={() => setFormaNova(v)}
-                className={cn(
-                  "h-auto gap-0 p-0 whitespace-normal rounded-full border border-border px-3 py-1.5 text-xs font-medium",
-                  formaNova === v
-                    ? "border-foreground bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {r}
-              </Button>
-            ))}
-          </div>
-
-          {formaNova === "CREDITO" && (
-            <SeletorDeVezes
-              id="vezes-cartao"
-              rotulo="Em quantas vezes no cartão"
-              valor={vezesCartao}
-              aoMudar={setVezesCartao}
-            />
-          )}
-
-          <div className="flex gap-2">
-            <Input
-              aria-label="Valor pago"
-              inputMode="decimal"
-              value={valorNovo}
-              onChange={(e) => setValorNovo(e.target.value)}
-              placeholder={contas.saldo > 0 ? brl(contas.saldo).replace("R$ ", "") : "0,00"}
-              className="flex-1 text-base"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                const v = paraNumero(valorNovo) || contas.saldo;
-                if (v <= 0) return;
-                const pago = novoPago(v);
-                setPagos((a) => [...a, pago]);
-                setValorNovo("");
-                setVezesCartao("1");
-              }}
-            >
-              Adicionar
-            </Button>
-          </div>
-
-          {/*
-            O caminho mais comum da loja é "pagou tudo agora". Digitar o valor
-            que a própria tela já mostra logo acima é trabalho à toa — e é onde
-            nasce o centavo errado.
-          */}
-          {contas.saldo > 0.005 && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                const pago = novoPago(contas.saldo);
-                setPagos((a) => [...a, pago]);
-                setValorNovo("");
-                setVezesCartao("1");
-              }}
-            >
-              Pagou tudo · {brl(contas.saldo)} em{" "}
-              {FORMAS.find((x) => x[0] === formaNova)?.[1].toLowerCase()}
-              {formaNova === "CREDITO" && Number(vezesCartao) > 1 ? ` ${vezesCartao}x` : ""}
-            </Button>
-          )}
-          {contas.saldo > 0.005 && pagos.length === 0 && (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Vai parcelar com a loja (crediário)? Não lance pagamento — ou lance só a entrada. O que
-              faltar vira parcelas logo abaixo.
-            </p>
-          )}
-
-          </>
-          )}
-
-          <dl className="space-y-1.5 border-t pt-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Pago</dt>
-              <dd className="tabular-nums">{brl(contas.pago)}</dd>
-            </div>
-            {contas.troco > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Troco</dt>
-                <dd className="tabular-nums">{brl(contas.troco)}</dd>
-              </div>
-            )}
-            <div className="flex items-baseline justify-between border-t pt-2">
-              <dt className="font-semibold">Falta</dt>
-              <dd
-                className={cn(
-                  "text-lg font-bold tabular-nums",
-                  contas.saldo > 0 && "text-destructive",
-                )}
-              >
-                {brl(contas.saldo)}
-              </dd>
-            </div>
-          </dl>
-
-          {/* O parcelamento só aparece quando de fato sobrou saldo. */}
-          {contas.saldo > 0.005 && (
-            <div className="space-y-3 rounded-lg border border-dashed p-3">
-              <div>
-                <p className="text-sm font-semibold">Parcelar no crediário</p>
-                <p className="text-xs text-muted-foreground">
-                  Faltam {brl(contas.saldo)}. Cada parcela entra no Financeiro, em contas a receber.
-                </p>
-              </div>
-
-              <SeletorDeVezes
-                id="parcelas"
-                rotulo="Em quantas vezes"
-                valor={parcelas}
-                aoMudar={(n) => {
-                  setParcelas(n);
-                  /* Mudou a quantidade: as datas escolhidas à mão para
-                     parcelas que deixaram de existir vão junto, senão
-                     ressuscitam quando ele aumentar o número de novo. */
-                  setDatas((a) => {
-                    const out: Record<number, string> = {};
-                    for (const [k, v] of Object.entries(a)) {
-                      if (Number(k) < (Number(n) || 1)) out[Number(k)] = v;
-                    }
-                    return out;
-                  });
-                }}
-              />
-
-              <div className="grid grid-cols-1 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="intervalo" className="text-xs">
-                    A cada
-                  </Label>
-                  <Seletor
-                    id="intervalo"
-                    className="h-10 w-full rounded-lg border bg-card px-2 text-sm"
-                    value={intervalo}
-                    onValueChange={(valor) => {
-                      setIntervalo(valor as typeof intervalo);
-                      setDatas({});
-                    }}
-                    opcoes={[
-                      { value: "mes", label: "Mês" },
-                      { value: "quinzena", label: "15 dias" },
-                      { value: "semana", label: "Semana" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="primeiro" className="text-xs">
-                  Primeiro vencimento
-                </Label>
-                <Input
-                  id="primeiro"
-                  type="date"
-                  value={primeiro}
-                  onChange={(e) => {
-                    setPrimeiro(e.target.value);
-                    setDatas({});
-                  }}
-                  className="text-base"
-                />
-              </div>
-
-              {/*
-                Cada parcela com a SUA data, editável.
-                Os campos de cima são o atalho ("3x, todo dia 10"); esta lista é
-                a combinação de verdade. A cliente que pede "uma em dezembro e a
-                outra só em fevereiro" existe, e o app tem de conseguir
-                escrever isso sem inventar um intervalo que ninguém combinou.
-              */}
-              <div className="space-y-1.5 border-t pt-3">
-                <p className="text-xs font-medium">
-                  {parcelas}× de <strong>{brl(valorDaParcela(0, Number(parcelas) || 1))}</strong>
-                  {Number(parcelas) > 1 && (
-                    <span className="font-normal text-muted-foreground">
-                      {" "}
-                      · a última fica {brl(valorDaParcela(Number(parcelas) - 1, Number(parcelas)))}
-                    </span>
-                  )}
-                </p>
-
-                <ul className="max-h-64 space-y-1.5 overflow-y-auto">
-                  {Array.from({ length: Number(parcelas) || 1 }, (_, k) => (
-                    <li key={k} className="flex items-center gap-2">
-                      <span className="w-14 shrink-0 text-xs text-muted-foreground">
-                        {k + 1}/{parcelas}
-                      </span>
-                      <Input
-                        type="date"
-                        aria-label={`Vencimento da parcela ${k + 1}`}
-                        value={dataDaParcela(k)}
-                        onChange={(e) =>
-                          setDatas((a) => ({ ...a, [k]: e.target.value }))
-                        }
-                        className="h-9 flex-1 text-sm"
-                      />
-                      <span className="w-24 shrink-0 text-right text-sm tabular-nums">
-                        {brl(valorDaParcela(k, Number(parcelas) || 1))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {Object.keys(datas).length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setDatas({})}
-                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                  >
-                    Voltar para as datas automáticas
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          <PagamentoDaVenda
+            total={contas.total}
+            pago={contas.pago}
+            saldo={contas.saldo}
+            troco={contas.troco}
+            pagos={pagos}
+            setPagos={setPagos}
+            carteiras={carteiras}
+            parc={parc}
+            editando={editando}
+            formaInicial={orcamento?.formaPagamento ?? "DINHEIRO"}
+            entradaSugerida={orcamento?.entrada ?? null}
+          />
         </Card>
 
         <Card as="section" className="block overflow-visible py-0 text-base space-y-3 p-4">
@@ -1179,61 +855,9 @@ export function NovaVenda({
           <p className="text-center text-xs text-muted-foreground">
             {editando
               ? "As parcelas em aberto são refeitas com o novo saldo. As já pagas ficam como estão."
-              : "Pix, débito e crédito ficam pendentes de comprovante — dá para anexar depois."}
+              : "O comprovante do Pix, débito e crédito pode vir depois: até lá, esse valor fica fora do caixa."}
           </p>
         </Card>
-      </div>
-    </div>
-  );
-}
-
-/*
- * Em quantas vezes: atalhos de 1x a 12x e um campo para qualquer número. Serve
- * aos dois parcelamentos — o do cartão (a maquininha parcela) e o do crediário
- * (a loja parcela) —, que são coisas diferentes no dinheiro mas iguais na tela.
- */
-function SeletorDeVezes({
-  id,
-  rotulo,
-  valor,
-  aoMudar,
-}: {
-  id: string;
-  rotulo: string;
-  valor: string;
-  aoMudar: (n: string) => void;
-}) {
-  const n = Number(valor) || 1;
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs">
-        {rotulo}
-      </Label>
-      <div className="flex flex-wrap items-center gap-1">
-        {ATALHOS_PARCELAS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            aria-pressed={n === k}
-            onClick={() => aoMudar(String(k))}
-            className={cn(
-              "min-w-9 rounded-full border px-2 py-1 text-xs font-medium tabular-nums transition-colors",
-              n === k
-                ? "border-foreground bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {k}x
-          </button>
-        ))}
-        <Input
-          id={id}
-          inputMode="numeric"
-          aria-label={`${rotulo}: outro número`}
-          value={valor}
-          onChange={(e) => aoMudar(e.target.value.replace(/\D/g, "").slice(0, 2) || "1")}
-          className="h-8 w-16 text-center text-base"
-        />
       </div>
     </div>
   );

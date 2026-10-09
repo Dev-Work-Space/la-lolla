@@ -59,6 +59,8 @@ export default async function EditarOrcamentoPage({
           formaPagamento: o.formaPagamento,
           parcelas: o.parcelas,
           primeiroVencimento: o.primeiroVencimento ? campoDaData(o.primeiroVencimento) : null,
+          entrada: o.entrada,
+          intervaloParcelas: o.intervaloParcelas,
           itens: o.itens.map((i) => ({
             pecaId: i.pecaId,
             sku: i.sku,

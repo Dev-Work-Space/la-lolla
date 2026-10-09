@@ -4,6 +4,7 @@ import { ArrowDownRightIcon, ArrowUpRightIcon, ArrowsLeftRightIcon, XIcon } from
 import { brl, data as fData, hora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Lista, Vazio } from "@/components/padrao/indicadores";
+import { VerComprovante } from "./ver-comprovante";
 import { movimentoDoPeriodo, resumoMensal, type CarteiraSaldo, type MovimentoCaixa } from "../financeiro.service";
 import { datasDaBarra, ehAgrupar, grupoDe, periodoDaUrl, type Atalho } from "../periodo";
 import { FormLancamento } from "./form-lancamento";
@@ -307,11 +308,17 @@ function LinhaDoExtrato({ l, comData }: { l: MovimentoCaixa; comData: boolean })
     </>
   );
 
-  return l.href ? (
-    <Link href={l.href} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40">
-      {corpo}
-    </Link>
-  ) : (
-    <div className="flex items-center gap-3 px-3 py-2.5">{corpo}</div>
+  /* O comprovante fica FORA do link da linha: botão dentro de link não pode. */
+  return (
+    <div className="flex items-center gap-1 pr-2 hover:bg-accent/40">
+      {l.href ? (
+        <Link href={l.href} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
+          {corpo}
+        </Link>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">{corpo}</div>
+      )}
+      {l.comprovanteId && <VerComprovante id={l.comprovanteId} rotulo="Comprovante" />}
+    </div>
   );
 }

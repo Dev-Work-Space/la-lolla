@@ -27,15 +27,32 @@ const compraSchema = z.object({
       }),
     )
     .min(1, "Adicione ao menos um item"),
-  pagamento: z.discriminatedUnion("tipo", [
-    z.object({ tipo: z.literal("avista"), carteiraId: z.string().min(1, "Escolha a carteira") }),
-    z.object({
-      tipo: z.literal("prazo"),
-      parcelas: z.coerce.number().int().min(1).max(36),
-      intervalo: z.enum(["mes", "quinzena", "semana"]),
-      primeiroVencimento: z.coerce.date(),
-    }),
-  ]),
+  /*
+   * Duas partes, e pode ter uma só ou as duas: `agora` (o que sai da carteira
+   * hoje — o total à vista ou a entrada) e `prazo` (o resto em parcelas).
+   * Quem confere se as duas fecham o total é o serviço.
+   */
+  pagamento: z.object({
+    agora: z
+      .object({
+        valor: z.coerce.number().positive("Informe o valor pago agora"),
+        carteiraId: z.string().min(1, "Escolha a carteira"),
+        /* Obrigatório fora do dinheiro vivo — quem barra é o serviço. */
+        comprovanteId: z.string().trim().max(40).optional().nullable(),
+      })
+      .optional()
+      .nullable(),
+    prazo: z
+      .object({
+        parcelas: z.coerce.number().int().min(1).max(36),
+        intervalo: z.enum(["mes", "quinzena", "semana"]),
+        primeiroVencimento: z.coerce.date(),
+        vencimentos: z.array(z.coerce.date()).max(36).optional().nullable(),
+        valores: z.array(z.coerce.number().min(0.01)).max(36).optional().nullable(),
+      })
+      .optional()
+      .nullable(),
+  }),
 });
 
 export type CompraInput = z.input<typeof compraSchema>;

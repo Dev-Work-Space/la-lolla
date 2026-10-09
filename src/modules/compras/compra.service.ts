@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio, NaoEncontrado } from "@/lib/errors";
 import { vencimentoParcela, type Intervalo } from "@/modules/vendas/venda.service";
+import { comprovanteExiste } from "@/modules/financeiro/comprovante.service";
+import { dividirEmParcelas, valoresValidos } from "@/lib/parcelas";
 
 /*
  * PORTAL DE COMPRAS.
@@ -37,10 +39,25 @@ export type CompraEntrada = {
   fornecedorId: string;
   itens: ItemCompraEntrada[];
   observacao?: string | null;
-  /** À vista sai do caixa agora; a prazo vira conta a pagar. */
-  pagamento:
-    | { tipo: "avista"; carteiraId: string }
-    | { tipo: "prazo"; parcelas: number; intervalo: Intervalo; primeiroVencimento: Date };
+  /**
+   * Como se paga. DUAS partes, e pode ter uma só ou as duas:
+   *   - `agora`: o que sai da carteira hoje — o total à vista, ou a ENTRADA;
+   *   - `prazo`: o resto, em parcelas no contas a pagar.
+   * Sem `prazo`, `agora` tem de ser o total. Com `prazo`, `agora` (se houver)
+   * é a entrada, e as parcelas somam o que falta.
+   */
+  pagamento: {
+    agora?: { valor: number; carteiraId: string; comprovanteId?: string | null } | null;
+    prazo?: {
+      parcelas: number;
+      intervalo: Intervalo;
+      primeiroVencimento: Date;
+      /** Uma data por parcela, quando a pessoa escolheu uma a uma. */
+      vencimentos?: Date[] | null;
+      /** O valor de cada parcela, quando escolhido à mão. */
+      valores?: number[] | null;
+    } | null;
+  };
 };
 
 /**
@@ -112,22 +129,49 @@ export async function registrarCompra(entrada: CompraEntrada) {
       }
     }
 
-    if (entrada.pagamento.tipo === "avista") {
-      const c = await tx.carteira.findUnique({
-        where: { id: entrada.pagamento.carteiraId },
-        select: { id: true },
-      });
+    const total = r2(entrada.itens.reduce((s, i) => s + i.custoUnit * i.quantidade, 0));
+    if (total <= 0) {
+      throw new ErroDominio("REGRA_NEGOCIO", "O total da compra precisa ser maior que zero.");
+    }
+
+    const { agora, prazo } = entrada.pagamento;
+    const entradaValor = agora ? r2(agora.valor) : 0;
+    if (!agora && !prazo) {
+      throw new ErroDominio("REGRA_NEGOCIO", "Diga como a compra será paga: agora, em parcelas, ou entrada mais parcelas.");
+    }
+    /* Só a gaveta (dinheiro vivo) sai do caixa sem papel; o resto espera o comprovante. */
+    let saidaPedeComprovante = false;
+    if (agora) {
+      const c = await tx.carteira.findUnique({ where: { id: agora.carteiraId }, select: { id: true, tipo: true } });
       if (!c) {
         throw new ErroDominio(
           "DADOS_INVALIDOS",
           "Escolha de qual carteira o dinheiro saiu — a compra precisa aparecer no caixa.",
         );
       }
+      if (entradaValor <= 0) throw new ErroDominio("DADOS_INVALIDOS", "O valor pago agora precisa ser maior que zero.");
+      if (agora.comprovanteId && !(await comprovanteExiste(agora.comprovanteId))) {
+        throw new ErroDominio("REGRA_NEGOCIO", "Não achei esse comprovante. Anexe a foto de novo.");
+      }
+      saidaPedeComprovante = c.tipo !== "ESPECIE";
     }
-
-    const total = r2(entrada.itens.reduce((s, i) => s + i.custoUnit * i.quantidade, 0));
-    if (total <= 0) {
-      throw new ErroDominio("REGRA_NEGOCIO", "O total da compra precisa ser maior que zero.");
+    const saldoAPrazo = r2(total - entradaValor);
+    if (entradaValor > total + 0.005) {
+      throw new ErroDominio("REGRA_NEGOCIO", `O valor pago agora (${entradaValor.toFixed(2)}) é maior que o total da compra (${total.toFixed(2)}).`);
+    }
+    if (prazo && saldoAPrazo <= 0.005) {
+      throw new ErroDominio("REGRA_NEGOCIO", "A entrada já cobre o total: tire as parcelas ou diminua a entrada.");
+    }
+    if (!prazo && saldoAPrazo > 0.005) {
+      throw new ErroDominio("REGRA_NEGOCIO", `Faltam ${saldoAPrazo.toFixed(2)} para pagar. Parcele o resto ou aumente o valor pago agora.`);
+    }
+    if (prazo?.valores?.length && !valoresValidos(saldoAPrazo, prazo.parcelas, prazo.valores)) {
+      throw new ErroDominio(
+        "REGRA_NEGOCIO",
+        `As parcelas não fecham: o que falta pagar é ${saldoAPrazo.toFixed(2)} e as parcelas somam ${prazo.valores
+          .reduce((s, v) => s + v, 0)
+          .toFixed(2)}. Ajuste os valores até a diferença zerar.`,
+      );
     }
 
     /* ── 2. a compra e os itens ── */
@@ -135,9 +179,8 @@ export async function registrarCompra(entrada: CompraEntrada) {
       data: {
         fornecedorId: fornecedor.id,
         total: dec(total),
-        aPrazo: entrada.pagamento.tipo === "prazo",
-        vencimento:
-          entrada.pagamento.tipo === "prazo" ? entrada.pagamento.primeiroVencimento : null,
+        aPrazo: Boolean(prazo),
+        vencimento: prazo ? prazo.primeiroVencimento : null,
         observacao: entrada.observacao || null,
         itens: {
           create: entrada.itens.map((i) => ({
@@ -175,27 +218,31 @@ export async function registrarCompra(entrada: CompraEntrada) {
           // calcula o que se deve por peças antigas e o que é "nunca
           // comprada" (documentação, seção 15).
           totalRecebido: { increment: i.quantidade },
-          // À vista já sai pago; a prazo fica devendo e a peça acende
-          // "A pagar" no catálogo.
-          pagoFornecedor: entrada.pagamento.tipo === "avista",
+          // À vista já sai pago; com parcela, fica devendo.
+          pagoFornecedor: !prazo,
         },
       });
     }
 
     /* ── 4. o dinheiro (regra 2.12) ── */
-    if (entrada.pagamento.tipo === "avista") {
+    if (agora) {
+      // O que sai da carteira hoje: o total à vista, ou só a entrada.
       await tx.lancamento.create({
         data: {
-          carteiraId: entrada.pagamento.carteiraId,
-          descricao: `Compra #${compra.numero} · ${fornecedor.nome}`,
-          valor: dec(-total), // saída é negativa
+          carteiraId: agora.carteiraId,
+          descricao: `Compra #${compra.numero} · ${fornecedor.nome}${prazo ? " · entrada" : ""}`,
+          valor: dec(-entradaValor), // saída é negativa
           categoria: "Mercadoria",
+          comprovanteId: agora.comprovanteId || null,
+          exigeComprovante: saidaPedeComprovante,
         },
       });
-    } else {
-      const { parcelas, intervalo, primeiroVencimento } = entrada.pagamento;
-      const base = Math.floor((total / parcelas) * 100) / 100;
-      const sobra = r2(total - base * parcelas);
+    }
+    if (prazo) {
+      const { parcelas, intervalo, primeiroVencimento, vencimentos } = prazo;
+      // Sobra de centavos na ÚLTIMA parcela (documentação, seção 15) — a menos
+      // que os valores tenham sido escolhidos à mão.
+      const valores = prazo.valores?.length ? prazo.valores.map(r2) : dividirEmParcelas(saldoAPrazo, parcelas);
 
       for (let k = 0; k < parcelas; k++) {
         await tx.conta.create({
@@ -206,10 +253,11 @@ export async function registrarCompra(entrada: CompraEntrada) {
               parcelas > 1
                 ? `Compra #${compra.numero} · ${fornecedor.nome} · ${k + 1}/${parcelas}`
                 : `Compra #${compra.numero} · ${fornecedor.nome}`,
-            // Sobra de centavos na ÚLTIMA parcela (documentação, seção 15).
-            valor: dec(k === parcelas - 1 ? base + sobra : base),
+            valor: dec(valores[k]),
+            /* Data escolhida parcela a parcela tem prioridade sobre o intervalo. */
             vencimento:
-              k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo),
+              vencimentos?.[k] ??
+              (k === 0 ? primeiroVencimento : vencimentoParcela(primeiroVencimento, k, intervalo)),
             fornecedorId: fornecedor.id,
             compraId: compra.id,
             ...(parcelas > 1 ? { parcela: k + 1, deParcelas: parcelas } : {}),
