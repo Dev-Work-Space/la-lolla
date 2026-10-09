@@ -1171,6 +1171,11 @@ Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
     resposta da consulta" com a API no ar (no terminal, com `curl`, funcionava,
     o que enganou). O CEP passava por sorte. Toda chamada a API pública de
     fora leva um agente próprio (`CABECALHOS_BRASILAPI` em `pessoa.actions.ts`).
+    Na produção a consulta seguiu falhando depois dessa correção (causa não
+    confirmada — sem acesso ao log da Vercel), então `consultarJson` passou a
+    ter tempo limite de 8 s, a gravar no log qual endereço respondeu o quê, e a
+    cair numa reserva: Minha Receita (a base da própria BrasilAPI) para CNPJ e
+    ViaCEP para CEP. 404 e 400 encerram a busca como "não existe".
 
 
 ---
