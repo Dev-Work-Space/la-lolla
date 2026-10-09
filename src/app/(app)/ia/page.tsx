@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { exigirSessao } from "@/lib/auth/guard";
+import { exigirAcessoAssistente, telasPermitidas } from "@/modules/assistente/assistente.acesso";
+import { assistenteConfigurado } from "@/modules/assistente/assistente.config";
 import { TituloTela } from "@/components/padrao/indicadores";
 import { ChatPagina } from "@/modules/assistente/components/chat-pagina";
 
@@ -11,8 +12,8 @@ export const metadata = { title: "IA · LaLolla" };
  * escrever fica sempre à vista, como em qualquer conversa.
  */
 export default async function IaPage() {
-  const sessao = await exigirSessao();
-  if (!sessao.ok) redirect("/login");
+  const sessao = await exigirAcessoAssistente();
+  if (!sessao.ok) redirect(sessao.error.code === "NAO_AUTENTICADO" ? "/login" : "/");
 
   return (
     <main
@@ -22,12 +23,11 @@ export default async function IaPage() {
       }
     >
       <TituloTela secao="Assistente" titulo="IA" />
-      {process.env.GEMINI_API_KEY ? (
-        <ChatPagina />
+      {assistenteConfigurado() ? (
+        <ChatPagina telas={telasPermitidas(sessao.data)} />
       ) : (
         <p className="rounded-xl border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
-          O assistente ainda não está ligado: falta a chave do Gemini no servidor. Peça a quem cuida do app
-          para configurar <code>GEMINI_API_KEY</code>.
+          Assistente não configurado. Peça a quem cuida do app para habilitá-lo.
         </p>
       )}
     </main>

@@ -1,25 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { FileTextIcon, TrashIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { enviarMensagemAction, resumirTelaAction } from "../assistente.actions";
+import { enviarMensagemAction } from "../assistente.actions";
 import { ChatMensagens } from "./chat-mensagens";
 import { ChatInput } from "./chat-input";
-import type { Mensagem, Tela } from "../assistente.schemas";
-
-/*
- * O assistente numa tela própria (Início › IA).
- *
- * Antes ele era um robô flutuando no canto de todas as telas, com um botão
- * "resumir esta página". O João pediu o assistente como opção do menu e sem o
- * ícone (08/10/2026). Sem página por baixo, o "resumir" virou uma fileira:
- * escolhe-se QUAL tela resumir.
- *
- * As peças são as mesmas do chat flutuante (mensagens, campo e as duas
- * actions), só o arranjo muda.
- */
+import { MAX_HISTORICO, MAX_RESPOSTA, MAX_TEXTO_HISTORICO, type EntradaAssistente, type Mensagem, type Tela } from "../assistente.schemas";
 
 const TELAS: ReadonlyArray<readonly [Tela, string]> = [
   ["inicio", "Início"],
@@ -37,46 +25,74 @@ const SUGESTOES = [
   "Qual peça mais vendeu este ano?",
 ];
 
-export function ChatPagina() {
+function historicoLimitado(mensagens: Mensagem[]): Mensagem[] {
+  const recentes: Mensagem[] = [];
+  let tamanho = 0;
+  for (const m of mensagens.slice(-MAX_HISTORICO).reverse()) {
+    const texto = m.texto.slice(0, MAX_RESPOSTA);
+    if (tamanho + texto.length > MAX_TEXTO_HISTORICO) break;
+    recentes.unshift({ ...m, texto });
+    tamanho += texto.length;
+  }
+  return recentes;
+}
+
+export function ChatPagina({ telas }: { telas: Tela[] }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [valor, setValor] = useState("");
   const [digitando, setDigitando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const geracao = useRef(0);
+  const ocupado = useRef(false);
+  const telasVisiveis = TELAS.filter(([tela]) => telas.includes(tela));
 
-  const perguntar = useCallback(
-    async (texto: string) => {
-      const pergunta = texto.trim();
-      if (!pergunta || digitando) return;
-      const antes = mensagens;
-      setMensagens([...antes, { papel: "user", texto: pergunta }]);
-      setValor("");
-      setDigitando(true);
-      setErro(null);
-      // Vai só o histórico ANTERIOR: a pergunta de agora segue à parte.
-      const r = await enviarMensagemAction({ mensagem: pergunta, historico: antes });
-      setDigitando(false);
-      if (!r.ok) return setErro(r.error.message);
-      setMensagens((m) => [...m, { papel: "model", texto: r.data.resposta }]);
-    },
-    [digitando, mensagens],
-  );
+  const limpar = useCallback(() => {
+    geracao.current++;
+    ocupado.current = false;
+    setMensagens([]);
+    setValor("");
+    setErro(null);
+    setDigitando(false);
+  }, []);
 
-  const resumir = useCallback(
-    async (tela: Tela, nome: string) => {
-      if (digitando) return;
-      setDigitando(true);
-      setErro(null);
-      const r = await resumirTelaAction({ tela });
-      setDigitando(false);
-      if (!r.ok) return setErro(r.error.message);
-      setMensagens((m) => [
-        ...m,
-        { papel: "user", texto: `\u{1F4C4} Resumo: ${nome}` },
-        { papel: "model", texto: r.data.resposta },
-      ]);
-    },
-    [digitando],
-  );
+  // React Activity pode preservar a página no cache do Next. A limpeza dos
+  // efeitos também ocorre quando ela sai de vista: a conversa não reaparece.
+  useEffect(() => () => limpar(), [limpar]);
+
+  const enviar = useCallback((entrada: EntradaAssistente, texto: string) => {
+    if (ocupado.current) return;
+    ocupado.current = true;
+    const requisicao = ++geracao.current;
+    setMensagens((m) => historicoLimitado([...m, { papel: "user", texto }]));
+    setValor("");
+    setDigitando(true);
+    setErro(null);
+    startTransition(async () => {
+      try {
+        const r = await enviarMensagemAction(entrada);
+        if (requisicao !== geracao.current) return;
+        if (!r.ok) setErro(r.error.message);
+        else setMensagens((m) => historicoLimitado([...m, { papel: "model", texto: r.data.resposta }]));
+      } catch {
+        if (requisicao === geracao.current) setErro("Não foi possível enviar a mensagem. Tente novamente.");
+      } finally {
+        if (requisicao === geracao.current) {
+          ocupado.current = false;
+          setDigitando(false);
+        }
+      }
+    });
+  }, []);
+
+  const perguntar = useCallback((texto: string) => {
+    const mensagem = texto.trim();
+    if (!mensagem) return;
+    enviar({ modo: "chat", mensagem, historico: historicoLimitado(mensagens) }, mensagem);
+  }, [enviar, mensagens]);
+
+  const resumir = useCallback((tela: Tela, nome: string) => {
+    enviar({ modo: "resumo", tela }, `\u{1F4C4} Resumo: ${nome}`);
+  }, [enviar]);
 
   const vazio = mensagens.length === 0 && !digitando;
 
@@ -105,7 +121,7 @@ export function ChatPagina() {
 
           <p className="mt-5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Resumir uma tela</p>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TELAS.map(([tela, nome]) => (
+            {telasVisiveis.map(([tela, nome]) => (
               <button
                 key={tela}
                 type="button"
@@ -130,7 +146,7 @@ export function ChatPagina() {
             {/* Com a conversa andando, os resumos continuam à mão: fileira
                 que rola de lado em vez de ocupar a tela. */}
             <div className="-mx-1 flex min-w-0 gap-1.5 overflow-x-auto px-1 py-0.5">
-              {TELAS.map(([tela, nome]) => (
+              {telasVisiveis.map(([tela, nome]) => (
                 <button
                   key={tela}
                   type="button"
@@ -146,11 +162,7 @@ export function ChatPagina() {
               variant="ghost"
               size="sm"
               className="shrink-0 text-muted-foreground"
-              onClick={() => {
-                setMensagens([]);
-                setErro(null);
-                setValor("");
-              }}
+              onClick={limpar}
             >
               <TrashIcon className="size-4" aria-hidden />
               Limpar
