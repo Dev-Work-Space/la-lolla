@@ -192,3 +192,4 @@ estiverem quebrados por motivo não relacionado.
   compartilhado em `src/lib` ou `src/components`), avise em "Riscos".
 - Se a tarefa for grande ou mexer em schema, financeiro ou permissões, proponha
   um plano curto e espere confirmação antes de implementar.
+
