@@ -10,14 +10,18 @@ A página `/ia` usa uma Server Action para perguntas e resumos, sem streaming ou
 - `assistente.conversa.ts`: instrução comum, loop, fallback, cache da requisição e logs sanitizados.
 - `assistente.ferramentas.ts`: consultas Prisma de leitura, projeções públicas e formatação Decimal.
 - `assistente.acesso.ts`, `assistente.config.ts`, `assistente.limites.ts`, `assistente.periodos.ts`: acesso, configuração, limites e calendário da loja.
-- `provedores/`: contrato neutro, fábrica e adaptadores Grok/Gemini. Continuação nativa fica apenas no adaptador do turno.
+- `provedores/`: contrato neutro, fábrica e adaptadores Groq, Grok/xAI e Gemini. Continuação nativa fica apenas no adaptador do turno.
 - `components/chat-pagina.tsx`, `chat-input.tsx`: envio, filtragem de resumos, espera e descarte de respostas obsoletas. Estilos e ícones preservados.
 - `src/app/(app)/ia/page.tsx`, `src/app/(app)/layout.tsx`: proteção da rota e disponibilidade do menu.
 - `.env.example`: configurações documentadas, sem chaves reais.
 
 ## Configuração
 
-Preencha as chaves e modelos no ambiente do servidor conforme `.env.example`. Não há modelo fixo como reserva: um provedor precisa de chave e modelo. `ASSISTENTE_PROVEDORES` controla a ordem, por padrão `grok,gemini`; nomes desconhecidos e repetições são ignorados. Nenhum provedor configurado: menu oculto e página informa que o assistente não está configurado.
+Preencha as chaves e modelos no ambiente do servidor conforme `.env.example`. Não há modelo fixo como reserva: um provedor precisa de chave e modelo. `ASSISTENTE_PROVEDORES` controla a ordem, por padrão `groq,gemini`; nomes desconhecidos e repetições são ignorados. Nenhum provedor configurado: menu oculto e página informa que o assistente não está configurado.
+
+**Groq e Grok são serviços diferentes.** Para uma chave de `console.groq.com`, use `GROQ_API_KEY`, `GROQ_MODEL` e `ASSISTENTE_PROVEDORES="groq,gemini"`. Se a chave Groq estava em `GROK_API_KEY`, mova-a para o nome correto; não há reutilização automática de credenciais entre serviços. Reinicie o servidor após ajustar o ambiente; em hospedagem, faça novo deploy.
+
+O Groq usa `https://api.groq.com/openai/v1/chat/completions` via `fetch`, com funções locais e sem novo SDK. Escolha um modelo com tool calling na sua conta (por exemplo, `openai/gpt-oss-120b`, listado na [documentação Groq](https://console.groq.com/docs/tool-use/local-tool-calling)). O modelo continua exclusivamente no ambiente.
 
 O Grok usa `https://api.x.ai/v1/responses`, `store: false`, somente funções locais. Gemini usa `@google/genai` já instalado, sem tentativas automáticas do SDK. Referências: [xAI](https://docs.x.ai/developers/rest-api-reference/inference/responses), [Google](https://ai.google.dev/gemini-api/docs/libraries), [Zod](https://zod.dev/json-schema).
 
@@ -50,11 +54,11 @@ npm run build
 node --conditions=react-server --import tsx --test src/modules/assistente/assistente.test.ts
 ```
 
-Os testes isolados usam transporte e ferramentas simulados. Cobrem validação, datas, limites, recusa sem consulta, fallback em erros HTTP/rede/resposta vazia, cache após consulta, timeout total, cooldown, sanitização dos logs e continuação nativa de ambos os adaptadores. Não carregam `.env` nem consultam o banco. O build regenera o cliente Prisma pelo script existente; não aplica migrations.
+Os testes isolados usam transporte e ferramentas simulados. Cobrem validação, datas, limites, recusa sem consulta, fallback em erros HTTP/rede/resposta vazia, cache após consulta, timeout total, cooldown, sanitização dos logs e continuação nativa de os adaptadores. Não carregam `.env` nem consultam o banco. O build regenera o cliente Prisma pelo script existente; não aplica migrations.
 
 ## Validação manual em desenvolvimento
 
-1. Configure um provedor por vez e faça uma pergunta de estoque/vendas. Depois configure ambos e invalide apenas a chave Grok: Gemini deve responder, e o log deve mostrar fallback e status 401/403, sem conteúdo do chat.
+1. Configure um provedor por vez e faça uma pergunta de estoque/vendas. Depois configure Groq e Gemini e invalide apenas a chave Groq: Gemini deve responder, e o log deve mostrar fallback e status 401/403, sem conteúdo do chat.
 2. Sem chaves/modelos, confira menu oculto e acesso direto `/ia` com mensagem de não configurado. Com usuário sem as três permissões, a rota deve redirecionar para Início e a action negar acesso.
 3. Como vendedor sem financeiro, confira ausência do botão Financeiro, recusa a custo/margem/contas e detalhes públicos de peças/compras. Reenvie uma requisição de resumo alterando a tela para financeiro: o servidor deve negar.
 4. Compare os totais com vendas, orçamento, compras e financeiro no mesmo período. Inclua cancelamentos, devoluções, comprovantes pendentes e lançamentos futuros. Para estoque, procure uma peça zerada que não esteja entre os primeiros 30 itens. Totais de vendas não podem mudar ao ultrapassar 500 registros.

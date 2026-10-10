@@ -6,6 +6,9 @@ import { conversar, INSTRUCAO, OCUPADO, protegerTexto, RECUSA, type PedidoConver
 import { entradaSchema, esquemasFerramentas, periodoSchema } from "./assistente.schemas";
 import { intervaloPeriodo } from "./assistente.periodos";
 import { reservarEnvio } from "./assistente.limites";
+import { configuracaoAssistente } from "./assistente.config";
+import { criarProvedores } from "./provedores";
+import { criarGroq } from "./provedores/groq";
 import { criarGrok } from "./provedores/grok";
 import { criarGemini } from "./provedores/gemini";
 import { comPrazo, FalhaProvedor, type PedidoProvedor, type RespostaProvedor } from "./provedores/provedor";
@@ -234,4 +237,89 @@ test("cooldown pula provedor e permite retorno depois da janela", async (t) => {
   await new Promise((resolve) => setTimeout(resolve, 35));
   await conversar(p);
   assert.equal(chamadas, 2);
+});
+
+
+test("configuração separa credenciais Groq/xAI e usa Groq → Gemini por padrão", () => {
+  const ambiente = {
+    GROQ_API_KEY: "chave-groq-teste", GROQ_MODEL: "modelo-groq-teste",
+    GROK_API_KEY: "chave-xai-teste", GROK_MODEL: "modelo-xai-teste",
+    GEMINI_API_KEY: "chave-google-teste", GEMINI_MODEL: "modelo-google-teste",
+  };
+  const padrao = configuracaoAssistente(ambiente);
+  assert.deepEqual(padrao.provedores.map((p) => p.nome), ["groq", "gemini"]);
+  assert.equal(padrao.provedores[0].chave, ambiente.GROQ_API_KEY);
+  assert.equal(padrao.provedores[0].modelo, ambiente.GROQ_MODEL);
+  assert.equal(criarProvedores(padrao.provedores)[0].criar().nome, "groq");
+  const explicita = configuracaoAssistente({ ...ambiente, ASSISTENTE_PROVEDORES: "grok,groq,groq,desconhecido,gemini" });
+  assert.deepEqual(explicita.provedores.map((p) => p.nome), ["grok", "groq", "gemini"]);
+  assert.equal(explicita.provedores[0].chave, ambiente.GROK_API_KEY);
+  assert.equal(criarProvedores(explicita.provedores)[0].criar().nome, "grok");
+  assert.deepEqual(configuracaoAssistente({}).provedores, []);
+  assert.deepEqual(configuracaoAssistente({ GROK_API_KEY: "nao-reutilizar", GROQ_MODEL: "modelo" }).provedores, []);
+  assert.deepEqual(configuracaoAssistente({ GROQ_API_KEY: "chave-sem-modelo" }).provedores, []);
+});
+
+test("Groq usa endpoint e credencial próprios e completa o ciclo de ferramentas", async (t) => {
+  const corpos: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const requisicao = new Request(input, init);
+    assert.equal(requisicao.url, "https://api.groq.com/openai/v1/chat/completions");
+    assert.equal(requisicao.headers.get("Authorization"), "Bearer chave-groq-teste");
+    corpos.push(await requisicao.text());
+    return Response.json({ choices: [{ finish_reason: corpos.length === 1 ? "tool_calls" : "stop", message: corpos.length === 1
+      ? { role: "assistant", content: null, tool_calls: [{ id: "groq-1", type: "function", function: { name: "resumirVendas", arguments: "{}" } }] }
+      : { role: "assistant", content: "Vendas consultadas.", reasoning: "nao-exibir" },
+    }] });
+  });
+  const provedor = criarGroq({ nome: "groq", chave: "chave-groq-teste", modelo: "modelo-groq-teste" });
+  const p = pedidoProvedor();
+  p.mensagens.push({ papel: "contexto", nome: "resumirVendas", resultado: "dados prévios" });
+  const primeira = await provedor.responder(p);
+  assert.deepEqual(primeira.chamadas, [{ id: "groq-1", nome: "resumirVendas", argumentos: {} }]);
+  p.mensagens.push(primeira, { papel: "ferramenta", id: "groq-1", nome: "resumirVendas", resultado: '{"total":"R$ 20,00"}' });
+  assert.deepEqual(await provedor.responder(p), final("Vendas consultadas."));
+  const corpo = z.object({
+    model: z.literal("modelo-groq-teste"), stream: z.literal(false), max_completion_tokens: z.literal(500),
+    messages: z.array(z.object({ role: z.string(), tool_call_id: z.string().optional(), content: z.string().nullable() })),
+    tools: z.array(z.object({ type: z.literal("function"), function: z.object({ name: z.string(), parameters: z.unknown() }) })),
+  }).parse(JSON.parse(corpos[1]));
+  assert.deepEqual(corpo.messages.map((m) => m.role), ["system", "user", "user", "assistant", "tool"]);
+  assert.equal(corpo.messages.at(-1)?.tool_call_id, "groq-1");
+  assert.equal(corpo.tools[0].function.name, "resumirVendas");
+  assert.doesNotMatch(corpos[1], /api.x.ai|web_search|encrypted_content/);
+});
+
+for (const status of [400, 401, 403, 429, 500]) {
+  test(`Groq propaga status ${status} sem expor o corpo de erro`, async (t) => {
+    t.mock.method(globalThis, "fetch", async () => Response.json({ error: { message: "conteudo-sensivel" } }, { status }));
+    const provedor = criarGroq({ nome: "groq", chave: "teste", modelo: "teste" });
+    await assert.rejects(provedor.responder(pedidoProvedor()), (e: unknown) =>
+      e instanceof FalhaProvedor && e.status === status && !e.message.includes("conteudo-sensivel"));
+  });
+}
+
+test("Groq rejeita resposta vazia, truncada e argumentos inválidos", async (t) => {
+  const respostas = [
+    { choices: [{ finish_reason: "stop", message: { role: "assistant", content: "  " } }] },
+    { choices: [{ finish_reason: "length", message: { role: "assistant", content: "incompleto" } }] },
+    { choices: [{ finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "resumirVendas", arguments: "{invalido" } }] } }] },
+  ];
+  t.mock.method(globalThis, "fetch", async () => Response.json(respostas.shift()));
+  const provedor = criarGroq({ nome: "groq", chave: "teste", modelo: "teste" });
+  for (let i = 0; i < 3; i++) await assert.rejects(provedor.responder(pedidoProvedor()), FalhaProvedor);
+});
+
+test("falha real do adaptador Groq chega ao fallback Gemini", async (t) => {
+  t.mock.method(console, "info", () => {});
+  t.mock.method(console, "error", () => {});
+  t.mock.method(globalThis, "fetch", async () => Response.json({ error: {} }, { status: 401 }));
+  const p = pedido();
+  let chamadasGemini = 0;
+  p.provedores = [
+    { nome: "groq", criar: () => criarGroq({ nome: "groq", chave: "teste", modelo: "teste" }) },
+    { nome: "gemini", criar: () => ({ nome: "gemini", responder: async () => { chamadasGemini++; return final(RECUSA); } }) },
+  ];
+  assert.equal(await conversar(p), RECUSA);
+  assert.equal(chamadasGemini, 1);
 });

@@ -6,6 +6,9 @@ import { ChatPagina } from "@/modules/assistente/components/chat-pagina";
 
 export const metadata = { title: "IA · LaLolla" };
 
+// Antecipa a moldura; o conteúdo que depende da sessão chega na navegação.
+export const prefetch = "partial";
+
 /*
  * Início › IA. A altura é a da tela menos cabeçalho e barra de baixo (no
  * celular) e menos o respiro da página: o chat rola por dentro, e o campo de
