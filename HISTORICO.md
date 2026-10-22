@@ -1190,6 +1190,13 @@ a vendedora vê valores de custo na ficha da compra e no Portal de compras (audi
     ter tempo limite de 8 s, a gravar no log qual endereço respondeu o quê, e a
     cair numa reserva: Minha Receita (a base da própria BrasilAPI) para CNPJ e
     ViaCEP para CEP. 404 e 400 encerram a busca como "não existe".
+17. **Tabela nova precisa de RLS no Supabase.** O Prisma cria as tabelas sem segurança por linha e o
+    Supabase dá todos os direitos a `anon`/`authenticated` por padrão: o Security Advisor apontou 26 erros
+    ("RLS Disabled in Public") — a chave pública da API poderia ler e apagar tudo. A migration
+    `20261022160000_seguranca_rls` liga RLS em todas as tabelas (sem política = ninguém de fora entra) e tira os
+    direitos desses papéis, inclusive das tabelas futuras. O app não é afetado: o Prisma entra como `postgres`
+    (dono das tabelas, ignora RLS). **Toda migration que cria tabela deve terminar com
+    `ALTER TABLE "x" ENABLE ROW LEVEL SECURITY;`** — o revoke padrão impede o acesso, mas o aviso volta.
 
 
 ---
