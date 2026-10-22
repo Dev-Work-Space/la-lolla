@@ -1108,6 +1108,20 @@ Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
 
 ---
 
+### 22/10 · Next.js 16.3.8 → 16.4.2 (falhas críticas) e varredura geral
+
+`npm audit` apontou o Next 16.0–16.4.0 com duas falhas **críticas** (execução remota de código sem login
+na otimização de imagem com SVG e em funções `use cache`) e uma de negação de serviço nas Server Actions.
+Subiu para **16.4.2** (`eslint-config-next` junto, fixo). Sem mudança de código: tipos, lint, build,
+as 25 telas em PC e celular, 20 janelas e os fluxos de venda/compra/caixa seguem iguais. **Falta juntar na
+`main`** para valer no site. Restam vulnerabilidades em ferramentas/bibliotecas (DOMPurify do jsPDF e
+cadeias de dev), sem correção segura automática.
+
+Varredura geral (banco de teste, build de produção): sem erro em nenhuma tela, sem rolagem lateral no
+celular, sem imagem quebrada, janelas abrem, cabem e fecham com Esc, CPF inválido é recusado, CNPJ/CEP
+preenchem, estoque negativo é recusado, a vendedora não abre o Financeiro. **Em aberto (decisão do João):**
+a vendedora vê valores de custo na ficha da compra e no Portal de compras (auditoria A1).
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o
