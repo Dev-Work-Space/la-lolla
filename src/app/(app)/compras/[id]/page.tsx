@@ -50,7 +50,7 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
         href="/compras"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de compras

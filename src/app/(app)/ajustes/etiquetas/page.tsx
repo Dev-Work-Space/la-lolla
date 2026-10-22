@@ -22,7 +22,7 @@ export default async function CriacaoDeEtiquetasPage() {
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <Link
         href="/ajustes"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Ajustes

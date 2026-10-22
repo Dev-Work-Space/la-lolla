@@ -394,7 +394,7 @@ export function NovaVenda({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       {/* ─────────── carrinho ─────────── */}
       <div className="space-y-4">
         {edicao && (
@@ -494,7 +494,7 @@ export function NovaVenda({
             <ul className="divide-y">
               {itens.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 basis-full flex-1 sm:basis-0">
                     <span className="block truncate text-sm font-medium">{i.nome}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {i.sku}
@@ -509,7 +509,7 @@ export function NovaVenda({
                       <span className="text-sm tabular-nums text-muted-foreground">
                         {i.quantidade} × {brl(i.precoUnit)}
                       </span>
-                      <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                      <span className="ml-auto w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
                         {brl(i.precoUnit * i.quantidade)}
                       </span>
                     </>
@@ -568,7 +568,7 @@ export function NovaVenda({
                     }
                   />
 
-                  <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                  <span className="ml-auto w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
                     {brl(i.precoUnit * i.quantidade)}
                   </span>
 

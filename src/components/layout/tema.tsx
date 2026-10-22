@@ -86,7 +86,7 @@ export function EscolhaDeTema() {
   }, []);
 
   return (
-    <div className="inline-flex rounded-xl border bg-(--ll-surface-2) p-1">
+    <div className="flex w-full max-w-full rounded-xl border bg-(--ll-surface-2) p-1 sm:inline-flex sm:w-auto">
       {OPCOES.map(([valor, rotulo, Icone]) => (
         <Button
           variant="ghost"
@@ -98,7 +98,7 @@ export function EscolhaDeTema() {
             aplicar(valor);
           }}
           className={cn(
-            "h-auto border-0 p-0 whitespace-normal inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium",
+            "h-auto min-w-0 flex-1 justify-center border-0 p-0 whitespace-normal inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium sm:flex-none sm:px-3",
             tema === valor
               ? "bg-card text-foreground shadow-[0_1px_3px_rgba(26,24,20,.10)]"
               : "text-muted-foreground hover:text-foreground",

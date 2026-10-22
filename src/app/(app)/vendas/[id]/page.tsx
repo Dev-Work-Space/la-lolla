@@ -51,7 +51,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
         href="/vendas"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de vendas

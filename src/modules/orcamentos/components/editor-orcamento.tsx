@@ -241,7 +241,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       {/* ─────────── peças ─────────── */}
       <div className="space-y-4">
         <Card as="section" className="block overflow-visible py-0 text-base p-4">
@@ -321,7 +321,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             <ul className="divide-y">
               {itens.map((i) => (
                 <li key={i.pecaId} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 basis-full flex-1 sm:basis-0">
                     <span className="block truncate text-sm font-medium">{i.nome}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {i.sku}
@@ -387,7 +387,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
                     }
                   />
 
-                  <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                  <span className="ml-auto w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
                     {brl(i.precoUnit * i.quantidade)}
                   </span>
 

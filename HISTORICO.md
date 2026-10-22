@@ -1197,6 +1197,12 @@ a vendedora vê valores de custo na ficha da compra e no Portal de compras (audi
     direitos desses papéis, inclusive das tabelas futuras. O app não é afetado: o Prisma entra como `postgres`
     (dono das tabelas, ignora RLS). **Toda migration que cria tabela deve terminar com
     `ALTER TABLE "x" ENABLE ROW LEVEL SECURITY;`** — o revoke padrão impede o acesso, mas o aviso volta.
+18. **Grade de duas colunas estoura no celular.** `grid lg:grid-cols-[1.5fr_1fr]` sem coluna para telas pequenas
+    deixa a única coluna crescer até o conteúdo mais largo: na Nova venda, com uma peça no carrinho, a tela
+    passava de 360–390 px para 401 px e os cartões saíam cortados à direita (a página nem acusava rolagem,
+    porque o `html` corta o excesso). A grade agora usa `grid-cols-[minmax(0,1fr)]` no celular e a linha do
+    carrinho põe o nome sozinho na primeira linha. Toda grade com colunas só a partir de `lg:` precisa disso.
+    Para conferir: `lalolla-teste qa estouro-geral`.
 
 
 ---

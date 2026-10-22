@@ -150,7 +150,7 @@ export function NovaCompra({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       <div className="space-y-4">
         <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
           <div className="space-y-1.5">
@@ -255,7 +255,7 @@ export function NovaCompra({
             <ul className="divide-y">
               {itens.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 basis-full flex-1 sm:basis-0">
                     <span className="block truncate text-sm font-medium">{i.nome}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {i.sku} · tem {i.saldo} {i.unidade}
@@ -315,7 +315,7 @@ export function NovaCompra({
                     }
                   />
 
-                  <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                  <span className="ml-auto w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
                     {brl(i.custoUnit * i.quantidade)}
                   </span>
 
