@@ -317,7 +317,7 @@ export function ImprimirEtiquetas({
           <DialogTitle>{titulo ?? (unica ? `Etiquetas de ${pecas[0].nome}` : "Etiquetas")}</DialogTitle>
           <DialogDescription>
             {unica
-              ? "Escolha o tamanho e imprima quantas precisar desta peça."
+              ? "Escolha o tamanho e imprima quantas precisar deste produto."
               : "Gera as etiquetas para recortar/colar ou imprimir no rolo térmico."}
           </DialogDescription>
         </DialogHeader>
@@ -342,7 +342,7 @@ export function ImprimirEtiquetas({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previa}
-                alt={`Prévia da etiqueta de ${primeira?.nome ?? "peça"}`}
+                alt={`Prévia da etiqueta de ${primeira?.nome ?? "produto"}`}
                 className={cn(
                   "mx-auto h-auto w-full max-w-sm",
                   niimbot && "[image-rendering:pixelated]",
@@ -388,7 +388,7 @@ export function ImprimirEtiquetas({
                   ))}
                   {modo === "n" && (
                     <Input
-                      aria-label="Quantas etiquetas de cada peça"
+                      aria-label="Quantas etiquetas de cada produto"
                       inputMode="numeric"
                       value={nDeCada}
                       onChange={(e) => {
@@ -402,14 +402,14 @@ export function ImprimirEtiquetas({
                 </div>
                 {modo === "estoque" && pecas.some((p) => p.saldo <= 0) && (
                   <p className="text-xs text-muted-foreground">
-                    Peças sem estoque ficaram de fora — marque na lista se quiser etiqueta delas.
+                    Produtos sem estoque ficaram de fora — marque na lista se quiser etiqueta deles.
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label>Peças</Label>
+                  <Label>Produtos</Label>
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -474,7 +474,7 @@ export function ImprimirEtiquetas({
               <span className="text-sm">
                 Incluir QR code
                 <span className="block text-xs leading-relaxed text-muted-foreground">
-                  O QR guarda o código da peça — o &quot;Ler etiqueta&quot; do catálogo abre a ficha dela.
+                  O QR guarda o código do produto — o &quot;Ler etiqueta&quot; do catálogo abre a ficha dele.
                 </span>
               </span>
             </label>
@@ -486,7 +486,7 @@ export function ImprimirEtiquetas({
                 ? `${total} etiquetas — o máximo é ${MAX_ETIQUETAS} por vez. Divida em lotes.`
                 : total === 0
                   ? "Nenhuma etiqueta escolhida."
-                  : `${total} etiqueta${total === 1 ? "" : "s"}${unica ? "" : ` de ${escolhidas.length} peça${escolhidas.length === 1 ? "" : "s"}`}` +
+                  : `${total} etiqueta${total === 1 ? "" : "s"}${unica ? "" : ` de ${escolhidas.length} produto${escolhidas.length === 1 ? "" : "s"}`}` +
                     (modelo.tipo === "folha"
                       ? ` · ${folhas} folha${folhas === 1 ? "" : "s"} A4`
                       : " no rolo")}

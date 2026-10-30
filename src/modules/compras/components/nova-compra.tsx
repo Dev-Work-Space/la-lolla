@@ -173,7 +173,7 @@ export function NovaCompra({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="busca-item">Adicionar peça ou insumo</Label>
+            <Label htmlFor="busca-item">Adicionar produto ou insumo</Label>
             <div className="relative">
               <MagnifyingGlassIcon weight="regular"
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -238,7 +238,7 @@ export function NovaCompra({
           )}
           {!buscando && termo.length >= 2 && achados.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Nada encontrado. Cadastre a peça no Estoque antes de comprar.
+              Nada encontrado. Cadastre o produto no Estoque antes de comprar.
             </p>
           )}
         </Card>
@@ -382,7 +382,7 @@ export function NovaCompra({
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            O estoque entra e o custo das peças é atualizado.
+            O estoque entra e o custo dos produtos é atualizado.
           </p>
         </Card>
       </div>

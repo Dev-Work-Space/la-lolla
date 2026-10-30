@@ -74,11 +74,11 @@ export function NovaPeca({ rotulo, ...opcoes }: Opcoes & { rotulo?: string }) {
     <Dialog open={aberto} onOpenChange={setAberto}>
       {/* Base UI compõe com `render`, não com `asChild` (que é do Radix). */}
       <DialogTrigger render={rotulo ? <Button /> : <Button className="w-full sm:w-auto" />}>
-        {rotulo ?? "Nova peça"}
+        {rotulo ?? "Novo produto"}
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Cadastrar peça</DialogTitle>
+          <DialogTitle>Cadastrar produto</DialogTitle>
           <DialogDescription>O código interno (LL-0001) é gerado automaticamente.</DialogDescription>
         </DialogHeader>
         {/* Montado só com o painel aberto: cada abertura começa do zero. */}
@@ -94,11 +94,11 @@ export function EditarPeca({ peca, ...opcoes }: Opcoes & { peca: PecaEditavel })
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger render={<Button variant="outline" />}>
         <PencilSimpleIcon className="mr-1.5 size-4" aria-hidden />
-        Editar peça
+        Editar produto
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Editar peça</DialogTitle>
+          <DialogTitle>Editar produto</DialogTitle>
           <DialogDescription>Código interno {peca.sku}</DialogDescription>
         </DialogHeader>
         {aberto && <FormPeca {...opcoes} peca={peca} aoTerminar={() => setAberto(false)} />}
@@ -231,7 +231,7 @@ function FormPeca({
           {repetida && paraNumero(codigo) > 0 && (
             <div role="status" className="space-y-2 rounded-lg border bg-card p-3 text-sm">
               <p>
-                Código já cadastrado em <strong>{repetida.nome}</strong>. Se for a mesma peça, use{" "}
+                Código já cadastrado em <strong>{repetida.nome}</strong>. Se for o mesmo produto, use{" "}
                 <strong>Nova compra</strong> para repor o estoque em vez de cadastrar de novo.
               </p>
               <Button
@@ -253,7 +253,7 @@ function FormPeca({
 
       <Campo
         id="nome"
-        rotulo="Nome da peça"
+        rotulo="Nome do produto"
         erro={erroDe("nome")}
         placeholder="ex.: Anel solitário zircônia"
         value={nome}
@@ -305,7 +305,7 @@ function FormPeca({
           <FormFornecedor rotulo="Novo" />
         </div>
         <p className="text-xs text-muted-foreground">
-          De quem você compra esta peça. Serve para repor e para filtrar o catálogo.
+          De quem você compra este produto. Serve para repor e para filtrar o catálogo.
         </p>
         {erroDe("fornecedorId") && <p className="text-sm text-destructive">{erroDe("fornecedorId")}</p>}
       </div>
@@ -327,13 +327,13 @@ function FormPeca({
         inputMode="decimal"
         placeholder="deixe em branco se não houver desconto"
         defaultValue={br(peca?.precoPromocional)}
-        ajuda="Se for menor que o sugerido, a peça sai com desconto — que aparece na etiqueta e já vem na venda."
+        ajuda="Se for menor que o sugerido, o produto sai com desconto — que aparece na etiqueta e já vem na venda."
       />
 
       {/* Margem = custo × venda: só quem vê o financeiro. */}
       {veFinanceiro && venda > 0 && (
         <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-          <span className="text-muted-foreground">Margem por peça</span>
+          <span className="text-muted-foreground">Margem por produto</span>
           <span
             className={
               venda >= custo
@@ -353,12 +353,12 @@ function FormPeca({
         erro={erroDe("minimo")}
         inputMode="numeric"
         defaultValue={String(peca?.minimo ?? 0)}
-        ajuda="A peça aparece como “acabando” a partir desta quantidade."
+        ajuda="O produto aparece como “acabando” a partir desta quantidade."
       />
 
       {!editando && (
         <p className="rounded-lg border bg-muted/30 p-3 text-sm leading-relaxed">
-          A peça entra no catálogo com <strong>estoque zero</strong>. Quem coloca peça na prateleira é a{" "}
+          O produto entra no catálogo com <strong>estoque zero</strong>. Quem coloca produto na prateleira é a{" "}
           <strong>compra</strong> — é lá que entra a nota e o pagamento ao fornecedor.
         </p>
       )}
@@ -374,7 +374,7 @@ function FormPeca({
           Cancelar
         </Button>
         <Button type="submit" disabled={pendente}>
-          {pendente ? "Salvando…" : editando ? "Salvar" : "Cadastrar peça"}
+          {pendente ? "Salvando…" : editando ? "Salvar" : "Cadastrar produto"}
         </Button>
       </div>
     </form>

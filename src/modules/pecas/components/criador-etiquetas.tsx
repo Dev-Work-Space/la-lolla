@@ -601,7 +601,7 @@ export function CriadorEtiquetas({ desenhos: iniciais }: { desenhos: DesenhoEtiq
 
           {/* ── peça de exemplo ── */}
           <details className="rounded-xl border bg-card p-3">
-            <summary className="cursor-pointer text-sm font-medium">Peça de exemplo da prévia</summary>
+            <summary className="cursor-pointer text-sm font-medium">Produto de exemplo da prévia</summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <CampoTexto rotulo="Nome" valor={exemplo.nome} aoMudar={(v) => setExemplo((e) => ({ ...e, nome: v }))} />
               <CampoTexto rotulo="Código" valor={exemplo.codigo} aoMudar={(v) => setExemplo((e) => ({ ...e, codigo: v.toUpperCase() || "LL-0001" }))} />
@@ -625,7 +625,7 @@ export function CriadorEtiquetas({ desenhos: iniciais }: { desenhos: DesenhoEtiq
             <EnviarPdf
               rotulo="Etiqueta de teste"
               titulo="PDF de teste"
-              descricao="Uma etiqueta com a peça de exemplo, no tamanho exato do rolo. Imprima uma para conferir antes de salvar."
+              descricao="Uma etiqueta com o produto de exemplo, no tamanho exato do rolo. Imprima uma para conferir antes de salvar."
               mensagem="Etiqueta de teste LaLolla"
               telefone={null}
               nomeCliente={null}

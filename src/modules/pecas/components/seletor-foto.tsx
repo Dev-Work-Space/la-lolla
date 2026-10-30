@@ -335,7 +335,7 @@ export function SeletorFoto({
   return (
     <div className="space-y-2">
       <Label>
-        Foto da peça{obrigatoria && <span className="ml-1 text-destructive">*</span>}
+        Foto do produto{obrigatoria && <span className="ml-1 text-destructive">*</span>}
       </Label>
 
       <input
@@ -403,7 +403,7 @@ export function SeletorFoto({
 
           <p className="text-xs text-muted-foreground">
             {inteira
-              ? "A peça vai inteira, com fundo branco em volta — no mesmo tamanho das outras."
+              ? "O produto vai inteiro, com fundo branco em volta — no mesmo tamanho das outras."
               : "Arraste para posicionar e use a barra para aproximar."}{" "}
             Sai quadrada, {LADO_SAIDA} × {LADO_SAIDA} px.
           </p>
@@ -438,7 +438,7 @@ export function SeletorFoto({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={valor.previa}
-            alt="Foto escolhida para a peça"
+            alt="Foto escolhida para o produto"
             className="size-24 shrink-0 rounded-lg border object-cover"
           />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -494,7 +494,7 @@ export function SeletorFoto({
             Sai quadrada, {LADO_SAIDA} × {LADO_SAIDA} px, reduzida para ~{ALVO_KB} KB. Aceita foto de até{" "}
             {TETO_ORIGINAL_MB} MB e com pelo menos {LADO_MINIMO} px de lado.
             <br />
-            No celular dá para tirar na hora. Obrigatória: é por ela que a peça é achada na venda.
+            No celular dá para tirar na hora. Obrigatória: é por ela que o produto é achado na venda.
           </span>
         </button>
       )}

@@ -59,7 +59,7 @@ export const buscarEstoqueSchema = z.object({
     .enum(["todos", "zeradas", "acabando", "insumos"])
     .default("todos")
     .describe(
-      "Filtro: 'todos' retorna peças ativas; 'zeradas' só sem estoque; 'acabando' abaixo do mínimo; 'insumos' só insumos.",
+      "Filtro: 'todos' retorna produtos ativos; 'zeradas' só sem estoque; 'acabando' abaixo do mínimo; 'insumos' só insumos.",
     ),
   busca: z
     .string()
@@ -107,7 +107,7 @@ export async function buscarEstoque(
     orderBy: { nome: "asc" },
   });
 
-  if (pecas.length === 0) return "Nenhuma peça encontrada com esses critérios.";
+  if (pecas.length === 0) return "Nenhum produto encontrado com esses critérios.";
 
   const linhas = pecas.map((p) => {
     const saldo = p.movimentos.reduce((s, m) => s + m.delta, 0);
@@ -127,7 +127,7 @@ export async function buscarEstoque(
     return linha;
   }).filter(Boolean);
 
-  if (linhas.length === 0) return "Nenhuma peça encontrada com esses critérios.";
+  if (linhas.length === 0) return "Nenhum produto encontrado com esses critérios.";
 
   return linhas.join("\n");
 }
@@ -138,7 +138,7 @@ export async function buscarEstoque(
 ────────────────────────────────────────────────────────────── */
 
 export const detalharPecaSchema = z.object({
-  sku: z.string().describe("SKU da peça (ex.: LL-0001)."),
+  sku: z.string().describe("SKU do produto (ex.: LL-0001)."),
 });
 
 export async function detalharPeca(
@@ -167,14 +167,14 @@ export async function detalharPeca(
     },
   });
 
-  if (!peca) return `Peça com SKU "${params.sku}" não encontrada.`;
+  if (!peca) return `Produto com SKU "${params.sku}" não encontrado.`;
 
   const saldo = peca.movimentos.reduce((s, m) => s + m.delta, 0);
   const preco = num(peca.precoPromocional ?? peca.precoTabela);
   const custo = comFinanceiro ? num((peca as { custo?: unknown }).custo) : null;
 
   const linhas = [
-    `Peça: ${peca.nome} (SKU: ${peca.sku})`,
+    `Produto: ${peca.nome} (SKU: ${peca.sku})`,
     `Categoria: ${peca.categoria}${peca.tamanho ? ` | Tamanho: ${peca.tamanho}` : ""}`,
     `Saldo em estoque: ${saldo}${peca.arquivada ? " (ARQUIVADA)" : ""}`,
     `Preço de tabela: ${brl(preco)}`,
@@ -488,7 +488,7 @@ export const declaracoesDasFerramentas = [
   {
     name: "buscarEstoque" as const,
     description:
-      "Consulta o catálogo de peças e insumos em estoque. Retorna SKU, nome, categoria, saldo e preço. Custo e margem só aparecem se o usuário tiver permissão financeira.",
+      "Consulta o catálogo de produtos e insumos em estoque. Retorna SKU, nome, categoria, saldo e preço. Custo e margem só aparecem se o usuário tiver permissão financeira.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -496,7 +496,7 @@ export const declaracoesDasFerramentas = [
           type: "STRING",
           enum: ["todos", "zeradas", "acabando", "insumos"],
           description:
-            "Filtro: 'todos' retorna peças ativas; 'zeradas' só sem estoque; 'acabando' abaixo do mínimo; 'insumos' só insumos.",
+            "Filtro: 'todos' retorna produtos ativos; 'zeradas' só sem estoque; 'acabando' abaixo do mínimo; 'insumos' só insumos.",
         },
         busca: {
           type: "STRING",
@@ -508,13 +508,13 @@ export const declaracoesDasFerramentas = [
   {
     name: "detalharPeca" as const,
     description:
-      "Retorna os detalhes de uma peça específica por SKU: saldo, preço, custo (se permitido) e margem.",
+      "Retorna os detalhes de um produto específico por SKU: saldo, preço, custo (se permitido) e margem.",
     parameters: {
       type: "OBJECT",
       properties: {
         sku: {
           type: "STRING",
-          description: "SKU da peça (ex.: LL-0001).",
+          description: "SKU do produto (ex.: LL-0001).",
         },
       },
       required: ["sku"],

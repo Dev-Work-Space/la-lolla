@@ -29,7 +29,7 @@ export default async function CriacaoDeEtiquetasPage() {
       </Link>
       <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Criação de etiquetas</h1>
       <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
-        Monte o seu modelo arrastando cada peça para a etiqueta. Salvo, ele aparece na hora de imprimir, junto dos
+        Monte o seu modelo arrastando cada elemento para a etiqueta. Salvo, ele aparece na hora de imprimir, junto dos
         outros modelos.
       </p>
       <CriadorEtiquetas desenhos={desenhos} />

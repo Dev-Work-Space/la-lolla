@@ -61,7 +61,7 @@ export const WIDGETS: DefWidget[] = [
     id: "pendencias",
     /* Faixa de aviso logo abaixo da saudação, atravessando a tela. */
     nome: "Precisa de você",
-    desc: "Contas vencidas e da semana, clientes a cobrar, peças zeradas e orçamentos expirando.",
+    desc: "Contas vencidas e da semana, clientes a cobrar, produtos zerados e orçamentos expirando.",
     tam: "cheio",
   },
   {
@@ -85,7 +85,7 @@ export const WIDGETS: DefWidget[] = [
   {
     id: "maisvendidas",
     nome: "Mais vendidas",
-    desc: "As peças que mais saíram no mês ou no ano, por unidades ou por valor.",
+    desc: "Os produtos que mais saíram no mês ou no ano, por unidades ou por valor.",
     /* Meia largura: lado a lado com as últimas vendas, as duas listas de
        peça e de venda se leem juntas. */
     tam: "medio",

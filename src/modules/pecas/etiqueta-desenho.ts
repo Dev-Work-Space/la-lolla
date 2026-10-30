@@ -63,13 +63,13 @@ export const LIMITES = { largura: [10, 120], altura: [8, 60], elementos: 30, mod
 
 export const ELEMENTOS: ReadonlyArray<{ tipo: TipoElemento; nome: string; ajuda: string }> = [
   { tipo: "marca", nome: "Logo", ajuda: "A logo da LaLolla" },
-  { tipo: "nome", nome: "Nome da peça", ajuda: "Ex.: Anel solitário" },
+  { tipo: "nome", nome: "Nome do produto", ajuda: "Ex.: Anel solitário" },
   { tipo: "codigo", nome: "Código", ajuda: "O código interno, LL-0001" },
-  { tipo: "tamanho", nome: "Tamanho", ajuda: "Aro 17, 45 cm… some se a peça não tiver" },
+  { tipo: "tamanho", nome: "Tamanho", ajuda: "Aro 17, 45 cm… some se o produto não tiver" },
   { tipo: "preco", nome: "Preço", ajuda: "O preço que vale (o promocional, se houver)" },
   { tipo: "precoDe", nome: "Preço \"DE\"", ajuda: "O preço antigo riscado, só na promoção" },
   { tipo: "desconto", nome: "Desconto", ajuda: "\"-22%\", só na promoção" },
-  { tipo: "qr", nome: "QR code", ajuda: "Guarda o código; o \"Ler etiqueta\" abre a peça" },
+  { tipo: "qr", nome: "QR code", ajuda: "Guarda o código; o \"Ler etiqueta\" abre o produto" },
   { tipo: "texto", nome: "Texto livre", ajuda: "Qualquer frase, com {nome}, {preco}…" },
   { tipo: "linha", nome: "Linha", ajuda: "Traço para separar" },
   { tipo: "moldura", nome: "Moldura", ajuda: "Um quadro em volta" },

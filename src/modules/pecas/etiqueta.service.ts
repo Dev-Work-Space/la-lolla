@@ -56,7 +56,7 @@ export async function montarEtiquetas(
   if (itens.some((i) => !porId.has(i.pecaId))) {
     throw new ErroDominio(
       "NAO_ENCONTRADO",
-      "Uma das peças não existe mais ou foi arquivada. Atualize a tela e escolha de novo.",
+      "Um dos produtos não existe mais ou foi arquivado. Atualize a tela e escolha de novo.",
     );
   }
 
@@ -84,7 +84,7 @@ export async function pecaPorCodigo(codigo: string) {
   if (!p) {
     throw new ErroDominio(
       "NAO_ENCONTRADO",
-      `Nenhuma peça com o código ${sku}. Confira a etiqueta ou digite o código como está nela.`,
+      `Nenhum produto com o código ${sku}. Confira a etiqueta ou digite o código como está nela.`,
     );
   }
   return p;

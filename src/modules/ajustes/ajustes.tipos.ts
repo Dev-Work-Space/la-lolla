@@ -45,7 +45,7 @@ export const CHAVES = {
 export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
   fator: {
     nome: "Multiplicador do custo",
-    ajuda: "Multiplica o código do fornecedor para chegar ao custo da peça. Mudar aqui não recalcula peças já cadastradas.",
+    ajuda: "Multiplica o código do fornecedor para chegar ao custo do produto. Mudar aqui não recalcula produtos já cadastrados.",
   },
   meta: {
     nome: "Meta do mês",
@@ -61,10 +61,10 @@ export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
   },
   urlApp: {
     nome: "Endereço do app",
-    ajuda: "O endereço público do app. O QR da etiqueta não usa este endereço: ele guarda só o código da peça, que a NIIMBOT imprime nítido; para consultar, use “Ler etiqueta” no Estoque.",
+    ajuda: "O endereço público do app. O QR da etiqueta não usa este endereço: ele guarda só o código do produto, que a NIIMBOT imprime nítido; para consultar, use “Ler etiqueta” no Estoque.",
   },
   categorias: {
-    nome: "Categorias de peça",
+    nome: "Categorias de produto",
     ajuda: "As opções que aparecem no cadastro. Ficam em Estoque › Categorias.",
   },
 };

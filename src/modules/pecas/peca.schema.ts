@@ -19,7 +19,7 @@ const opcionalDecimal = z
 
 export const criarPecaSchema = z
   .object({
-    nome: z.string().trim().min(2, "Informe o nome da peça").max(120),
+    nome: z.string().trim().min(2, "Informe o nome do produto").max(120),
     // Vazio = "Sem categoria", como no app antigo.
     categoria: z.string().trim().max(60).default(""),
     // Texto livre: aro 17, 45 cm, P/M/G, "único".
@@ -39,7 +39,7 @@ export const criarPecaSchema = z
       .transform((v) => (v === "" || v === undefined ? 0 : v)),
     /* Obrigatório, como no app antigo: é o fornecedor que liga a peça à
        reposição e ao saldo a pagar. */
-    fornecedorId: z.string().trim().min(1, "Escolha o fornecedor. É ele que liga a peça à reposição e ao saldo a pagar."),
+    fornecedorId: z.string().trim().min(1, "Escolha o fornecedor. É ele que liga o produto à reposição e ao saldo a pagar."),
   })
   .superRefine((v, ctx) => {
     // Custo pela metade é custo errado: ou vêm os dois, ou nenhum.
@@ -71,7 +71,7 @@ export type CriarPecaDados = z.output<typeof criarPecaSchema>;
 
 export const editarPecaSchema = criarPecaSchema;
 
-export const idPecaSchema = z.string().trim().min(1, "Peça não informada.").max(40);
+export const idPecaSchema = z.string().trim().min(1, "Produto não informado.").max(40);
 
 /** O código do fornecedor digitado no cadastro, para avisar se ele já existe. */
 export const codigoFornecedorSchema = decimalBr.refine((n) => n > 0, "Código inválido");

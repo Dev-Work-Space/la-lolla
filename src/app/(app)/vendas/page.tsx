@@ -232,7 +232,7 @@ async function ListaDasVendas({
           vendas.map((v) => {
             const sub = [
               v.data.toLocaleDateString("pt-BR"),
-              plural(v.itens.length, "peça", "peças"),
+              plural(v.itens.length, "produto", "produtos"),
             ];
             if (v.desconto > 0) sub.push(`desconto ${brl(v.desconto)}`);
             if (v.devolvido > 0) sub.push(`devolvido ${brl(v.devolvido)}`);
@@ -263,7 +263,7 @@ async function ListaDasVendas({
         ) : (
           <BlocoVazio
             titulo="Nenhuma venda ainda"
-            texto="Lance a primeira venda: escolha as peças, informe como a cliente pagou e o app cuida do estoque, do caixa e das parcelas."
+            texto="Lance a primeira venda: escolha os produtos, informe como a cliente pagou e o app cuida do estoque, do caixa e das parcelas."
             acao={
               podeCriar ? (
                 <Button nativeButton={false} render={<Link href="/vendas/nova" />}>

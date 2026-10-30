@@ -37,7 +37,7 @@ const fecharSchema = z.object({
         precoUnit: z.coerce.number().min(0),
       }),
     )
-    .min(1, "Adicione ao menos uma peça"),
+    .min(1, "Adicione ao menos um produto"),
   /* Embalagem consumida. Sem preço: insumo não se cobra, se gasta. */
   insumos: z
     .array(
@@ -254,7 +254,7 @@ const devolucaoSchema = z.object({
         quantidade: z.coerce.number().int().positive(),
       }),
     )
-    .min(1, "Escolha ao menos uma peça para devolver"),
+    .min(1, "Escolha ao menos um produto para devolver"),
   data: z.coerce.date().optional().nullable(),
   motivo: z.string().trim().max(200).optional().nullable(),
   resolucao: z.enum(["ABATER", "DEVOLVER"]),

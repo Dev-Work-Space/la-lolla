@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const sessao = await exigirPermissao("pecas", "ver");
   if (!sessao.ok) return { title: "Estoque · LaLolla" };
   const p = await fichaPeca(id, false);
-  return { title: p ? `${p.nome} · LaLolla` : "Peça · LaLolla" };
+  return { title: p ? `${p.nome} · LaLolla` : "Produto · LaLolla" };
 }
 
 /*
@@ -272,7 +272,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <div className="px-6 py-12 text-center">
               <p className="font-medium">Nenhum movimento ainda</p>
               <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Esta peça nunca teve entrada nem saída. A primeira chegada entra por uma{" "}
+                Este produto nunca teve entrada nem saída. A primeira chegada entra por uma{" "}
                 <strong>compra</strong>: em <strong>Mexer no estoque</strong>, toque em Entrada.
               </p>
             </div>

@@ -305,7 +305,7 @@ export function NovaVenda({
   function enviar() {
     setAviso(null);
     if (itens.length === 0) {
-      setAviso("Adicione ao menos uma peça.");
+      setAviso("Adicione ao menos um produto.");
       return;
     }
     if (contas.saldo > 0.005 && !parc.confere) {
@@ -399,8 +399,8 @@ export function NovaVenda({
       <div className="space-y-4">
         {edicao && (
           <p className="rounded-xl border border-dashed px-4 py-3 text-sm">
-            Editando a <strong>venda #{edicao.numero}</strong>. As peças voltam ao estoque e saem
-            de novo — o histórico da peça mostra a edição. Os{" "}
+            Editando a <strong>venda #{edicao.numero}</strong>. Os produtos voltam ao estoque e saem
+            de novo — o histórico do produto mostra a edição. Os{" "}
             <strong>recebimentos não mudam aqui</strong>: para desfazer um valor, use “remover
             recebimento” na ficha da venda.
           </p>
@@ -409,7 +409,7 @@ export function NovaVenda({
         {orcamento && (
           <p className="rounded-xl border border-(--ll-accent-line) bg-(--ll-accent-soft) px-4 py-3 text-sm">
             Venda do orçamento <strong>{orcamento.rotulo}</strong>
-            {orcamento.clienteNome ? ` · ${orcamento.clienteNome}` : ""}. As peças, os preços, o
+            {orcamento.clienteNome ? ` · ${orcamento.clienteNome}` : ""}. Os produtos, os preços, o
             desconto e a cliente vêm travados para bater com o PDF aprovado. Precisa mudar algo?
             Volte e crie uma <strong>revisão</strong> do orçamento.
           </p>
@@ -417,7 +417,7 @@ export function NovaVenda({
 
         {!travado && (
         <Card as="section" className="block overflow-visible py-0 text-base p-4">
-          <Label htmlFor="busca-peca">Adicionar peça</Label>
+          <Label htmlFor="busca-peca">Adicionar produto</Label>
           <div className="relative mt-1.5">
             <MagnifyingGlassIcon weight="regular"
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -477,18 +477,18 @@ export function NovaVenda({
             <p className="mt-2 text-sm text-muted-foreground">Procurando…</p>
           )}
           {!buscando && termo.length >= 2 && achadas.length === 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
           )}
         </Card>
         )}
 
         <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {travado ? "Peças do orçamento" : "No carrinho"}
+            {travado ? "Produtos do orçamento" : "No carrinho"}
           </h2>
           {itens.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-              Busque a peça acima para começar.
+              Busque o produto acima para começar.
             </p>
           ) : (
             <ul className="divide-y">
@@ -594,7 +594,7 @@ export function NovaVenda({
           <div>
             <h2 className="text-sm font-semibold">Embalagem e insumos</h2>
             <p className="text-xs text-muted-foreground">
-              O que saiu junto com a peça. Não entra no preço — baixa do estoque e conta no custo.
+              O que saiu junto com o produto. Não entra no preço — baixa do estoque e conta no custo.
             </p>
           </div>
 

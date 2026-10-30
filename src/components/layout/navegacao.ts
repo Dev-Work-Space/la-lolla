@@ -144,12 +144,12 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
     id: "estoque",
     nome: "Estoque",
     curto: "Estoque",
-    desc: "As peças e o que se usa para vender",
+    desc: "Os produtos e o que se usa para vender",
     icone: PackageIcon,
     opcoes: [
       {
         href: "/estoque",
-        nome: "Peças",
+        nome: "Produtos",
         icone: DiamondIcon,
         desc: "Catálogo, preço e saldo",
         area: "pecas",

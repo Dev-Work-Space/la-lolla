@@ -6,7 +6,7 @@ import { AJUSTES_PADRAO } from "@/modules/ajustes/ajustes.service";
 import { painelCategorias } from "@/modules/pecas/categoria.service";
 import { CategoriasPecas } from "@/modules/pecas/components/categorias-pecas";
 
-export const metadata = { title: "Categorias de peça · LaLolla" };
+export const metadata = { title: "Categorias de produto · LaLolla" };
 
 /*
  * No app antigo era "Mais › Categorias", ao lado do Inventário e das
@@ -28,9 +28,9 @@ export default async function CategoriasPage() {
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Estoque
       </Link>
-      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Categorias de peça</h1>
+      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Categorias de produto</h1>
       <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
-        Servem para filtrar o catálogo e agrupar os relatórios. Renomear aqui renomeia em todas as peças
+        Servem para filtrar o catálogo e agrupar os relatórios. Renomear aqui renomeia em todos os produtos
         que usam a categoria.
       </p>
       <CategoriasPecas {...dados} padrao={[...AJUSTES_PADRAO.categorias]} />

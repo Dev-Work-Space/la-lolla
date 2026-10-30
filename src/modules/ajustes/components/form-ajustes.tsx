@@ -48,7 +48,7 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
     >
       <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Peças e preço
+          Produtos e preço
         </h2>
 
         <Campo

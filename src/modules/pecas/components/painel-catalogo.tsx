@@ -106,16 +106,16 @@ export async function PainelCatalogo({
         </Indicadores>
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Indicador titulo="Peças no catálogo" valor={ind.modelos} sub="modelos cadastrados" />
+          <Indicador titulo="Produtos no catálogo" valor={ind.modelos} sub="modelos cadastrados" />
           <Indicador
             titulo="Unidades em estoque"
             valor={ind.unidades}
-            sub="somando todas as peças"
+            sub="somando todos os produtos"
           />
           <Indicador
             titulo="Sem estoque"
             valor={ind.zeradas}
-            sub={ind.zeradas === 1 ? "peça zerada" : "peças zeradas"}
+            sub={ind.zeradas === 1 ? "produto zerado" : "produtos zerados"}
             tom={ind.zeradas > 0 ? "neg" : "neutro"}
           />
         </div>
@@ -130,7 +130,7 @@ export async function PainelCatalogo({
       {pode.criar && !fotosConfiguradas() && (
         <div className="rounded-xl border border-(--ll-danger) bg-card px-4 py-3">
           <p className="text-sm font-semibold text-destructive">
-            As fotos ainda não estão ligadas — por enquanto as peças são cadastradas sem foto
+            As fotos ainda não estão ligadas — por enquanto os produtos são cadastrados sem foto
           </p>
           <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs leading-relaxed text-muted-foreground">
             <li>
@@ -186,7 +186,7 @@ export async function PainelCatalogo({
             }))}
             desenhos={desenhos}
             rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
-            titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
+            titulo={filtrando ? "Etiquetas dos produtos filtrados" : "Etiquetas do catálogo"}
           />
         )}
       </div>
@@ -208,7 +208,7 @@ export async function PainelCatalogo({
       {filtrando && (
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            {linhas.length} de {plural(totalCatalogo, "peça", "peças")}
+            {linhas.length} de {plural(totalCatalogo, "produto", "produtos")}
           </span>
           {/*
             `Link`, não `<a>`: com âncora crua o navegador RECARREGAVA o app
@@ -276,14 +276,14 @@ export async function PainelCatalogo({
           <Vazio texto="Nenhum resultado." />
         ) : (
           <BlocoVazio
-            titulo="Nenhuma peça cadastrada"
-            texto="Peça é cada modelo que você tem para vender: um par de brincos, um colar. O custo sai do código do fornecedor e o código interno LL-0001 é gerado aqui."
+            titulo="Nenhum produto cadastrado"
+            texto="Produto é cada modelo que você tem para vender: um par de brincos, um colar, um perfume. O custo sai do código do fornecedor e o código interno LL-0001 é gerado aqui."
             acao={
               pode.criar ? (
                 <NovaPeca
                   fotosLigadas={fotosConfiguradas()}
                   veFinanceiro={veFinanceiro}
-                  rotulo="Lançar a primeira peça"
+                  rotulo="Lançar o primeiro produto"
                   fator={ajustes.fator}
                   categorias={ajustes.categorias}
                   fornecedores={fornecedores}

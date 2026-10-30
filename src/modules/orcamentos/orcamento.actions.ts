@@ -34,7 +34,7 @@ const salvarSchema = z.object({
         precoUnit: z.coerce.number().min(0),
       }),
     )
-    .min(1, "Adicione ao menos uma peça ao orçamento"),
+    .min(1, "Adicione ao menos um produto ao orçamento"),
   modoPagamento: z.enum(["A_COMBINAR", "A_VISTA", "PARCELADO"]).default("A_COMBINAR"),
   formaPagamento: z.enum(["DINHEIRO", "PIX", "DEBITO", "CREDITO"]).optional().nullable(),
   parcelas: z.coerce.number().int().min(1).max(120).optional().nullable(),
@@ -68,7 +68,7 @@ export async function salvarOrcamentoAction(
 
   const subtotal = r2(d.itens.reduce((s, i) => s + i.precoUnit * i.quantidade, 0));
   if (d.desconto > subtotal + 0.005) {
-    return fail("REGRA_NEGOCIO", "O desconto é maior que o total das peças.");
+    return fail("REGRA_NEGOCIO", "O desconto é maior que o total dos produtos.");
   }
   const total = Math.max(0, r2(subtotal - d.desconto));
   if (d.modoPagamento === "PARCELADO" && d.entrada && d.entrada >= total - 0.005) {

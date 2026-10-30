@@ -34,7 +34,7 @@ export function ChatMensagens({ mensagens, digitando, erro }: ChatMensagensProps
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
             {[
-              "Quais peças estão zeradas?",
+              "Quais produtos estão zerados?",
               "Como foram as vendas este mês?",
               "Há contas vencidas?",
             ].map((sugestao) => (

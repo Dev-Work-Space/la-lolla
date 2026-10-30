@@ -16,11 +16,11 @@ export const pedidoEtiquetasSchema = z
           quantidade: z
             .number()
             .int("Quantidade precisa ser um número inteiro")
-            .min(1, "Pelo menos 1 etiqueta por peça escolhida")
-            .max(200, "No máximo 200 etiquetas da mesma peça por vez"),
+            .min(1, "Pelo menos 1 etiqueta por produto escolhido")
+            .max(200, "No máximo 200 etiquetas do mesmo produto por vez"),
         }),
       )
-      .min(1, "Escolha ao menos uma peça.")
+      .min(1, "Escolha ao menos um produto.")
       .max(MAX_ETIQUETAS),
   })
   .refine((d) => d.itens.reduce((s, i) => s + i.quantidade, 0) <= MAX_ETIQUETAS, {
@@ -33,8 +33,8 @@ export type PedidoEtiquetas = z.input<typeof pedidoEtiquetasSchema>;
 export const codigoEtiquetaSchema = z
   .string()
   .trim()
-  .min(2, "Leia o QR ou digite o código da peça.")
-  .max(40, "Esse código é comprido demais para ser de uma peça.");
+  .min(2, "Leia o QR ou digite o código do produto.")
+  .max(40, "Esse código é comprido demais para ser de um produto.");
 
 /**
  * "ll-0001-03" → "LL-0001". A série identifica a UNIDADE; a peça é o SKU.

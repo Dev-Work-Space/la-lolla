@@ -31,10 +31,10 @@ const TELAS: ReadonlyArray<readonly [Tela, string]> = [
 ];
 
 const SUGESTOES = [
-  "Quais peças estão zeradas?",
+  "Quais produtos estão zerados?",
   "Como foram as vendas este mês?",
   "Há contas vencidas?",
-  "Qual peça mais vendeu este ano?",
+  "Qual produto mais vendeu este ano?",
 ];
 
 export function ChatPagina() {

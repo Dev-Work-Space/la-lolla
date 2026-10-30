@@ -202,7 +202,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
   function enviar() {
     setAviso(null);
     if (itens.length === 0) {
-      setAviso("Adicione ao menos uma peça ao orçamento.");
+      setAviso("Adicione ao menos um produto ao orçamento.");
       return;
     }
     const semPreco = itens.find((i) => !(i.precoUnit > 0));
@@ -245,7 +245,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
       {/* ─────────── peças ─────────── */}
       <div className="space-y-4">
         <Card as="section" className="block overflow-visible py-0 text-base p-4">
-          <Label htmlFor="busca-peca">Adicionar peça</Label>
+          <Label htmlFor="busca-peca">Adicionar produto</Label>
           <div className="relative mt-1.5">
             <MagnifyingGlassIcon weight="regular"
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -305,7 +305,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
             <p className="mt-2 text-sm text-muted-foreground">Procurando…</p>
           )}
           {!buscando && termo.length >= 2 && achadas.length === 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">Nenhuma peça encontrada.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
           )}
         </Card>
 
@@ -315,7 +315,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
           </h2>
           {itens.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-              Busque a peça acima para começar.
+              Busque o produto acima para começar.
             </p>
           ) : (
             <ul className="divide-y">
@@ -450,7 +450,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
           {validoAte && (
             <p className="text-xs text-muted-foreground">
               Vale até <strong>{validoAte.toLocaleDateString("pt-BR")}</strong>. Enquanto isso, as
-              peças ficam reservadas — sem baixar do estoque.
+              produtos ficam reservados — sem baixar do estoque.
             </p>
           )}
         </Card>

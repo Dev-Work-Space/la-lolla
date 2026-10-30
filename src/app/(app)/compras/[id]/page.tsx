@@ -174,7 +174,7 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
           )}
 
           <p className="border-t px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-            O estoque de cada item já entrou por movimento, e o custo das peças foi atualizado com
+            O estoque de cada item já entrou por movimento, e o custo dos produtos foi atualizado com
             o que foi pago aqui.
           </p>
         </Card>

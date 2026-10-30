@@ -47,7 +47,7 @@ export function ExcluirPeca({
   const [gravando, comecar] = useTransition();
   const router = useRouter();
 
-  const oQue = insumo ? "insumo" : "peça";
+  const oQue = insumo ? "insumo" : "produto";
 
   async function aoAbrir(v: boolean) {
     setAberto(v);
@@ -110,7 +110,7 @@ export function ExcluirPeca({
         <DialogHeader>
           <DialogTitle>Excluir {nome}?</DialogTitle>
           <DialogDescription>
-            {oQue === "peça" ? "A peça sai" : "O insumo sai"} do catálogo e das buscas. O histórico
+            {oQue === "produto" ? "O produto sai" : "O insumo sai"} do catálogo e das buscas. O histórico
             de estoque e as vendas antigas ficam como estão.
           </DialogDescription>
         </DialogHeader>

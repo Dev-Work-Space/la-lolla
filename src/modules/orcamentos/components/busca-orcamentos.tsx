@@ -25,7 +25,7 @@ export function BuscaOrcamentos({ valor, filtro }: { valor?: string; filtro: str
         name="busca"
         type="search"
         defaultValue={valor ?? ""}
-        placeholder="Buscar por número, cliente ou peça…"
+        placeholder="Buscar por número, cliente ou produto…"
         aria-label="Buscar orçamentos"
         disabled={pendente}
         className="text-base"

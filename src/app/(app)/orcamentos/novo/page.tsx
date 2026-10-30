@@ -21,7 +21,7 @@ export default async function NovoOrcamentoPage() {
       </Link>
       <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Novo orçamento</h1>
       <p className="mb-5 text-sm text-muted-foreground">
-        A proposta reserva as peças enquanto vale, mas não baixa o estoque. O número sai ao salvar.
+        A proposta reserva os produtos enquanto vale, mas não baixa o estoque. O número sai ao salvar.
       </p>
       <EditorOrcamento />
     </main>

@@ -14,9 +14,9 @@ export function PecaLista({ pecas }: { pecas: PecaVisivel[] }) {
   if (pecas.length === 0) {
     return (
       <div className="rounded-lg border border-dashed px-6 py-14 text-center">
-        <p className="font-medium">Nenhuma peça por aqui</p>
+        <p className="font-medium">Nenhum produto por aqui</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Cadastre a primeira peça para ela aparecer nesta lista.
+          Cadastre o primeiro produto para ele aparecer nesta lista.
         </p>
       </div>
     );
@@ -30,7 +30,7 @@ export function PecaLista({ pecas }: { pecas: PecaVisivel[] }) {
       <table className="w-full min-w-[640px] text-sm">
         <thead className="border-b bg-muted/40">
           <tr className="text-left [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium [&>th]:text-muted-foreground">
-            <th>Peça</th>
+            <th>Produto</th>
             <th>Categoria</th>
             <th className="text-right">Saldo</th>
             <th className="text-right">Preço</th>

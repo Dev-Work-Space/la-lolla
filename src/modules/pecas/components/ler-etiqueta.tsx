@@ -176,7 +176,7 @@ export function LerEtiqueta() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Ler etiqueta</DialogTitle>
-          <DialogDescription>Aponte a câmera para o QR da etiqueta e a peça abre sozinha.</DialogDescription>
+          <DialogDescription>Aponte a câmera para o QR da etiqueta e o produto abre sozinho.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -188,7 +188,7 @@ export function LerEtiqueta() {
                 className="pointer-events-none absolute inset-[18%] rounded-xl border-2 border-white/80"
               />
               <p className="absolute inset-x-0 bottom-2 text-center text-xs text-white/90">
-                {buscando ? "Procurando a peça…" : estado === "lendo" ? "Lendo…" : "Abrindo a câmera…"}
+                {buscando ? "Procurando o produto…" : estado === "lendo" ? "Lendo…" : "Abrindo a câmera…"}
               </p>
             </div>
           ) : (

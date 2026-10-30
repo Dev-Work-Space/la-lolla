@@ -149,7 +149,7 @@ async function IndicadoresDeCompras() {
         <Indicador
           titulo="Unidades no mês"
           valor={ind.unidadesMes}
-          sub="peças e insumos que entraram"
+          sub="produtos e insumos que entraram"
         />
         <Indicador
           titulo="A pagar ao fornecedor"
@@ -210,7 +210,7 @@ async function ListaDasCompras({
         ) : (
           <BlocoVazio
             titulo="Nenhuma compra registrada"
-            texto="Registre o pedido do fornecedor: o estoque entra, o custo das peças é atualizado e o pagamento aparece no caixa — tudo de uma vez."
+            texto="Registre o pedido do fornecedor: o estoque entra, o custo dos produtos é atualizado e o pagamento aparece no caixa — tudo de uma vez."
             acao={
               podeComprar ? (
                 <Button nativeButton={false} render={<Link href="/compras/nova" />}>
