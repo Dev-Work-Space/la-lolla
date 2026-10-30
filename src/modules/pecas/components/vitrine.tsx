@@ -6,22 +6,22 @@ import { cn } from "@/lib/utils";
 import { listarVitrine } from "../vitrine.service";
 import { filtroVitrineSchema } from "../vitrine.schemas";
 import type { PecaVitrine } from "../vitrine.tipos";
+import { BotaoAdicionar } from "./carrinho-vitrine";
 
 /*
  * Número no .env, não no código: troca de número da loja não pode exigir
  * deploy. Sem o número, o botão some em vez de abrir um WhatsApp quebrado.
  * O wa.me exige o 55 na frente; o João costuma escrever só DDD + número.
  */
-function numeroWhatsapp(): string | null {
+export function numeroWhatsapp(): string | null {
   const so = (process.env.LOJA_WHATSAPP ?? "").replace(/\D/g, "");
   if (so.length < 10) return null;
   return so.startsWith("55") && so.length >= 12 ? so : `55${so}`;
 }
 
-function linkPedido(numero: string, p: PecaVitrine): string {
-  const texto = p.disponivel
-    ? `Oi! Vi no catálogo e quero esta: ${p.nome} (${p.sku}), ${brl(p.preco)}.`
-    : `Oi! Vi no catálogo que ${p.nome} (${p.sku}) está esgotado. Me avisa quando chegar?`;
+// Só para o esgotado: o que está disponível vai pelo carrinho, numa mensagem só.
+function linkAviso(numero: string, p: PecaVitrine): string {
+  const texto = `Oi! Vi no catálogo que ${p.nome} (${p.sku}) está esgotado. Me avisa quando chegar?`;
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 
@@ -130,7 +130,7 @@ export async function Vitrine({
               <div className="flex flex-1 flex-col gap-1 p-3">
                 <p className="text-xs text-muted-foreground">{p.categoria}</p>
                 <h2 className="text-sm leading-snug font-semibold">{p.nome}</h2>
-                {p.tamanho && <p className="text-xs text-muted-foreground">{p.tamanho}</p>}
+                {p.tamanho && <p className="text-xs text-muted-foreground">Tamanho {p.tamanho}</p>}
 
                 <div className="mt-auto pt-2">
                   {p.precoDe !== null && (
@@ -144,21 +144,23 @@ export async function Vitrine({
                   </p>
                 </div>
 
-                {numero && (
-                  <a
-                    href={linkPedido(numero, p)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "mt-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors",
-                      p.disponivel
-                        ? "bg-(--ll-brand) text-(--ll-accent-ink) hover:bg-(--ll-accent-hover)"
-                        : "border hover:bg-(--ll-accent-soft)",
-                    )}
-                  >
-                    <WhatsappLogoIcon aria-hidden className="size-4.5" />
-                    {p.disponivel ? "Quero este" : "Avise-me"}
-                  </a>
+                {p.disponivel ? (
+                  <BotaoAdicionar
+                    item={{ id: p.id, sku: p.sku, nome: p.nome, tamanho: p.tamanho, preco: p.preco }}
+                    className="mt-2"
+                  />
+                ) : (
+                  numero && (
+                    <a
+                      href={linkAviso(numero, p)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-full border text-sm font-semibold transition-colors hover:bg-(--ll-accent-soft)"
+                    >
+                      <WhatsappLogoIcon aria-hidden className="size-4.5" />
+                      Avise-me
+                    </a>
+                  )
                 )}
               </div>
             </li>
