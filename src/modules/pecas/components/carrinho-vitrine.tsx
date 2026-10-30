@@ -49,7 +49,7 @@ type Carrinho = {
 
 const ContextoCarrinho = createContext<Carrinho | null>(null);
 
-function useCarrinho(): Carrinho {
+export function useCarrinho(): Carrinho {
   const c = useContext(ContextoCarrinho);
   if (!c) throw new Error("useCarrinho fora do CarrinhoProvider");
   return c;
@@ -137,7 +137,8 @@ export function BotaoAdicionar({ item, className }: { item: Omit<ItemCarrinho, "
         type="button"
         onClick={() => adicionar(item)}
         className={cn(
-          "inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-(--ll-brand) text-sm font-semibold text-(--ll-accent-ink) transition-colors hover:bg-(--ll-accent-hover)",
+          // Contorno: o botão cheio do card é o "Comprar agora", que é o caminho de quem quer um só.
+          "inline-flex h-10 items-center justify-center gap-1.5 rounded-full border border-(--ll-accent-line) text-sm font-semibold text-(--ll-brand) transition-colors hover:bg-(--ll-accent-soft)",
           className,
         )}
       >

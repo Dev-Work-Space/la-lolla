@@ -6,7 +6,7 @@ import { urlsAssinadas } from "@/lib/storage";
 import { reservaPorPeca } from "@/modules/orcamentos/orcamento.service";
 import { saldoDasPecas } from "./catalogo.service";
 import type { FiltroVitrine } from "./vitrine.schemas";
-import type { PecaVitrine } from "./vitrine.tipos";
+import type { ModeloVitrine, PecaVitrine } from "./vitrine.tipos";
 
 /*
  * Catálogo público: o que a cliente vê pelo link, sem login.
@@ -76,11 +76,30 @@ export async function listarVitrine(filtro: FiltroVitrine) {
     };
   });
 
-  // O que dá para levar agora vem primeiro; a esgotada fica no fim, sem sumir.
-  linhas.sort((a, b) => Number(b.disponivel) - Number(a.disponivel));
-
   const assinadas = await urlsAssinadas(linhas.map((l) => l.foto));
   linhas = linhas.map((l) => ({ ...l, foto: l.foto ? (assinadas.get(l.foto) ?? null) : null }));
 
-  return { linhas, categorias };
+  return { modelos: agrupar(linhas), categorias };
+}
+
+// "Aliança  Prata" e "aliança prata" são o mesmo modelo cadastrado duas vezes com digitação diferente.
+const chaveDoModelo = (p: PecaVitrine) =>
+  `${p.categoria}|${p.nome.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+
+function agrupar(linhas: PecaVitrine[]): ModeloVitrine[] {
+  const porChave = new Map<string, ModeloVitrine>();
+  for (const p of linhas) {
+    const chave = chaveDoModelo(p);
+    const m = porChave.get(chave);
+    if (m) m.variantes.push(p);
+    else porChave.set(chave, { chave, nome: p.nome, categoria: p.categoria, variantes: [p] });
+  }
+  const modelos = [...porChave.values()];
+  for (const m of modelos) {
+    // "numeric" põe aro 9 antes de aro 16, e 5 ml antes de 100 ml.
+    m.variantes.sort((a, b) => (a.tamanho ?? "").localeCompare(b.tamanho ?? "", "pt-BR", { numeric: true }));
+  }
+  // O que dá para levar agora vem primeiro; o modelo todo esgotado fica no fim, sem sumir.
+  const temAlgum = (m: ModeloVitrine) => m.variantes.some((v) => v.disponivel);
+  return modelos.sort((a, b) => Number(temAlgum(b)) - Number(temAlgum(a)));
 }
