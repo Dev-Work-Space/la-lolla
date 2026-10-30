@@ -1,7 +1,7 @@
 /*
  * O papel da LaLolla: o que o orçamento e o recibo têm em comum.
  *
- * Faixa dourada, logo, assinatura "SEMIJOIAS", bloco do cliente, tabela de
+ * Faixa dourada, logo, assinatura "SEMIJOIAS E PERFUMARIA", bloco do cliente, tabela de
  * itens e rodapé numerado. Estava tudo escrito duas vezes — e papel timbrado
  * que muda num arquivo e não muda no outro deixa a loja mandando dois
  * documentos que não parecem da mesma casa.
@@ -101,12 +101,13 @@ export function cabecalho(
     doc.text("LaLolla", M, y);
   }
 
-  /* A assinatura "SEMIJOIAS" bem espaçada sob a logo: nove letras ocupando a
-     largura da marca sem competir com ela. */
+  /* A assinatura bem espaçada sob a logo. Com "E PERFUMARIA" ela passou de 9
+     para 22 letras: o espaçamento de antes (2.6) a levava até o título da
+     direita, por isso caiu para 1.1. */
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...OURO);
-  doc.text("SEMIJOIAS", M, y + 5.6, { charSpace: 2.6 });
+  doc.text("SEMIJOIAS E PERFUMARIA", M, y + 5.6, { charSpace: 1.1 });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);

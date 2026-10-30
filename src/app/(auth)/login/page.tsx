@@ -35,8 +35,8 @@ export default function LoginPage({
             priority
             className="h-12 w-auto sm:h-14"
           />
-          <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-(--ll-brand)">
-            <span className="pl-[0.5em] -mr-[0.5em]">semijoias</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-(--ll-brand)">
+            <span className="pl-[0.3em] -mr-[0.3em]">semijoias e perfumaria</span>
           </span>
         </div>
 

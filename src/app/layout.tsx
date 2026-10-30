@@ -14,7 +14,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: { default: "LaLolla", template: "%s" },
-  description: "Sistema de gestão da LaLolla semijoias.",
+  description: "Sistema de gestão da LaLolla Semijoias e Perfumaria.",
   appleWebApp: { capable: true, title: "LaLolla", statusBarStyle: "default" },
 };
 

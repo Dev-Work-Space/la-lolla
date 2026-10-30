@@ -29,6 +29,7 @@ const OBVIAS = new Set([
   "lalolla1",
   "lalolla123",
   "semijoias",
+  "perfumaria",
   "mudar123",
   "trocar123",
 ]);

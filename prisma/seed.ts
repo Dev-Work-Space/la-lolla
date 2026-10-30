@@ -50,7 +50,7 @@ async function main() {
   await prisma.config.upsert({
     where: { chave: "loja" },
     update: {},
-    create: { chave: "loja", valor: { nome: "LaLolla", assinatura: "semijoias" } },
+    create: { chave: "loja", valor: { nome: "LaLolla", assinatura: "semijoias e perfumaria" } },
   });
   console.log("config: categorias, loja");
 }
