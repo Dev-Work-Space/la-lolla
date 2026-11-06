@@ -27,6 +27,9 @@ export const M = 18; // margem
 export const W = 210; // A4 em mm
 export const DIR = W - M;
 
+const LARGURA_LOGO = 40; // mm
+const ASSINATURA = "SEMIJOIAS E PERFUMARIA";
+
 /* As três colunas da direita. Valem para os dois documentos: é o alinhamento
    que faz a coluna de dinheiro parecer uma coluna de dinheiro. */
 export const COL_Q = 124;
@@ -88,7 +91,7 @@ export function cabecalho(
   if (logo) {
     try {
       // 353×90 é a proporção do arquivo da marca.
-      doc.addImage(logo, "PNG", M, y - 8, 40, 40 * (90 / 353));
+      doc.addImage(logo, "PNG", M, y - 8, LARGURA_LOGO, LARGURA_LOGO * (90 / 353));
       temLogo = true;
     } catch {
       temLogo = false;
@@ -101,13 +104,15 @@ export function cabecalho(
     doc.text("LaLolla", M, y);
   }
 
-  /* A assinatura bem espaçada sob a logo. Com "E PERFUMARIA" ela passou de 9
-     para 22 letras: o espaçamento de antes (2.6) a levava até o título da
-     direita, por isso caiu para 1.1. */
+  /* A assinatura ocupa EXATAMENTE a largura da logo, bem espaçada. Com "E
+     PERFUMARIA" ela passou de 9 para 22 letras e, com o espaçamento fixo,
+     passava da marca e ficava torta. O espaço agora é calculado: muda o
+     texto, a assinatura continua do tamanho da logo. */
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(...OURO);
-  doc.text("SEMIJOIAS E PERFUMARIA", M, y + 5.6, { charSpace: 1.1 });
+  const espaco = Math.max(0.3, (LARGURA_LOGO - doc.getTextWidth(ASSINATURA)) / (ASSINATURA.length - 1));
+  doc.text(ASSINATURA, M, y + 5.6, { charSpace: espaco });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
