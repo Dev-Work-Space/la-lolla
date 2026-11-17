@@ -14,9 +14,16 @@ const decimalBr = z
   .transform((v) => (typeof v === "number" ? v : Number(v.trim().replace(/\./g, "").replace(",", "."))))
   .refine((n) => Number.isFinite(n), { message: "Valor inválido" });
 
+/*
+ * O `.optional()` no fim é o que deixa o campo FALTAR no formulário. Sem ele o
+ * Zod 4 exige a chave mesmo aceitando `undefined` dentro do union — e campo
+ * que a tela não mostra (volume fora da Perfumaria, código no modo "valor
+ * pago") não é enviado. Travou todo cadastro em 17/11.
+ */
 const opcionalDecimal = z
   .union([z.literal(""), z.undefined(), z.null(), decimalBr])
-  .transform((v) => (v === "" || v === undefined || v === null ? undefined : (v as number)));
+  .transform((v) => (v === "" || v === undefined || v === null ? undefined : (v as number)))
+  .optional();
 
 export const criarPecaSchema = z
   .object({
@@ -30,7 +37,8 @@ export const criarPecaSchema = z
     // Perfume: ml do frasco inteiro ou do decant.
     volumeMl: z
       .union([z.literal(""), z.undefined(), z.coerce.number().int("Use ml inteiros").min(1, "Maior que zero").max(5000, "Volume alto demais")])
-      .transform((v) => (v === "" || v === undefined ? undefined : v)),
+      .transform((v) => (v === "" || v === undefined ? undefined : v))
+      .optional(),
 
     // Regra 2.1: custo = codigoFornecedor × fator.
     // Só quem tem permissão "financeiro" envia estes dois — a action confere.

@@ -544,7 +544,8 @@ function FormPeca({
             {errosDeCampo.map(([campo, msgs]) => (
               <li key={campo}>
                 {NOME_DO_CAMPO[campo] ? `${NOME_DO_CAMPO[campo]}: ` : ""}
-                {msgs[0]}
+                {/* Mensagem crua do Zod vem em inglês ("Invalid input…"): não ajuda ninguém. */}
+                {msgs[0].startsWith("Invalid") ? "valor inválido, confira este campo." : msgs[0]}
               </li>
             ))}
           </ul>
