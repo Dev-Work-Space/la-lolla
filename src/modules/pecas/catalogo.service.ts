@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma } from "@prisma/client";
+import { Prisma, type Linha } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calcularCusto, calcularMargem, pecasComDividaAberta } from "./peca.service";
 import { urlAssinada, urlsAssinadas } from "@/lib/storage";
@@ -41,6 +41,7 @@ export type LinhaCatalogo = {
   nome: string;
   categoria: string;
   tamanho: string | null;
+  linha: Linha;
   saldo: number;
   minimo: number;
   /** nunca entrou uma unidade sequer — diferente de "acabou" */
@@ -66,6 +67,7 @@ const SELECAO = {
   nome: true,
   categoria: true,
   tamanho: true,
+  linha: true,
   minimo: true,
   precoTabela: true,
   precoPromocional: true,
@@ -82,14 +84,16 @@ export async function listarCatalogo(opcoes: {
   filtro?: FiltroPeca;
   fornecedorId?: string;
   categoria?: string;
+  linha?: Linha;
   veFinanceiro: boolean;
 }) {
-  const { busca, filtro = "todos", fornecedorId, categoria, veFinanceiro } = opcoes;
+  const { busca, filtro = "todos", fornecedorId, categoria, linha, veFinanceiro } = opcoes;
 
   const q = busca?.trim();
   const where: Prisma.PecaWhereInput = {
     tipo: "PECA",
     arquivada: false,
+    ...(linha ? { linha } : {}),
     ...(categoria ? { categoria } : {}),
     ...(fornecedorId === "__sem"
       ? { fornecedorId: null }
@@ -154,6 +158,7 @@ export async function listarCatalogo(opcoes: {
       nome: p.nome,
       categoria: p.categoria,
       tamanho: p.tamanho,
+      linha: p.linha,
       saldo,
       minimo: p.minimo,
       nuncaComprada,

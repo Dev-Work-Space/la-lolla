@@ -28,6 +28,8 @@ import { ImprimirEtiquetas } from "./imprimir-etiquetas";
 import { LerEtiqueta } from "./ler-etiqueta";
 import { Button } from "@/components/ui/button";
 import { precosDaEtiqueta } from "../etiqueta.regras";
+import { ASSINATURA_LINHA, LINHAS, ROTULO_LINHA } from "../linha";
+import type { Linha as LinhaLoja } from "@prisma/client";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -43,6 +45,7 @@ export async function PainelCatalogo({
   filtro,
   fornecedorId,
   categoria,
+  linha,
   veFinanceiro,
   pode,
 }: {
@@ -50,12 +53,13 @@ export async function PainelCatalogo({
   filtro: FiltroPeca;
   fornecedorId?: string;
   categoria?: string;
+  linha?: LinhaLoja;
   veFinanceiro: boolean;
   pode: { criar: boolean; editar: boolean; categorias?: boolean };
 }) {
   const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores, desenhos] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
-    listarCatalogo({ busca, filtro, fornecedorId, categoria, veFinanceiro }),
+    listarCatalogo({ busca, filtro, fornecedorId, categoria, linha, veFinanceiro }),
     opcoesDeFiltro(),
     lerAjustes(),
     pode.criar ? fornecedoresParaPeca() : [],
@@ -63,7 +67,7 @@ export async function PainelCatalogo({
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
-  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria);
+  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria || linha);
 
   const link = (mudanca: Record<string, string | undefined>) => {
     const p = new URLSearchParams({ aba: "catalogo" });
@@ -71,6 +75,7 @@ export async function PainelCatalogo({
     if (filtro !== "todos") p.set("filtro", filtro);
     if (fornecedorId) p.set("fornecedor", fornecedorId);
     if (categoria) p.set("categoria", categoria);
+    if (linha) p.set("linha", linha);
     for (const [k, v] of Object.entries(mudanca)) {
       if (v && v !== "todos") p.set(k, v);
       else p.delete(k);
@@ -182,6 +187,7 @@ export async function PainelCatalogo({
               nome: p.nome,
               tamanho: p.tamanho,
               saldo: p.saldo,
+              assinatura: ASSINATURA_LINHA[p.linha],
               ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
             }))}
             desenhos={desenhos}
@@ -190,6 +196,13 @@ export async function PainelCatalogo({
           />
         )}
       </div>
+
+      {/* Trocar de linha limpa a categoria: as listas são separadas, e "Anéis" não existe na Perfumaria. */}
+      <Chips
+        opcoes={[["todos", "Todas as linhas"], ...LINHAS.map((l) => [l, ROTULO_LINHA[l]] as const)]}
+        atual={linha ?? "todos"}
+        href={(v) => link({ linha: v, categoria: undefined })}
+      />
 
       <Chips
         opcoes={filtrosVisiveis(veFinanceiro)}
@@ -201,6 +214,7 @@ export async function PainelCatalogo({
         opcoes={opcoes}
         fornecedorId={fornecedorId}
         categoria={categoria}
+        linha={linha}
         busca={busca}
         filtro={filtro}
       />

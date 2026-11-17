@@ -210,4 +210,5 @@ export const PECA_DE_EXEMPLO: Etiqueta = {
   tamanho: "17",
   preco: 129.9,
   precoDe: 159.9,
+  assinatura: "SEMIJOIAS",
 };

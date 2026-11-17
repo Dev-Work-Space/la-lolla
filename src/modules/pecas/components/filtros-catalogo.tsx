@@ -13,6 +13,7 @@ export function FiltrosCatalogo({
   opcoes,
   fornecedorId,
   categoria,
+  linha,
   busca,
   filtro,
 }: {
@@ -23,6 +24,7 @@ export function FiltrosCatalogo({
   };
   fornecedorId?: string;
   categoria?: string;
+  linha?: string;
   busca?: string;
   filtro: string;
 }) {
@@ -33,6 +35,7 @@ export function FiltrosCatalogo({
     const p = new URLSearchParams({ aba: "catalogo" });
     if (busca) p.set("busca", busca);
     if (filtro !== "todos") p.set("filtro", filtro);
+    if (linha) p.set("linha", linha);
     if (campo === "fornecedor") {
       if (valor) p.set("fornecedor", valor);
       if (categoria) p.set("categoria", categoria);

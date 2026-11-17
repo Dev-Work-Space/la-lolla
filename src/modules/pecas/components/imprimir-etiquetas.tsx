@@ -63,6 +63,7 @@ export type PecaEtiqueta = {
   saldo: number;
   preco: number | null;
   precoDe: number | null;
+  assinatura: string | null;
 };
 
 type Modo = "um" | "estoque" | "lista" | "n";
@@ -181,6 +182,7 @@ export function ImprimirEtiquetas({
           tamanho: primeira.tamanho,
           preco: primeira.preco,
           precoDe: primeira.precoDe,
+          assinatura: primeira.assinatura,
         }
       : null,
     modelo,
