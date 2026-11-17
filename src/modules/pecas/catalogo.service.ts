@@ -371,6 +371,7 @@ export const ROTULO_MOTIVO: Record<string, string> = {
   AJUSTE: "Ajuste",
   INVENTARIO: "Inventário",
   PERDA: "Perda",
+  ENVASE: "Envase de decant",
 };
 
 /**
