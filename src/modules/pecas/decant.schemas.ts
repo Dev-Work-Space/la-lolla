@@ -12,7 +12,9 @@ const decimalBr = z
   .transform((v) =>
     v === "" || v === undefined ? undefined : typeof v === "number" ? v : Number(v.trim().replace(/\./g, "").replace(",", ".")),
   )
-  .refine((n) => n === undefined || (Number.isFinite(n) && n >= 0), { message: "Valor inválido" });
+  .refine((n) => n === undefined || (Number.isFinite(n) && n >= 0), { message: "Valor inválido" })
+  // Campo que a tela não mostra não é enviado: sem `.optional()` o Zod 4 exige a chave.
+  .optional();
 
 export const envaseSchema = z
   .object({
@@ -20,7 +22,8 @@ export const envaseSchema = z
     decantId: z.string().trim().max(40).optional().or(z.literal("")),
     volumeMl: z
       .union([z.literal(""), z.undefined(), z.coerce.number().int("Use ml inteiros").min(1, "Maior que zero").max(500, "Decant de até 500 ml")])
-      .transform((v) => (v === "" || v === undefined ? undefined : v)),
+      .transform((v) => (v === "" || v === undefined ? undefined : v))
+      .optional(),
     quantidade: z.coerce.number().int("Quantidade inteira").min(1, "Pelo menos 1").max(500, "No máximo 500 por vez"),
     // Marcado = abriu um frasco agora: sai 1 do estoque do perfume.
     baixarFrasco: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
