@@ -56,6 +56,7 @@ export const GUIAS = [
       "Tire a foto, se puder: é por ela que o produto é achado rápido na venda. Não é obrigatória — dá para pôr depois, em “Editar produto”, e o filtro “Sem foto” mostra quem ficou sem.",
       "Informe o custo: código do fornecedor × multiplicador, ou o valor pago.",
       "Dê um nome que você reconheça na prateleira, escolha a categoria e, se tiver, o tamanho (aro 17, 45 cm, 100 ml).",
+      "Semijoia pode ter material (Prata 925, Banhado a ouro…). É opcional; a lista fica em Ajustes › Materiais.",
       "Escolha o fornecedor e confira o preço sugerido.",
       "O produto nasce com estoque ZERO. Quem coloca produto na prateleira é a compra — veja “Dar entrada pela compra”.",
       "O código interno (LL-0001) é gerado pelo app. É ele que vai na etiqueta e no recibo.",

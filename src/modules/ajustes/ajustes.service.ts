@@ -67,6 +67,10 @@ export const lerAjustes = cache(async (): Promise<Ajustes> => {
     descontoVista: numero(CHAVES.descontoVista, AJUSTES_PADRAO.descontoVista),
     urlApp: typeof bruto.get(CHAVES.urlApp) === "string" ? String(bruto.get(CHAVES.urlApp)) : "",
     categorias,
+    // Mesma regra das categorias: só a AUSÊNCIA da linha cai na de fábrica.
+    materiais: Array.isArray(bruto.get(CHAVES.materiais))
+      ? (bruto.get(CHAVES.materiais) as unknown[]).map(String)
+      : AJUSTES_PADRAO.materiais,
   };
 });
 

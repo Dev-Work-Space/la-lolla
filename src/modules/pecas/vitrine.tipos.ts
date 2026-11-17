@@ -16,6 +16,8 @@ export type PecaVitrine = {
   nome: string;
   categoria: string;
   tamanho: string | null;
+  /** Prata 925, Banhado a ouro… (só semijoia, e só se cadastrado). */
+  material: string | null;
   /** O preço que vai para a venda: o promocional, quando é menor. */
   preco: number;
   /** O sugerido riscado ("DE"), só quando há promoção. */

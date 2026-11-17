@@ -47,6 +47,7 @@ type Opcoes = {
   /** Multiplicador e regra de preço de cada linha, vindos dos Ajustes. */
   precificacao?: Record<Linha, Precificacao>;
   categorias?: Record<Linha, string[]>;
+  materiais?: string[];
   fornecedores?: Array<{ id: string; nome: string }>;
 };
 
@@ -63,6 +64,7 @@ export type PecaEditavel = {
   fotoUrl: string | null;
   linha: Linha;
   volumeMl: number | null;
+  material: string | null;
   /** Só chegam a quem vê o financeiro. */
   codigoFornecedor?: number | null;
   fator?: number | null;
@@ -90,6 +92,7 @@ const NOME_DO_CAMPO: Record<string, string> = {
   precoTabela: "Preço sugerido",
   precoPromocional: "Preço promocional",
   minimo: "Aviso de estoque",
+  material: "Material",
 };
 
 /* Exemplo de semijoia no cadastro de perfume confundia (pedido do João, 17/11). */
@@ -146,6 +149,7 @@ function FormPeca({
   fotosLigadas = true,
   precificacao = AJUSTES_PADRAO.precificacao,
   categorias = AJUSTES_PADRAO.categorias,
+  materiais = AJUSTES_PADRAO.materiais,
   fornecedores = [],
   peca,
   aoTerminar,
@@ -155,6 +159,7 @@ function FormPeca({
   const [foto, setFoto] = useState<FotoEscolhida | null>(null);
   const [nome, setNome] = useState(peca?.nome ?? "");
   const [categoria, setCategoria] = useState(peca?.categoria ?? "");
+  const [material, setMaterial] = useState(peca?.material ?? "");
   const [fornecedorId, setFornecedorId] = useState(peca?.fornecedorId ?? "");
   const [linha, setLinha] = useState<Linha>(peca?.linha ?? "SEMIJOIA");
   const regra = precificacao[linha];
@@ -421,6 +426,26 @@ function FormPeca({
           }
         />
       </div>
+
+      {linha === "SEMIJOIA" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="material">Material (opcional)</Label>
+          <input type="hidden" name="material" value={material} />
+          <Seletor
+            id="material"
+            opcoes={[
+              { value: NENHUM, label: "Sem material" },
+              // Material que saiu da lista continua na peça, marcado, como a categoria.
+              ...(material && !materiais.includes(material) ? [{ value: material, label: `${material} (fora da lista)` }] : []),
+              ...materiais.map((m) => ({ value: m, label: m })),
+            ]}
+            value={material || NENHUM}
+            onValueChange={(v) => setMaterial(v === NENHUM ? "" : v)}
+            aria-invalid={!!erroDe("material")}
+          />
+          <p className="text-xs text-muted-foreground">Para criar ou renomear: Ajustes › Materiais.</p>
+        </div>
+      )}
 
       {linha === "PERFUMARIA" && (
         <Campo

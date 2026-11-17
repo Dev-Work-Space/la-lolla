@@ -3,7 +3,7 @@ import { CaretRightIcon } from "@phosphor-icons/react/ssr";
 import { Card } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { exigirPermissao } from "@/lib/auth/guard";
-import { lerAjustes } from "@/modules/ajustes/ajustes.service";
+import { lerAjustes, ROTULOS } from "@/modules/ajustes/ajustes.service";
 import { FormAjustes } from "@/modules/ajustes/components/form-ajustes";
 import { MontarPainel } from "@/modules/painel/components/montar-painel";
 import { EscolhaDeTema } from "@/components/layout/tema";
@@ -67,6 +67,21 @@ export default async function AjustesPage() {
               <span className="block text-sm font-semibold">Categorias de produto</span>
               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                 {LINHAS.map((l) => `${ROTULO_LINHA[l]}: ${atuais.categorias[l].length}`).join(" · ")}
+              </span>
+            </span>
+            <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </Card>
+
+        <Card as="section" className="block overflow-visible py-0 text-base">
+          <Link
+            href="/ajustes/materiais"
+            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">{ROTULOS.materiais.nome}</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {atuais.materiais.length > 0 ? atuais.materiais.join(", ") : "Nenhum material ainda"}
               </span>
             </span>
             <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />

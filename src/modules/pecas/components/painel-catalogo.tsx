@@ -157,6 +157,7 @@ export async function PainelCatalogo({
           veFinanceiro={veFinanceiro}
           precificacao={ajustes.precificacao}
           categorias={ajustes.categorias}
+          materiais={ajustes.materiais}
           fornecedores={fornecedores}
         />
       )}
@@ -300,6 +301,7 @@ export async function PainelCatalogo({
                   rotulo="Lançar o primeiro produto"
                   precificacao={ajustes.precificacao}
                   categorias={ajustes.categorias}
+                  materiais={ajustes.materiais}
                   fornecedores={fornecedores}
                 />
               ) : undefined
