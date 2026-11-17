@@ -18,9 +18,9 @@ import { cn } from "@/lib/utils";
 /*
  * A FOTO DA PEÇA.
  *
- * É obrigatória no cadastro, e por um motivo prático: na hora da venda, com a
- * cliente na frente, ninguém procura peça lendo nome — procura reconhecendo a
- * imagem. Catálogo sem foto vira lista de texto que ninguém usa.
+ * É opcional desde 17/11 (o João quer poder pôr depois), mas vale pôr: na
+ * hora da venda, com a cliente na frente, ninguém procura peça lendo nome —
+ * procura reconhecendo a imagem. Catálogo sem foto vira lista de texto.
  *
  * Toda foto sai no MESMO tamanho: quadrada, 1.200 × 1.200 px. A lista, a
  * busca da venda e a ficha são quadradas, e foto em formato livre aparecia
@@ -76,7 +76,7 @@ export type FotoEscolhida = {
 export function SeletorFoto({
   valor,
   aoMudar,
-  obrigatoria = true,
+  obrigatoria = false,
   erro,
 }: {
   valor: FotoEscolhida | null;
@@ -494,7 +494,7 @@ export function SeletorFoto({
             Sai quadrada, {LADO_SAIDA} × {LADO_SAIDA} px, reduzida para ~{ALVO_KB} KB. Aceita foto de até{" "}
             {TETO_ORIGINAL_MB} MB e com pelo menos {LADO_MINIMO} px de lado.
             <br />
-            No celular dá para tirar na hora. Obrigatória: é por ela que o produto é achado na venda.
+            No celular dá para tirar na hora. Opcional: dá para pôr depois, em Editar produto — mas é por ela que o produto é achado na venda.
           </span>
         </button>
       )}
