@@ -116,7 +116,7 @@ function Revisar({ id, rotulo }: { id: string; rotulo: string }) {
         <DialogHeader>
           <DialogTitle>Revisar orçamento</DialogTitle>
           <DialogDescription>
-            Nasce um orçamento novo, com número novo e as mesmas peças, e o {rotulo} fica marcado
+            Nasce um orçamento novo, com número novo e os mesmos produtos, e o {rotulo} fica marcado
             como substituído. O PDF que a cliente já recebeu continua valendo o que dizia — por
             isso ele não é alterado no lugar.
           </DialogDescription>
@@ -202,7 +202,7 @@ function Excluir({ id, rotulo }: { id: string; rotulo: string }) {
         <DialogHeader>
           <DialogTitle>Excluir o {rotulo}?</DialogTitle>
           <DialogDescription>
-            O orçamento sai da lista e as peças que ele segurava voltam a ficar livres. Diferente
+            O orçamento sai da lista e os produtos que ele segurava voltam a ficar livres. Diferente
             da venda, o orçamento pode ser apagado: ele é papel de negociação, não histórico de
             dinheiro.
           </DialogDescription>

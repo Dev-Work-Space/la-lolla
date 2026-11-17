@@ -51,7 +51,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
         href="/vendas"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de vendas
@@ -141,7 +141,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
             <p className="mt-0.5 text-sm text-muted-foreground">{v.motivoCancelada}</p>
           )}
           <p className="mt-1.5 text-xs text-muted-foreground">
-            O registro fica no histórico, mas não entra em nenhum cálculo de dinheiro. As peças
+            O registro fica no histórico, mas não entra em nenhum cálculo de dinheiro. Os produtos
             voltaram ao estoque.
           </p>
         </div>
@@ -170,7 +170,7 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card as="section" className="block overflow-visible py-0 text-base">
           <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Peças
+            Produtos
           </h2>
           <ul className="divide-y">
             {v.itens.map((i) => (

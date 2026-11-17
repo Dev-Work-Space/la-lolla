@@ -7,6 +7,7 @@ import { lerAjustes } from "@/modules/ajustes/ajustes.service";
 import { FormAjustes } from "@/modules/ajustes/components/form-ajustes";
 import { MontarPainel } from "@/modules/painel/components/montar-painel";
 import { EscolhaDeTema } from "@/components/layout/tema";
+import { LINHAS, ROTULO_LINHA } from "@/modules/pecas/linha";
 
 export const metadata = { title: "Ajustes · LaLolla" };
 
@@ -60,9 +61,9 @@ export default async function AjustesPage() {
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">Categorias de peça</span>
+              <span className="block text-sm font-semibold">Categorias de produto</span>
               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                {atuais.categorias.length > 0 ? atuais.categorias.join(", ") : "Nenhuma categoria ainda"}
+                {LINHAS.map((l) => `${ROTULO_LINHA[l]}: ${atuais.categorias[l].length}`).join(" · ")}
               </span>
             </span>
             <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />

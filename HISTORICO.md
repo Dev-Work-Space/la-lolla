@@ -1108,6 +1108,53 @@ Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
 
 ---
 
+### 22/10 · Next.js 16.3.8 → 16.4.2 (falhas críticas) e varredura geral
+
+`npm audit` apontou o Next 16.0–16.4.0 com duas falhas **críticas** (execução remota de código sem login
+na otimização de imagem com SVG e em funções `use cache`) e uma de negação de serviço nas Server Actions.
+Subiu para **16.4.2** (`eslint-config-next` junto, fixo). Sem mudança de código: tipos, lint, build,
+as 25 telas em PC e celular, 20 janelas e os fluxos de venda/compra/caixa seguem iguais. **Falta juntar na
+`main`** para valer no site. Restam vulnerabilidades em ferramentas/bibliotecas (DOMPurify do jsPDF e
+cadeias de dev), sem correção segura automática.
+
+Varredura geral (banco de teste, build de produção): sem erro em nenhuma tela, sem rolagem lateral no
+celular, sem imagem quebrada, janelas abrem, cabem e fecham com Esc, CPF inválido é recusado, CNPJ/CEP
+preenchem, estoque negativo é recusado, a vendedora não abre o Financeiro. **Em aberto (decisão do João):**
+a vendedora vê valores de custo na ficha da compra e no Portal de compras (auditoria A1).
+
+### 17/11 · Perfumaria: linhas, decant, catálogo público e banco limpo para produção
+
+A loja virou **LaLolla Semijoias e Perfumaria**. O que mudou, e por quê:
+
+- **Linhas** (Semijoias, Perfumaria, Outros) em cada produto. A linha decide
+  as categorias (uma lista por linha), a regra de preço e a palavra da
+  etiqueta (SEMIJOIAS, PERFUMARIA, ou só a logo em Outros).
+- **Custo e preço em duas etapas**, pedido do João: custo = código × fator
+  (semijoia) ou o **valor pago** digitado (perfume não vem com código); preço
+  sugerido = custo × N **ou** custo + N%, por linha, nos Ajustes. Semijoia
+  continua nas chaves antigas de Config ("fator", "categorias"): nada foi
+  gravado para migrar. Os preços sugeridos nascem desligados (0) — margem é
+  decisão do João, não do código.
+- **Decant sem contar ml** (decisão do João): é um produto com estoque em
+  unidades, ligado ao perfume (`perfumeId`). Entra pelo "Envasar decants" na
+  ficha do perfume (motivo `ENVASE`, a única entrada que não é compra), que
+  pode baixar 1 frasco. Custo = custo do frasco ÷ ml × ml do decant +
+  frasquinho; sem custo ou volume no perfume, fica sem custo em vez de chute.
+- **Catálogo público** em `/catalogo` (sem login, fora do Google): abas por
+  linha, carrinho que vira UMA mensagem de WhatsApp, "Comprar agora" direto,
+  tamanhos/volumes no mesmo card. O que a cliente vê tem tipo próprio
+  (`PecaVitrine`). Número em `LOJA_WHATSAPP` — **falta pôr no .env e na Vercel**.
+- "Peça" virou "produto" em todo texto de tela; nomes internos ficaram.
+- Migration `20261117120000_linhas_e_decant`, só aditiva, **aplicada** com
+  `db:deploy`.
+- **Banco limpo para começar em produção**, a pedido do João, depois de backup
+  completo (todas as tabelas, JSON + sha256) em
+  `~/Documentos/Backups LaLolla/2026-11-17_1330_antes-da-limpeza`. Ficaram
+  usuários (João, Hemily, Bruno), carteiras, ajustes e modelos de etiqueta; os
+  4 usuários de teste desativados saíram; a numeração recomeça do 1.
+- Junção com a `main`: ela tinha reescrito o assistente (Groq). Ficou a versão
+  dela, com o nome novo reaplicado.
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o
@@ -1176,6 +1223,19 @@ Contas a pagar; anexada, o saldo cai. Compra pela gaveta cai na hora.
     ter tempo limite de 8 s, a gravar no log qual endereço respondeu o quê, e a
     cair numa reserva: Minha Receita (a base da própria BrasilAPI) para CNPJ e
     ViaCEP para CEP. 404 e 400 encerram a busca como "não existe".
+17. **Tabela nova precisa de RLS no Supabase.** O Prisma cria as tabelas sem segurança por linha e o
+    Supabase dá todos os direitos a `anon`/`authenticated` por padrão: o Security Advisor apontou 26 erros
+    ("RLS Disabled in Public") — a chave pública da API poderia ler e apagar tudo. A migration
+    `20261022160000_seguranca_rls` liga RLS em todas as tabelas (sem política = ninguém de fora entra) e tira os
+    direitos desses papéis, inclusive das tabelas futuras. O app não é afetado: o Prisma entra como `postgres`
+    (dono das tabelas, ignora RLS). **Toda migration que cria tabela deve terminar com
+    `ALTER TABLE "x" ENABLE ROW LEVEL SECURITY;`** — o revoke padrão impede o acesso, mas o aviso volta.
+18. **Grade de duas colunas estoura no celular.** `grid lg:grid-cols-[1.5fr_1fr]` sem coluna para telas pequenas
+    deixa a única coluna crescer até o conteúdo mais largo: na Nova venda, com uma peça no carrinho, a tela
+    passava de 360–390 px para 401 px e os cartões saíam cortados à direita (a página nem acusava rolagem,
+    porque o `html` corta o excesso). A grade agora usa `grid-cols-[minmax(0,1fr)]` no celular e a linha do
+    carrinho põe o nome sozinho na primeira linha. Toda grade com colunas só a partir de `lg:` precisa disso.
+    Para conferir: `lalolla-teste qa estouro-geral`.
 
 
 ---
@@ -1203,6 +1263,7 @@ de verdade, com navegador de verdade.
 | `sonda-regras` | as regras da documentação funcional |
 | `sonda-comunicacao` | **as telas conversam entre si** (navega por clique) |
 | `sonda-celular` | encaixe em 360/390px, zoom travado, tema, PWA |
+| `sonda-perfumaria.ts` | valor pago, envase de decant, recusas, vitrine e etiqueta por linha (`--conditions=react-server --import tsx`) |
 
 Rodar todas:
 
@@ -1254,7 +1315,18 @@ done
 - O projeto antigo do Canadá pode ser apagado (`.env.canada-backup` guarda as
   credenciais dele e está fora do git).
 
-**Dado de teste no banco:**
+**Plano de ação (pedidos do João em 17/11, para depois):**
+
+- **Kanban de vendas (CRM):** arrastar a venda pelas etapas depois de lançada.
+  Fazer com calma — combinar as etapas antes.
+- **Tutorial com "?" em cada tela**, como no app antigo (13 guias, 72 passos,
+  `viewTutoriais`), reescrito para as telas novas.
+- **Next.js 16.4.2 tem falha moderada** (`npm audit`); atualizar numa branch própria.
+- **Bruno é Super Admin**, e a ordem permanente diz "só João e Hemily". Confirmar.
+
+**Dado de teste no banco:** ~~resolvido em 17/11~~ — banco limpo (ver 17/11).
+
+<!-- antes de 17/11: -->
 
 - 28 insumos `ZZQA Laço de cetim`, todos **arquivados** — não aparecem em tela
   nem entram em cálculo. Apagar de vez exige ordem do João.

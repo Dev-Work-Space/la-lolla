@@ -57,7 +57,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
         href="/vendas?aba=orcamentos"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Orçamentos
@@ -155,7 +155,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
       )}
       {o.status === "CONVERTIDO" && o.vendaId && (
         <p className="mt-4 rounded-xl border bg-(--ll-surface-2) px-4 py-3 text-sm">
-          A cliente aprovou e isto virou venda. As peças saíram do estoque na venda —{" "}
+          A cliente aprovou e isto virou venda. Os produtos saíram do estoque na venda —{" "}
           <Link href={`/vendas/${o.vendaId}`} className="font-medium underline">
             abrir a venda
           </Link>
@@ -164,14 +164,14 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
       )}
       {o.vencido && (
         <p className="mt-4 rounded-xl border border-(--ll-danger)/30 bg-(--ll-danger-soft) px-4 py-3 text-sm">
-          A validade acabou em {fData(o.validoAte)}. As peças <strong>não estão mais
-          reservadas</strong>. Dá para converter assim mesmo, ou criar uma revisão com preço novo.
+          A validade acabou em {fData(o.validoAte)}. Os produtos <strong>não estão mais
+          reservados</strong>. Dá para converter assim mesmo, ou criar uma revisão com preço novo.
         </p>
       )}
 
       <div className="mt-5">
         <Indicadores>
-          <Indicador titulo="Total" valor={brl(o.total)} sub={`${o.itens.length} peças`} />
+          <Indicador titulo="Total" valor={brl(o.total)} sub={`${o.itens.length} produtos`} />
           <Indicador
             titulo="Validade"
             valor={o.validoAte ? fData(o.validoAte) : "—"}
@@ -211,7 +211,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
       {/* ── itens ── */}
       <Card as="section" className="block overflow-visible py-0 text-base mt-4">
         <h2 className="border-b px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Peças da proposta
+          Produtos da proposta
         </h2>
         <ul className="divide-y">
           {o.itens.map((i) => (
@@ -259,9 +259,9 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
           evita a pergunta "por que essa peça aparece reservada no estoque?". */}
       {o.status === "ABERTO" && !o.vencido && (
         <p className="mt-4 text-sm text-muted-foreground">
-          Enquanto este orçamento estiver em aberto e dentro da validade, estas peças aparecem
-          como <strong>reservadas</strong> no Estoque. Elas não saíram da prateleira — o app só
-          avisa, se alguém for vender uma delas para outra pessoa.
+          Enquanto este orçamento estiver em aberto e dentro da validade, estes produtos aparecem
+          como <strong>reservados</strong> no Estoque. Eles não saíram da prateleira — o app só
+          avisa, se alguém for vender um deles para outra pessoa.
         </p>
       )}
     </main>

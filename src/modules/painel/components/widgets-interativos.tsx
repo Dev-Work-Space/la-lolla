@@ -120,12 +120,12 @@ export function Numeros({ periodos, ctx, caixaFuturo, veFinanceiro }: DadosPaine
 
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Mini titulo="Vendas" valor={String(p.vendas)} />
-          <Mini titulo="Peças" valor={String(p.pecas)} />
+          <Mini titulo="Itens" valor={String(p.pecas)} />
           <Mini titulo="Ticket médio" valor={p.vendas ? brl(p.ticket) : "—"} />
           {p.margem !== null ? (
             <Mini titulo="Margem" valor={brl(p.margem)} sub={margemPct !== null ? `${margemPct}% do vendido` : undefined} />
           ) : (
-            <Mini titulo="Por venda" valor={p.vendas ? (p.pecas / p.vendas).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"} sub="peças" />
+            <Mini titulo="Por venda" valor={p.vendas ? (p.pecas / p.vendas).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"} sub="itens" />
           )}
         </dl>
       </Card>
@@ -419,7 +419,7 @@ export function MaisVendidas({ ranking }: DadosPainel) {
       </div>
 
       {lista.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma peça vendida neste mês ainda.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Nenhum produto vendido neste mês ainda.</p>
       ) : (
         <ol className="mt-3 space-y-1">
           {vistas.map((p, i) => {
@@ -487,7 +487,7 @@ export function UltimasVendas({ ultimas }: DadosPainel) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{v.cliente ?? "Sem cliente"}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {v.quando} · {v.pecas} {v.pecas === 1 ? "peça" : "peças"}
+                  {v.quando} · {v.pecas} {v.pecas === 1 ? "item" : "itens"}
                 </span>
               </span>
               <span className="shrink-0 text-sm font-semibold tabular-nums">{brl(v.valor)}</span>

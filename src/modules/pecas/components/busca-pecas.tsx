@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  */
 const ABAS = [
   { valor: undefined, rotulo: "Tudo" },
-  { valor: "PECA" as const, rotulo: "Peças" },
+  { valor: "PECA" as const, rotulo: "Produtos" },
   { valor: "INSUMO" as const, rotulo: "Insumos" },
 ];
 
@@ -42,7 +42,7 @@ export function BuscaPecas({ busca, tipo }: { busca?: string; tipo?: "PECA" | "I
           defaultValue={busca ?? ""}
           placeholder="Buscar por nome, código ou categoria…"
           className="text-base"
-          aria-label="Buscar peças"
+          aria-label="Buscar produtos"
         />
       </form>
 

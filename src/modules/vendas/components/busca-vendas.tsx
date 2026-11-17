@@ -23,7 +23,7 @@ export function BuscaVendas({ valor, filtro }: { valor?: string; filtro: string 
         name="busca"
         type="search"
         defaultValue={valor ?? ""}
-        placeholder="Buscar por número, cliente ou peça…"
+        placeholder="Buscar por número, cliente ou produto…"
         aria-label="Buscar vendas"
         disabled={pendente}
         className="text-base"

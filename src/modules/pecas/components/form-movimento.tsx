@@ -177,8 +177,8 @@ export function FormMovimento({
 
           <p className="text-xs leading-relaxed text-muted-foreground">
             {linkCompra
-              ? "Entrada de peça é sempre uma compra: o botão abre a Nova compra com esta peça, para registrar fornecedor e pagamento."
-              : "Entrada de peça é sempre uma compra, e lançar compra é com quem cuida do financeiro."}
+              ? "Entrada de produto é sempre uma compra: o botão abre a Nova compra com este produto, para registrar fornecedor e pagamento."
+              : "Entrada de produto é sempre uma compra, e lançar compra é com quem cuida do financeiro."}
           </p>
 
           <h3 className="text-sm font-semibold">
@@ -253,7 +253,7 @@ export function FormMovimento({
             <Input
               id="observacao"
               name="observacao"
-              placeholder={modo === "devolucao" ? "ex.: peça com defeito" : "ex.: divergência de contagem"}
+              placeholder={modo === "devolucao" ? "ex.: produto com defeito" : "ex.: divergência de contagem"}
               maxLength={200}
               aria-invalid={!!erros.observacao}
               className="text-base"
@@ -274,7 +274,7 @@ export function FormMovimento({
                 <span className="block text-xs leading-relaxed text-muted-foreground">
                   {custo
                     ? `Entrada de ${brl(custo)} por unidade devolvida, se o fornecedor devolver o valor.`
-                    : "Esta peça está sem custo cadastrado — sem ele não dá para calcular o crédito."}
+                    : "Este produto está sem custo cadastrado — sem ele não dá para calcular o crédito."}
                 </span>
               </span>
             </label>

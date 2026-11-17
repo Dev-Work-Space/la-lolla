@@ -23,7 +23,7 @@ export function BuscaCompras({ valor, filtro }: { valor?: string; filtro: string
         name="busca"
         type="search"
         defaultValue={valor ?? ""}
-        placeholder="Buscar por número, fornecedor ou peça…"
+        placeholder="Buscar por número, fornecedor ou produto…"
         aria-label="Buscar compras"
         disabled={pendente}
         className="text-base"

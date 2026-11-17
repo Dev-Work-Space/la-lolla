@@ -57,7 +57,7 @@ export function AcoesFornecedor({
             <DialogTitle>Excluir fornecedor</DialogTitle>
             <DialogDescription>
               Vai remover <strong className="text-foreground">{nome}</strong> do cadastro. Se houver
-              compra ou peça ligada a ele, a exclusão é recusada.
+              compra ou produto ligado a ele, a exclusão é recusada.
             </DialogDescription>
           </DialogHeader>
 

@@ -14,14 +14,14 @@ export default async function NovoOrcamentoPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-5">
       <Link
         href="/vendas?aba=orcamentos"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Orçamentos
       </Link>
       <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Novo orçamento</h1>
       <p className="mb-5 text-sm text-muted-foreground">
-        A proposta reserva as peças enquanto vale, mas não baixa o estoque. O número sai ao salvar.
+        A proposta reserva os produtos enquanto vale, mas não baixa o estoque. O número sai ao salvar.
       </p>
       <EditorOrcamento />
     </main>

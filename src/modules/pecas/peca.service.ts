@@ -30,14 +30,14 @@ const dec = (v: Prisma.Decimal | null) => (v === null ? null : Number(v));
  * do fornecedor. Gerado dentro da transação para dois cadastros simultâneos
  * não receberem o mesmo número.
  */
-async function proximoSku(tx: Prisma.TransactionClient): Promise<string> {
+export async function proximoSku(tx: Prisma.TransactionClient): Promise<string> {
   const ultima = await tx.peca.findFirst({
     where: { sku: { startsWith: "LL-" } },
     orderBy: { sku: "desc" },
     select: { sku: true },
   });
   const n = ultima ? Number(ultima.sku.slice(3)) + 1 : 1;
-  if (!Number.isFinite(n)) throw new ErroDominio("ERRO_INTERNO", "Não consegui gerar o código da peça.");
+  if (!Number.isFinite(n)) throw new ErroDominio("ERRO_INTERNO", "Não consegui gerar o código do produto.");
   return `LL-${String(n).padStart(4, "0")}`;
 }
 
@@ -126,7 +126,7 @@ export async function listarPecas(opcoes: {
 
 export async function buscarPeca(id: string, veFinanceiro: boolean): Promise<PecaVisivel> {
   const p = await prisma.peca.findUnique({ where: { id }, select: selecao });
-  if (!p) throw new NaoEncontrado("Peça");
+  if (!p) throw new NaoEncontrado("Produto");
 
   const agg = await prisma.movimentoEstoque.aggregate({
     where: { pecaId: id },
@@ -182,8 +182,35 @@ export async function criarPeca(
   return peca;
 }
 
+
+/*
+ * Os campos de custo que entram no banco, ou nenhum. Dois jeitos (17/11):
+ * código × fator (semijoia) ou o valor pago digitado (perfume). No valor pago
+ * o código e o fator são apagados: senão a próxima edição recalcularia o
+ * custo pelo código velho.
+ */
+function camposDeCusto(dados: CriarPecaDados, veFinanceiro: boolean) {
+  if (!veFinanceiro) return {};
+  if (dados.codigoFornecedor !== undefined && dados.fator !== undefined) {
+    return {
+      codigoFornecedor: dados.codigoFornecedor,
+      fator: dados.fator,
+      custo: calcularCusto(dados.codigoFornecedor, dados.fator),
+    };
+  }
+  if (dados.custoPago !== undefined) {
+    return { codigoFornecedor: null, fator: null, custo: dados.custoPago };
+  }
+  return {};
+}
+
+/** Perfume sem tamanho escrito mostra o volume ("100 ml"): é por ele que a cliente escolhe no catálogo. */
+function tamanhoDe(dados: CriarPecaDados): string | null {
+  if (dados.tamanho) return dados.tamanho;
+  return dados.linha === "PERFUMARIA" && dados.volumeMl ? `${dados.volumeMl} ml` : null;
+}
+
 async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean) {
-  const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
 
   return prisma.$transaction(async (tx) => {
     const sku = await proximoSku(tx);
@@ -194,20 +221,16 @@ async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean)
         nome: dados.nome,
         categoria: dados.categoria,
         tipo: dados.tipo,
-        tamanho: dados.tamanho || null,
+        linha: dados.linha,
+        volumeMl: dados.volumeMl ?? null,
+        tamanho: tamanhoDe(dados),
         precoTabela: dados.precoTabela ?? null,
         precoPromocional: dados.precoPromocional ?? null,
         minimo: dados.minimo,
         fornecedorId: dados.fornecedorId || null,
-        // Sem permissão de financeiro os três campos ficam de fora: a peça
+        // Sem permissão de financeiro os campos de custo ficam de fora: a peça
         // nasce SEM custo, em vez de nascer com custo errado.
-        ...(gravaCusto
-          ? {
-              codigoFornecedor: dados.codigoFornecedor,
-              fator: dados.fator,
-              custo: calcularCusto(dados.codigoFornecedor!, dados.fator!),
-            }
-          : {}),
+        ...camposDeCusto(dados, veFinanceiro),
       },
       select: { id: true, sku: true, nome: true },
     });
@@ -232,7 +255,7 @@ export async function editarPeca(
       imagens: { select: { id: true, pathThumb: true, pathMedia: true, pathOriginal: true } },
     },
   });
-  if (!existe) throw new NaoEncontrado("Peça");
+  if (!existe) throw new NaoEncontrado("Produto");
 
   /*
    * Trocar a foto: sobe a nova ANTES de apagar a velha.
@@ -265,26 +288,20 @@ export async function editarPeca(
     await apagarImagem(antigas.flatMap((i) => [i.pathThumb, i.pathMedia, i.pathOriginal]));
   }
 
-  const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
-
   return prisma.peca.update({
     where: { id },
     data: {
       nome: dados.nome,
       categoria: dados.categoria,
       tipo: dados.tipo,
-      tamanho: dados.tamanho || null,
+      linha: dados.linha,
+      volumeMl: dados.volumeMl ?? null,
+      tamanho: tamanhoDe(dados),
       precoTabela: dados.precoTabela ?? null,
       precoPromocional: dados.precoPromocional ?? null,
       minimo: dados.minimo,
       fornecedorId: dados.fornecedorId || null,
-      ...(gravaCusto
-        ? {
-            codigoFornecedor: dados.codigoFornecedor,
-            fator: dados.fator,
-            custo: calcularCusto(dados.codigoFornecedor!, dados.fator!),
-          }
-        : {}),
+      ...camposDeCusto(dados, veFinanceiro),
     },
     select: { id: true, sku: true },
   });
@@ -349,7 +366,7 @@ export async function movimentarEstoque(entrada: {
       where: { id: entrada.pecaId },
       select: { nome: true, custo: true, totalRecebido: true, arquivada: true },
     });
-    if (!peca || peca.arquivada) throw new NaoEncontrado("Peça");
+    if (!peca || peca.arquivada) throw new NaoEncontrado("Produto");
 
     const agg = await tx.movimentoEstoque.aggregate({
       where: { pecaId: entrada.pecaId },
@@ -389,7 +406,7 @@ export async function movimentarEstoque(entrada: {
       if (custo <= 0) {
         throw new ErroDominio(
           "REGRA_NEGOCIO",
-          "Esta peça não tem custo cadastrado, então não dá para calcular o crédito. Desmarque o crédito ou cadastre o código do fornecedor na peça.",
+          "Este produto não tem custo cadastrado, então não dá para calcular o crédito. Desmarque o crédito ou cadastre o código do fornecedor no produto.",
         );
       }
       await tx.lancamento.create({
@@ -480,7 +497,7 @@ export async function impactoDeExcluir(pecaId: string): Promise<ImpactoExcluir> 
     }),
     pecasComDividaAberta([pecaId]),
   ]);
-  if (!peca) throw new ErroDominio("NAO_ENCONTRADO", "Peça não encontrada.");
+  if (!peca) throw new ErroDominio("NAO_ENCONTRADO", "Produto não encontrado.");
 
   const saldo = peca.movimentos.reduce((s, m) => s + m.delta, 0);
   const custo = peca.custo ? Number(peca.custo) : 0;

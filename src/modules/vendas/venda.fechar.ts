@@ -181,7 +181,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export async function fecharVenda(entrada: VendaEntrada) {
   if (entrada.itens.length === 0) {
-    throw new ErroDominio("REGRA_NEGOCIO", "Adicione ao menos uma peça à venda.");
+    throw new ErroDominio("REGRA_NEGOCIO", "Adicione ao menos um produto à venda.");
   }
 
   for (const p of entrada.pagamentos) await conferirComprovante(p.comprovanteId);
@@ -223,7 +223,7 @@ export async function fecharVenda(entrada: VendaEntrada) {
     const porId = new Map(pecas.map((p) => [p.id, p]));
     for (const it of entrada.itens) {
       const p = porId.get(it.pecaId);
-      if (!p) throw new ErroDominio("NAO_ENCONTRADO", "Uma das peças não existe mais.");
+      if (!p) throw new ErroDominio("NAO_ENCONTRADO", "Um dos produtos não existe mais.");
       if (it.quantidade <= 0) {
         throw new ErroDominio("DADOS_INVALIDOS", `Quantidade inválida em "${p.nome}".`);
       }
@@ -273,7 +273,7 @@ export async function fecharVenda(entrada: VendaEntrada) {
         if (p.tipo !== "INSUMO") {
           throw new ErroDominio(
             "REGRA_NEGOCIO",
-            `"${p.nome}" é peça, não insumo. Peça entra no carrinho, com preço.`,
+            `"${p.nome}" é produto, não insumo. Produto entra no carrinho, com preço.`,
           );
         }
       }
@@ -481,7 +481,7 @@ export type EdicaoEntrada = {
 
 export async function editarVenda(entrada: EdicaoEntrada) {
   if (entrada.itens.length === 0) {
-    throw new ErroDominio("REGRA_NEGOCIO", "A venda precisa de ao menos uma peça.");
+    throw new ErroDominio("REGRA_NEGOCIO", "A venda precisa de ao menos um produto.");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -549,7 +549,7 @@ export async function editarVenda(entrada: EdicaoEntrada) {
 
     for (const it of entrada.itens) {
       const p = porId.get(it.pecaId);
-      if (!p) throw new ErroDominio("NAO_ENCONTRADO", "Uma das peças não existe mais.");
+      if (!p) throw new ErroDominio("NAO_ENCONTRADO", "Um dos produtos não existe mais.");
       if (it.quantidade <= 0) {
         throw new ErroDominio("DADOS_INVALIDOS", `Quantidade inválida em "${p.nome}".`);
       }
@@ -573,7 +573,7 @@ export async function editarVenda(entrada: EdicaoEntrada) {
       });
       for (const p of achados) {
         if (p.tipo !== "INSUMO") {
-          throw new ErroDominio("REGRA_NEGOCIO", `"${p.nome}" é peça, não insumo.`);
+          throw new ErroDominio("REGRA_NEGOCIO", `"${p.nome}" é produto, não insumo.`);
         }
         insumosPorId.set(p.id, {
           nome: p.nome,
@@ -1095,7 +1095,7 @@ export async function registrarDevolucao(entrada: DevolucaoEntrada) {
 
     const pedidos = entrada.itens.filter((i) => i.quantidade > 0);
     if (pedidos.length === 0) {
-      throw new ErroDominio("DADOS_INVALIDOS", "Escolha ao menos uma peça para devolver.");
+      throw new ErroDominio("DADOS_INVALIDOS", "Escolha ao menos um produto para devolver.");
     }
 
     const porId = new Map(v.itens.map((i) => [i.id, i]));

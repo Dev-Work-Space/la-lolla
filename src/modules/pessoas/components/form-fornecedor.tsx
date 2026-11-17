@@ -25,7 +25,7 @@ import type { ErrosDeCampo } from "@/lib/result";
  *   1. Quem é   — tipo, nome/razão social, fantasia (PJ), documento + Receita
  *   2. Contato  — telefone, e-mail, cidade, UF, observações
  *
- * O padrão aqui é PJ: quem vende semijoia para revenda é empresa na maioria
+ * O padrão aqui é PJ: quem vende semijoia ou perfume para revenda é empresa na maioria
  * das vezes. No cliente o padrão é PF, pela razão inversa.
  */
 

@@ -295,9 +295,9 @@ function Devolver({
       <DialogTrigger render={<Button variant="secondary" />}>Devolver</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Devolver peça</DialogTitle>
+          <DialogTitle>Devolver produto</DialogTitle>
           <DialogDescription>
-            A peça volta ao estoque e o valor sai do total. O item continua no histórico da venda.
+            O produto volta ao estoque e o valor sai do total. O item continua no histórico da venda.
           </DialogDescription>
         </DialogHeader>
 
@@ -531,7 +531,7 @@ function Cancelar({ vendaId, numero }: { vendaId: string; numero: number }) {
           <DialogTitle>Cancelar a venda #{numero}</DialogTitle>
           <DialogDescription>
             A venda <strong className="text-foreground">não é apagada</strong>: fica no histórico,
-            some de todo cálculo de dinheiro, e as peças voltam ao estoque. As parcelas em aberto
+            some de todo cálculo de dinheiro, e os produtos voltam ao estoque. As parcelas em aberto
             são canceladas.
           </DialogDescription>
         </DialogHeader>

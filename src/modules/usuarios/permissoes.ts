@@ -17,7 +17,7 @@ export type Acao = (typeof ACOES)[number];
 
 /** Rótulos em português para a tela de usuários. */
 export const ROTULO_AREA: Record<Area, string> = {
-  pecas: "Estoque (peças e insumos)",
+  pecas: "Estoque (produtos e insumos)",
   vendas: "Vendas e orçamentos",
   pessoas: "Clientes e fornecedores",
   financeiro: "Financeiro (caixa, contas, faturamento)",

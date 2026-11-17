@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LINHAS } from "./linha";
 
 /*
  * Uma fonte só de verdade. Este schema é usado em três lugares:
@@ -19,17 +20,24 @@ const opcionalDecimal = z
 
 export const criarPecaSchema = z
   .object({
-    nome: z.string().trim().min(2, "Informe o nome da peça").max(120),
+    nome: z.string().trim().min(2, "Informe o nome do produto").max(120),
     // Vazio = "Sem categoria", como no app antigo.
     categoria: z.string().trim().max(60).default(""),
     // Texto livre: aro 17, 45 cm, P/M/G, "único".
     tamanho: z.string().trim().max(30, "Use no máximo 30 letras no tamanho").optional().or(z.literal("")),
     tipo: z.enum(["PECA", "INSUMO"]).default("PECA"),
+    linha: z.enum(LINHAS, { message: "Escolha a linha do produto." }).default("SEMIJOIA"),
+    // Perfume: ml do frasco inteiro ou do decant.
+    volumeMl: z
+      .union([z.literal(""), z.undefined(), z.coerce.number().int("Use ml inteiros").min(1, "Maior que zero").max(5000, "Volume alto demais")])
+      .transform((v) => (v === "" || v === undefined ? undefined : v)),
 
     // Regra 2.1: custo = codigoFornecedor × fator.
     // Só quem tem permissão "financeiro" envia estes dois — a action confere.
     codigoFornecedor: opcionalDecimal,
     fator: opcionalDecimal,
+    // O outro jeito de chegar no custo: o valor pago, digitado (perfume não vem com código).
+    custoPago: opcionalDecimal,
 
     precoTabela: opcionalDecimal,
     // Menor que o de tabela vira o preço da venda e o "DE" riscado na etiqueta.
@@ -39,7 +47,7 @@ export const criarPecaSchema = z
       .transform((v) => (v === "" || v === undefined ? 0 : v)),
     /* Obrigatório, como no app antigo: é o fornecedor que liga a peça à
        reposição e ao saldo a pagar. */
-    fornecedorId: z.string().trim().min(1, "Escolha o fornecedor. É ele que liga a peça à reposição e ao saldo a pagar."),
+    fornecedorId: z.string().trim().min(1, "Escolha o fornecedor. É ele que liga o produto à reposição e ao saldo a pagar."),
   })
   .superRefine((v, ctx) => {
     // Custo pela metade é custo errado: ou vêm os dois, ou nenhum.
@@ -58,6 +66,13 @@ export const criarPecaSchema = z
     if (temFator && v.fator !== undefined && v.fator <= 0) {
       ctx.addIssue({ code: "custom", path: ["fator"], message: "Deve ser maior que zero." });
     }
+    // Dois custos para a mesma peça: qual vale? Melhor recusar do que escolher calado.
+    if (temCodigo && v.custoPago !== undefined) {
+      ctx.addIssue({ code: "custom", path: ["custoPago"], message: "Use o código do fornecedor OU o valor pago, não os dois." });
+    }
+    if (v.custoPago !== undefined && v.custoPago <= 0) {
+      ctx.addIssue({ code: "custom", path: ["custoPago"], message: "Deve ser maior que zero." });
+    }
     for (const campo of ["precoTabela", "precoPromocional"] as const) {
       const n = v[campo];
       if (n !== undefined && n <= 0) {
@@ -71,7 +86,7 @@ export type CriarPecaDados = z.output<typeof criarPecaSchema>;
 
 export const editarPecaSchema = criarPecaSchema;
 
-export const idPecaSchema = z.string().trim().min(1, "Peça não informada.").max(40);
+export const idPecaSchema = z.string().trim().min(1, "Produto não informado.").max(40);
 
 /** O código do fornecedor digitado no cadastro, para avisar se ele já existe. */
 export const codigoFornecedorSchema = decimalBr.refine((n) => n > 0, "Código inválido");

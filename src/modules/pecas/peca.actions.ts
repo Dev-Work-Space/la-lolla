@@ -82,8 +82,8 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
    * na Vercel, a peça entra sem foto.
    */
   if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
-    return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
-      foto: ["Adicione a foto da peça — é por ela que a peça é achada na venda."],
+    return fail("DADOS_INVALIDOS", "O produto precisa de foto.", {
+      foto: ["Adicione a foto do produto — é por ela que o produto é achado na venda."],
     });
   }
 
@@ -101,7 +101,7 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
   if (!sessao.ok) return sessao;
 
   const idOk = idPecaSchema.safeParse(id);
-  if (!idOk.success) return fail("DADOS_INVALIDOS", "Peça não informada. Atualize a tela e tente de novo.");
+  if (!idOk.success) return fail("DADOS_INVALIDOS", "Produto não informado. Atualize a tela e tente de novo.");
 
   const parsed = criarPecaSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -119,8 +119,8 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
     if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
       const { pecaTemFoto } = await import("./peca.service");
       if (!(await pecaTemFoto(idOk.data))) {
-        return fail("DADOS_INVALIDOS", "A peça precisa de foto.", {
-          foto: ["Esta peça ainda não tem foto. Adicione uma para salvar — é por ela que a peça é achada na venda."],
+        return fail("DADOS_INVALIDOS", "O produto precisa de foto.", {
+          foto: ["Este produto ainda não tem foto. Adicione uma para salvar — é por ela que o produto é achado na venda."],
         });
       }
     }

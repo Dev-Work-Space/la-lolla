@@ -7,6 +7,7 @@ import { PainelCatalogo } from "@/modules/pecas/components/painel-catalogo";
 import { podeFazer } from "@/modules/usuarios/permissoes";
 import { PainelInsumos } from "@/modules/pecas/components/painel-insumos";
 import type { FiltroPeca } from "@/modules/pecas/catalogo.service";
+import { ehLinha } from "@/modules/pecas/linha";
 
 
 export const metadata = { title: "Estoque · LaLolla" };
@@ -35,12 +36,14 @@ export default async function EstoquePage({
     filtro?: string;
     fornecedor?: string;
     categoria?: string;
+    linha?: string;
   }>;
 }) {
   const sessao = await exigirPermissao("pecas", "ver");
   if (!sessao.ok) notFound();
 
-  const { aba, busca, filtro, fornecedor, categoria } = await searchParams;
+  const { aba, busca, filtro, fornecedor, categoria, linha: linhaPedida } = await searchParams;
+  const linha = ehLinha(linhaPedida) ? linhaPedida : undefined;
   const qual = aba === "insumos" ? "insumos" : "catalogo";
 
   const admin = sessao.data.papel !== "VENDEDOR";
@@ -53,11 +56,11 @@ export default async function EstoquePage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <TituloTela secao="Estoque" titulo={qual === "catalogo" ? "Peças" : "Insumos"} />
+      <TituloTela secao="Estoque" titulo={qual === "catalogo" ? "Produtos" : "Insumos"} />
 
       <div className="mt-5">
         <Suspense
-          key={`${qual}:${busca ?? ""}:${filtro ?? ""}:${fornecedor ?? ""}:${categoria ?? ""}`}
+          key={`${qual}:${busca ?? ""}:${filtro ?? ""}:${fornecedor ?? ""}:${categoria ?? ""}:${linha ?? ""}`}
           fallback={<EsqueletoPainelEstoque catalogo={qual === "catalogo"} />}
         >
           {qual === "catalogo" ? (
@@ -66,6 +69,7 @@ export default async function EstoquePage({
               filtro={(filtro as FiltroPeca) ?? "todos"}
               fornecedorId={fornecedor}
               categoria={categoria}
+              linha={linha}
               veFinanceiro={veFinanceiro(sessao.data)}
               pode={pode}
             />

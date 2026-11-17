@@ -28,6 +28,8 @@ import { ImprimirEtiquetas } from "./imprimir-etiquetas";
 import { LerEtiqueta } from "./ler-etiqueta";
 import { Button } from "@/components/ui/button";
 import { precosDaEtiqueta } from "../etiqueta.regras";
+import { ASSINATURA_LINHA, LINHAS, ROTULO_LINHA } from "../linha";
+import type { Linha as LinhaLoja } from "@prisma/client";
 
 /*
  * Portado de `viewCatalogo`, na mesma ordem visual:
@@ -43,6 +45,7 @@ export async function PainelCatalogo({
   filtro,
   fornecedorId,
   categoria,
+  linha,
   veFinanceiro,
   pode,
 }: {
@@ -50,12 +53,13 @@ export async function PainelCatalogo({
   filtro: FiltroPeca;
   fornecedorId?: string;
   categoria?: string;
+  linha?: LinhaLoja;
   veFinanceiro: boolean;
   pode: { criar: boolean; editar: boolean; categorias?: boolean };
 }) {
   const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores, desenhos] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
-    listarCatalogo({ busca, filtro, fornecedorId, categoria, veFinanceiro }),
+    listarCatalogo({ busca, filtro, fornecedorId, categoria, linha, veFinanceiro }),
     opcoesDeFiltro(),
     lerAjustes(),
     pode.criar ? fornecedoresParaPeca() : [],
@@ -63,7 +67,7 @@ export async function PainelCatalogo({
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
-  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria);
+  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria || linha);
 
   const link = (mudanca: Record<string, string | undefined>) => {
     const p = new URLSearchParams({ aba: "catalogo" });
@@ -71,6 +75,7 @@ export async function PainelCatalogo({
     if (filtro !== "todos") p.set("filtro", filtro);
     if (fornecedorId) p.set("fornecedor", fornecedorId);
     if (categoria) p.set("categoria", categoria);
+    if (linha) p.set("linha", linha);
     for (const [k, v] of Object.entries(mudanca)) {
       if (v && v !== "todos") p.set(k, v);
       else p.delete(k);
@@ -106,16 +111,16 @@ export async function PainelCatalogo({
         </Indicadores>
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Indicador titulo="Peças no catálogo" valor={ind.modelos} sub="modelos cadastrados" />
+          <Indicador titulo="Produtos no catálogo" valor={ind.modelos} sub="modelos cadastrados" />
           <Indicador
             titulo="Unidades em estoque"
             valor={ind.unidades}
-            sub="somando todas as peças"
+            sub="somando todos os produtos"
           />
           <Indicador
             titulo="Sem estoque"
             valor={ind.zeradas}
-            sub={ind.zeradas === 1 ? "peça zerada" : "peças zeradas"}
+            sub={ind.zeradas === 1 ? "produto zerado" : "produtos zerados"}
             tom={ind.zeradas > 0 ? "neg" : "neutro"}
           />
         </div>
@@ -130,7 +135,7 @@ export async function PainelCatalogo({
       {pode.criar && !fotosConfiguradas() && (
         <div className="rounded-xl border border-(--ll-danger) bg-card px-4 py-3">
           <p className="text-sm font-semibold text-destructive">
-            As fotos ainda não estão ligadas — por enquanto as peças são cadastradas sem foto
+            As fotos ainda não estão ligadas — por enquanto os produtos são cadastrados sem foto
           </p>
           <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs leading-relaxed text-muted-foreground">
             <li>
@@ -150,7 +155,7 @@ export async function PainelCatalogo({
         <NovaPeca
           fotosLigadas={fotosConfiguradas()}
           veFinanceiro={veFinanceiro}
-          fator={ajustes.fator}
+          precificacao={ajustes.precificacao}
           categorias={ajustes.categorias}
           fornecedores={fornecedores}
         />
@@ -182,14 +187,22 @@ export async function PainelCatalogo({
               nome: p.nome,
               tamanho: p.tamanho,
               saldo: p.saldo,
+              assinatura: ASSINATURA_LINHA[p.linha],
               ...precosDaEtiqueta(p.precoTabela, p.precoPromocional),
             }))}
             desenhos={desenhos}
             rotulo={filtrando ? `Etiquetas desta lista (${linhas.length})` : "Etiquetas"}
-            titulo={filtrando ? "Etiquetas das peças filtradas" : "Etiquetas do catálogo"}
+            titulo={filtrando ? "Etiquetas dos produtos filtrados" : "Etiquetas do catálogo"}
           />
         )}
       </div>
+
+      {/* Trocar de linha limpa a categoria: as listas são separadas, e "Anéis" não existe na Perfumaria. */}
+      <Chips
+        opcoes={[["todos", "Todas as linhas"], ...LINHAS.map((l) => [l, ROTULO_LINHA[l]] as const)]}
+        atual={linha ?? "todos"}
+        href={(v) => link({ linha: v, categoria: undefined })}
+      />
 
       <Chips
         opcoes={filtrosVisiveis(veFinanceiro)}
@@ -201,6 +214,7 @@ export async function PainelCatalogo({
         opcoes={opcoes}
         fornecedorId={fornecedorId}
         categoria={categoria}
+        linha={linha}
         busca={busca}
         filtro={filtro}
       />
@@ -208,7 +222,7 @@ export async function PainelCatalogo({
       {filtrando && (
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            {linhas.length} de {plural(totalCatalogo, "peça", "peças")}
+            {linhas.length} de {plural(totalCatalogo, "produto", "produtos")}
           </span>
           {/*
             `Link`, não `<a>`: com âncora crua o navegador RECARREGAVA o app
@@ -276,15 +290,15 @@ export async function PainelCatalogo({
           <Vazio texto="Nenhum resultado." />
         ) : (
           <BlocoVazio
-            titulo="Nenhuma peça cadastrada"
-            texto="Peça é cada modelo que você tem para vender: um par de brincos, um colar. O custo sai do código do fornecedor e o código interno LL-0001 é gerado aqui."
+            titulo="Nenhum produto cadastrado"
+            texto="Produto é cada modelo que você tem para vender: um par de brincos, um colar, um perfume. O custo sai do código do fornecedor e o código interno LL-0001 é gerado aqui."
             acao={
               pode.criar ? (
                 <NovaPeca
                   fotosLigadas={fotosConfiguradas()}
                   veFinanceiro={veFinanceiro}
-                  rotulo="Lançar a primeira peça"
-                  fator={ajustes.fator}
+                  rotulo="Lançar o primeiro produto"
+                  precificacao={ajustes.precificacao}
                   categorias={ajustes.categorias}
                   fornecedores={fornecedores}
                 />

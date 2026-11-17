@@ -94,6 +94,8 @@ export type Etiqueta = {
   preco: number | null;
   /** O preço de tabela riscado, quando há promoção. */
   precoDe: number | null;
+  /** A palavra sob a logo, pela linha: SEMIJOIAS, PERFUMARIA, ou nenhuma (Outros). */
+  assinatura: string | null;
 };
 
 /**

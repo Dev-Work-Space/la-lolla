@@ -120,7 +120,7 @@ function Saudacao({ ctx, serie, veFinanceiro }: DadosPainel) {
           Nova venda
         </Button>
         <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/estoque" />}>
-          Nova peça
+          Novo produto
         </Button>
         <Button nativeButton={false} variant="outline" className="bg-card/80 font-semibold" render={<Link href="/financeiro" />}>
           Faturamento
@@ -273,7 +273,7 @@ function Pendencias({ pend }: DadosPainel) {
         </div>
       ) : (
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Nada vencido, nenhuma peça zerada e nenhum orçamento expirando. Bom dia para vender.
+          Nada vencido, nenhum produto zerado e nenhum orçamento expirando. Bom dia para vender.
         </p>
       )}
     </Card>

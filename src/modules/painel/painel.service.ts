@@ -295,7 +295,7 @@ export async function dadosDoInicio(nome: string, veFinanceiro: boolean) {
   if (zeradas > 0)
     pend.push({
       p: 2,
-      nome: "Peças zeradas",
+      nome: "Produtos zerados",
       sub: "sem saldo em estoque",
       valor: String(zeradas),
       cor: "var(--ll-warn)",

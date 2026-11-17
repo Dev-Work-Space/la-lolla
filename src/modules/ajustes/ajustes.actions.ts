@@ -4,12 +4,14 @@ import { recarregar } from "@/lib/recarregar";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
-import { gravarAjuste } from "./ajustes.service";
+import { LINHAS } from "@/modules/pecas/linha";
+import { CHAVES, chaveFator, chavePreco, gravarAjuste } from "./ajustes.service";
 import { ajustesSchema } from "./ajustes.schemas";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
   const out: ErrosDeCampo = {};
-  for (const i of erro.issues) (out[String(i.path[0] ?? "_")] ??= []).push(i.message);
+  // Caminho inteiro ("precificacao.PERFUMARIA.valorPreco"): são três linhas com os mesmos campos.
+  for (const i of erro.issues) (out[i.path.map(String).join(".") || "_"] ??= []).push(i.message);
   return out;
 }
 
@@ -19,7 +21,17 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
   const sessao = await exigirPermissao("ajustes", "editar");
   if (!sessao.ok) return sessao;
 
-  const parsed = ajustesSchema.safeParse(Object.fromEntries(formData));
+  const precificacao = Object.fromEntries(
+    LINHAS.map((l) => [
+      l,
+      {
+        fator: formData.get(`precificacao.${l}.fator`) ?? "",
+        modoPreco: formData.get(`precificacao.${l}.modoPreco`) ?? "",
+        valorPreco: formData.get(`precificacao.${l}.valorPreco`) ?? "",
+      },
+    ]),
+  );
+  const parsed = ajustesSchema.safeParse({ ...Object.fromEntries(formData), precificacao });
   if (!parsed.success) {
     return fail("DADOS_INVALIDOS", "Confira os campos destacados.", campos(parsed.error));
   }
@@ -27,11 +39,14 @@ export async function salvarAjustesAction(formData: FormData): Promise<Result<{ 
 
   try {
     await Promise.all([
-      gravarAjuste("fator", d.fator),
-      gravarAjuste("meta", d.meta),
-      gravarAjuste("diasParado", d.diasParado),
-      gravarAjuste("descontoVista", d.descontoVista),
-      gravarAjuste("urlApp", d.urlApp),
+      ...LINHAS.flatMap((l) => [
+        gravarAjuste(chaveFator(l), d.precificacao[l].fator),
+        gravarAjuste(chavePreco(l), { modo: d.precificacao[l].modoPreco, valor: d.precificacao[l].valorPreco }),
+      ]),
+      gravarAjuste(CHAVES.meta, d.meta),
+      gravarAjuste(CHAVES.diasParado, d.diasParado),
+      gravarAjuste(CHAVES.descontoVista, d.descontoVista),
+      gravarAjuste(CHAVES.urlApp, d.urlApp),
     ]);
 
     // Os ajustes entram em quase toda conta do app.

@@ -17,9 +17,9 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LaLolla semijoias",
+    name: "LaLolla Semijoias e Perfumaria",
     short_name: "LaLolla",
-    description: "Sistema de gestão da LaLolla semijoias.",
+    description: "Sistema de gestão da LaLolla Semijoias e Perfumaria.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

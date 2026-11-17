@@ -93,6 +93,15 @@ enum TipoItem {
   INSUMO
 }
 
+// A loja passou a vender perfume em 10/2026. A linha decide a assinatura da
+// etiqueta, o multiplicador e a regra de preço padrão, as categorias e as
+// abas do catálogo. OUTROS é o que não é nenhum dos dois (bolsa, acessório).
+enum Linha {
+  SEMIJOIA
+  PERFUMARIA
+  OUTROS
+}
+
 model Peca {
   id        String   @id @default(cuid())
   sku       String   @unique // código interno: LL-0001
@@ -132,12 +141,24 @@ model Peca {
   // Pílula "A pagar" no catálogo: peça que entrou sem a compra quitada.
   pagoFornecedor Boolean @default(false)
 
+  linha Linha @default(SEMIJOIA)
+
+  // Perfume: quantos ml tem o frasco inteiro, ou o decant.
+  volumeMl Int?
+
+  // DECANT = peça com `perfumeId`. Estoque em unidades, como qualquer peça:
+  // entra pelo "Envasar decants" na ficha do perfume, sem compra. Os ml do
+  // frasco NÃO são contados — decisão do João (17/11), simples de propósito.
+  perfumeId String?
+  perfume   Peca?   @relation("Decants", fields: [perfumeId], references: [id], onDelete: Restrict)
+  decants   Peca[]  @relation("Decants")
+
   fornecedorId String?
   fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 
-  imagens    ImagemPeca[]
-  movimentos MovimentoEstoque[]
-  itensVenda ItemVenda[]
+  imagens        ImagemPeca[]
+  movimentos     MovimentoEstoque[]
+  itensVenda     ItemVenda[]
   itensOrcamento ItemOrcamento[]
   itensCompra    ItemCompra[]
   insumosVenda   InsumoVenda[]
@@ -150,6 +171,8 @@ model Peca {
   @@index([categoria])
   @@index([nome])
   @@index([tipo, arquivada])
+  @@index([linha])
+  @@index([perfumeId])
   @@map("pecas")
 }
 
@@ -265,12 +288,12 @@ model ItemVenda {
 }
 
 model Pagamento {
-  id      String         @id @default(cuid())
-  vendaId String
-  venda   Venda          @relation(fields: [vendaId], references: [id], onDelete: Cascade)
-  forma   FormaPagamento
-  valor   Decimal        @db.Decimal(10, 2)
-  parcelas Int           @default(1)
+  id       String         @id @default(cuid())
+  vendaId  String
+  venda    Venda          @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  forma    FormaPagamento
+  valor    Decimal        @db.Decimal(10, 2)
+  parcelas Int            @default(1)
 
   // Quando o dinheiro entrou. A tela de receber parcela tem campo de data, e
   // é por ela que o caixa agrupa o dia — não por quando alguém digitou.
@@ -427,18 +450,18 @@ model Orcamento {
   // Revisão: nasce um orçamento NOVO, com número novo e os mesmos itens, e o
   // anterior fica SUBSTITUIDO. Nada é editado no lugar — o PDF que o cliente
   // já recebeu precisa continuar existindo do jeito que foi enviado.
-  revisaoDeId     String?     @unique
-  revisaoDe       Orcamento?  @relation("revisao", fields: [revisaoDeId], references: [id], onDelete: SetNull)
-  substituidoPor  Orcamento?  @relation("revisao")
+  revisaoDeId    String?    @unique
+  revisaoDe      Orcamento? @relation("revisao", fields: [revisaoDeId], references: [id], onDelete: SetNull)
+  substituidoPor Orcamento? @relation("revisao")
 
-  modoPagamento ModoPagamentoOrcamento @default(A_COMBINAR)
-  formaPagamento FormaPagamento?
-  parcelas       Int?
+  modoPagamento      ModoPagamentoOrcamento @default(A_COMBINAR)
+  formaPagamento     FormaPagamento?
+  parcelas           Int?
   primeiroVencimento DateTime?
   // Entrada combinada (em reais) e de quanto em quanto tempo vêm as parcelas
   // do resto — "mes", "quinzena" ou "semana", como na venda.
-  entrada           Decimal? @db.Decimal(10, 2)
-  intervaloParcelas String?
+  entrada            Decimal?               @db.Decimal(10, 2)
+  intervaloParcelas  String?
 
   // Texto livre que SAI no PDF: condições, prazo de entrega, forma de envio.
   observacao String?
@@ -475,6 +498,9 @@ enum MotivoMovimento {
   AJUSTE
   INVENTARIO
   PERDA
+  // Decant envasado: entram N decants e, se o João marcar, sai 1 frasco do
+  // perfume. A única entrada que não é compra — o decant sai da própria loja.
+  ENVASE
 }
 
 model MovimentoEstoque {
@@ -517,7 +543,7 @@ model Compra {
   // que o Portal de compras agrupa os meses.
   data DateTime @default(now())
 
-  itens   ItemCompra[]
+  itens    ItemCompra[]
   // Regra 2.12: dar entrada em peça É saída de caixa. À vista vira lançamento,
   // a prazo vira conta a pagar. Uma compra nunca fica sem rastro no dinheiro.
   parcelas Conta[]
@@ -574,9 +600,9 @@ model Conta {
   venda   Venda?  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
 
   // Quando é parcela de uma compra do fornecedor.
-  compraId String?
-  compra   Compra? @relation(fields: [compraId], references: [id], onDelete: Cascade)
-  parcela Int?    // 1 de 3, 2 de 3...
+  compraId   String?
+  compra     Compra? @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  parcela    Int? // 1 de 3, 2 de 3...
   deParcelas Int?
 
   // Compra no crédito: a parcela vira conta na fatura do cartão e consome
@@ -586,10 +612,10 @@ model Conta {
   cartao     Carteira? @relation("cartao", fields: [cartaoId], references: [id], onDelete: SetNull)
   dataCompra DateTime? // quando a compra foi feita, não quando a fatura vence
 
-  pagoEm    DateTime?
+  pagoEm       DateTime?
   // Na baixa de vencimento o comprovante é OBRIGATÓRIO (diferente da venda,
   // onde ele é pendência). A regra vive no service, não no banco.
-  lancamentoId String?  @unique
+  lancamentoId String?     @unique
   lancamento   Lancamento? @relation(fields: [lancamentoId], references: [id], onDelete: SetNull)
 
   criadoEm     DateTime @default(now())
@@ -737,9 +763,9 @@ model Usuario {
 }
 
 model Sessao {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   usuarioId String
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   // SHA-256 do token, nunca o token em texto. Quem tiver o banco não
   // consegue se passar por um usuário logado.
@@ -782,13 +808,13 @@ model Config {
 }
 
 model Evento {
-  id        String   @id @default(cuid())
-  tipo      String
-  usuarioId String?
-  entidade  String?
+  id         String   @id @default(cuid())
+  tipo       String
+  usuarioId  String?
+  entidade   String?
   entidadeId String?
-  dados     Json?
-  criadoEm  DateTime @default(now())
+  dados      Json?
+  criadoEm   DateTime @default(now())
 
   @@index([criadoEm])
   @@index([entidade, entidadeId])

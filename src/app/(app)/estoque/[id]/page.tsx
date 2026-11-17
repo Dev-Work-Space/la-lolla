@@ -1,4 +1,6 @@
 import { Card } from "@/components/ui/card";
+import { ROTULO_LINHA } from "@/modules/pecas/linha";
+import { EnvasarDecants } from "@/modules/pecas/components/envasar-decants";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
@@ -23,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const sessao = await exigirPermissao("pecas", "ver");
   if (!sessao.ok) return { title: "Estoque · LaLolla" };
   const p = await fichaPeca(id, false);
-  return { title: p ? `${p.nome} · LaLolla` : "Peça · LaLolla" };
+  return { title: p ? `${p.nome} · LaLolla` : "Produto · LaLolla" };
 }
 
 /*
@@ -64,8 +66,17 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
 
   const ficha: Array<[string, string]> = [
     ["Código interno", p.sku],
+    ["Linha", ROTULO_LINHA[p.linha]],
     ["Categoria", p.categoria || "Sem categoria"],
   ];
+  if (p.volumeMl) ficha.push(["Volume", `${p.volumeMl} ml`]);
+  if (p.perfume) ficha.push(["Decant de", p.perfume.nome]);
+  if (p.decants.length) ficha.push(["Decants", p.decants.map((d) => d.tamanho ?? `${d.volumeMl} ml`).join(" · ")]);
+
+  // Só o frasco inteiro da Perfumaria envasa; decant não sai de decant.
+  const envasa = !insumo && p.linha === "PERFUMARIA" && !p.perfume;
+  // Custo por ml só para quem vê dinheiro; null = vê, mas falta custo ou volume no perfume.
+  const custoPorMl = !fin ? undefined : "custo" in p && p.custo != null && p.volumeMl ? p.custo / p.volumeMl : null;
   if (p.tamanho) ficha.push(["Tamanho", p.tamanho]);
   if (p.fornecedor) ficha.push(["Fornecedor", p.fornecedor.nome]);
   if (p.minimo) ficha.push(["Estoque mínimo", `${p.minimo} ${un}`]);
@@ -83,7 +94,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
         href={insumo ? "/estoque?aba=insumos" : "/estoque"}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         {insumo ? "Insumos" : "Estoque"}
@@ -129,7 +140,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <EditarPeca
               veFinanceiro={fin}
               fotosLigadas={fotosConfiguradas()}
-              fator={ajustes.fator}
+              precificacao={ajustes.precificacao}
               categorias={ajustes.categorias}
               fornecedores={fornecedores}
               peca={{
@@ -143,8 +154,21 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                 minimo: p.minimo,
                 fornecedorId: p.fornecedor?.id ?? null,
                 fotoUrl: p.imagens[0]?.url ?? null,
-                ...("codigoFornecedor" in p ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator } : {}),
+                linha: p.linha,
+                volumeMl: p.volumeMl,
+                ...("codigoFornecedor" in p
+                  ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator, custo: p.custo }
+                  : {}),
               }}
+            />
+          )}
+          {podeEditar && envasa && ajustes && (
+            <EnvasarDecants
+              perfumeId={p.id}
+              perfumeNome={p.nome}
+              decants={p.decants}
+              custoPorMl={custoPorMl}
+              regra={ajustes.precificacao.PERFUMARIA}
             />
           )}
           {podeEditar && (
@@ -272,7 +296,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <div className="px-6 py-12 text-center">
               <p className="font-medium">Nenhum movimento ainda</p>
               <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Esta peça nunca teve entrada nem saída. A primeira chegada entra por uma{" "}
+                Este produto nunca teve entrada nem saída. A primeira chegada entra por uma{" "}
                 <strong>compra</strong>: em <strong>Mexer no estoque</strong>, toque em Entrada.
               </p>
             </div>

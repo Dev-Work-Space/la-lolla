@@ -1,7 +1,7 @@
 /*
  * O papel da LaLolla: o que o orçamento e o recibo têm em comum.
  *
- * Faixa dourada, logo, assinatura "SEMIJOIAS", bloco do cliente, tabela de
+ * Faixa dourada, logo, assinatura "SEMIJOIAS E PERFUMARIA", bloco do cliente, tabela de
  * itens e rodapé numerado. Estava tudo escrito duas vezes — e papel timbrado
  * que muda num arquivo e não muda no outro deixa a loja mandando dois
  * documentos que não parecem da mesma casa.
@@ -26,6 +26,9 @@ export const CREME: [number, number, number] = [246, 239, 223];
 export const M = 18; // margem
 export const W = 210; // A4 em mm
 export const DIR = W - M;
+
+const LARGURA_LOGO = 40; // mm
+const ASSINATURA = "SEMIJOIAS E PERFUMARIA";
 
 /* As três colunas da direita. Valem para os dois documentos: é o alinhamento
    que faz a coluna de dinheiro parecer uma coluna de dinheiro. */
@@ -88,7 +91,7 @@ export function cabecalho(
   if (logo) {
     try {
       // 353×90 é a proporção do arquivo da marca.
-      doc.addImage(logo, "PNG", M, y - 8, 40, 40 * (90 / 353));
+      doc.addImage(logo, "PNG", M, y - 8, LARGURA_LOGO, LARGURA_LOGO * (90 / 353));
       temLogo = true;
     } catch {
       temLogo = false;
@@ -101,12 +104,15 @@ export function cabecalho(
     doc.text("LaLolla", M, y);
   }
 
-  /* A assinatura "SEMIJOIAS" bem espaçada sob a logo: nove letras ocupando a
-     largura da marca sem competir com ela. */
+  /* A assinatura ocupa EXATAMENTE a largura da logo, bem espaçada. Com "E
+     PERFUMARIA" ela passou de 9 para 22 letras e, com o espaçamento fixo,
+     passava da marca e ficava torta. O espaço agora é calculado: muda o
+     texto, a assinatura continua do tamanho da logo. */
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(...OURO);
-  doc.text("SEMIJOIAS", M, y + 5.6, { charSpace: 2.6 });
+  const espaco = Math.max(0.3, (LARGURA_LOGO - doc.getTextWidth(ASSINATURA)) / (ASSINATURA.length - 1));
+  doc.text(ASSINATURA, M, y + 5.6, { charSpace: espaco });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);

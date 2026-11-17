@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLICAS = ["/login", "/api/health"];
+// O catálogo é a vitrine que a loja manda no WhatsApp: a cliente não tem login.
+// Ele só mostra o que a vitrine.tipos.ts deixa passar.
+const PUBLICAS = ["/login", "/api/health", "/catalogo"];
 
 /*
   * O proxy (era "middleware" ate o Next 15) roda no Edge, a cada requisição, ANTES de tudo. Por isso ele

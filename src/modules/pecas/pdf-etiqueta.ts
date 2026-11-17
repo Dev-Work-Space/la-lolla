@@ -398,11 +398,12 @@ function desenhaEtiqueta(
     doc.text("LaLolla", x + pad, ty);
     ty += 2.4;
   }
-  if (luxo) {
+  // Outros não tem palavra: a etiqueta fica só com a logo, sem o fio dourado embaixo de nada.
+  if (luxo && p.assinatura) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(Math.max(3.4, Math.min(4.4, h * 0.088)));
     doc.setTextColor(...GOLD);
-    doc.text("SEMIJOIAS", x + pad, ty, { charSpace: 0.9 });
+    doc.text(p.assinatura, x + pad, ty, { charSpace: 0.9 });
     ty += 1.8;
     doc.setDrawColor(...LINHA);
     doc.setLineWidth(0.25);

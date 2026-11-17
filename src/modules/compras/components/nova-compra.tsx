@@ -150,7 +150,7 @@ export function NovaCompra({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
       <div className="space-y-4">
         <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
           <div className="space-y-1.5">
@@ -173,7 +173,7 @@ export function NovaCompra({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="busca-item">Adicionar peça ou insumo</Label>
+            <Label htmlFor="busca-item">Adicionar produto ou insumo</Label>
             <div className="relative">
               <MagnifyingGlassIcon weight="regular"
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -238,7 +238,7 @@ export function NovaCompra({
           )}
           {!buscando && termo.length >= 2 && achados.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Nada encontrado. Cadastre a peça no Estoque antes de comprar.
+              Nada encontrado. Cadastre o produto no Estoque antes de comprar.
             </p>
           )}
         </Card>
@@ -255,7 +255,7 @@ export function NovaCompra({
             <ul className="divide-y">
               {itens.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 basis-full flex-1 sm:basis-0">
                     <span className="block truncate text-sm font-medium">{i.nome}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {i.sku} · tem {i.saldo} {i.unidade}
@@ -315,7 +315,7 @@ export function NovaCompra({
                     }
                   />
 
-                  <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
+                  <span className="ml-auto w-24 shrink-0 text-right text-sm font-semibold tabular-nums">
                     {brl(i.custoUnit * i.quantidade)}
                   </span>
 
@@ -382,7 +382,7 @@ export function NovaCompra({
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            O estoque entra e o custo das peças é atualizado.
+            O estoque entra e o custo dos produtos é atualizado.
           </p>
         </Card>
       </div>

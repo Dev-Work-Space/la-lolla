@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salvarAjustesAction } from "../ajustes.actions";
 import { AJUSTES_PADRAO, ROTULOS, type Ajustes } from "../ajustes.tipos";
+import { LINHAS, ROTULO_LINHA, type ModoPreco, type Precificacao } from "@/modules/pecas/linha";
+import type { Linha } from "@prisma/client";
+import { cn } from "@/lib/utils";
 import type { ErrosDeCampo } from "@/lib/result";
 
 /*
@@ -24,8 +27,6 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [salvando, salvar] = useTransition();
-
-  const br = (n: number) => String(n).replace(".", ",");
 
   return (
     <form
@@ -46,20 +47,14 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
       }}
       className="space-y-4"
     >
+      {LINHAS.map((l) => (
+        <BlocoLinha key={l} linha={l} atual={atuais.precificacao[l]} erros={erros} />
+      ))}
+
       <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
         <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Peças e preço
+          Venda
         </h2>
-
-        <Campo
-          id="fator"
-          rotulo={ROTULOS.fator.nome}
-          ajuda={ROTULOS.fator.ajuda}
-          defaultValue={br(atuais.fator)}
-          erro={erros.fator?.[0]}
-          inputMode="decimal"
-          sufixo={`padrão ${br(AJUSTES_PADRAO.fator)}`}
-        />
 
         <Campo
           id="descontoVista"
@@ -141,6 +136,80 @@ export function FormAjustes({ atuais }: { atuais: Ajustes }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+const br = (n: number) => String(n).replace(".", ",");
+
+/*
+ * Uma linha da loja: como chega no custo e como sugere o preço. As três têm
+ * os mesmos campos, por isso o nome de cada um leva a linha junto
+ * ("precificacao.PERFUMARIA.fator") — é assim que a action separa.
+ */
+function BlocoLinha({ linha, atual, erros }: { linha: Linha; atual: Precificacao; erros: ErrosDeCampo }) {
+  const [modo, setModo] = useState<ModoPreco>(atual.modoPreco);
+  const base = `precificacao.${linha}`;
+  const padrao = AJUSTES_PADRAO.precificacao[linha];
+
+  return (
+    <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
+      <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {ROTULO_LINHA[linha]} · custo e preço
+      </h2>
+
+      <Campo
+        id={`${base}.fator`}
+        rotulo={ROTULOS.fator.nome}
+        ajuda={ROTULOS.fator.ajuda}
+        defaultValue={br(atual.fator)}
+        erro={erros[`${base}.fator`]?.[0]}
+        inputMode="decimal"
+        sufixo={padrao.fator ? `padrão ${br(padrao.fator)}` : "0 = valor pago"}
+      />
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${base}.valorPreco`}>{ROTULOS.preco.nome}</Label>
+        <input type="hidden" name={`${base}.modoPreco`} value={modo} />
+        <div className="flex items-center gap-2">
+          <div role="radiogroup" aria-label="Como sugerir o preço" className="flex shrink-0 rounded-lg border bg-(--ll-surface-2) p-0.5">
+            {(
+              [
+                ["MULTIPLICADOR", "× custo"],
+                ["PERCENTUAL", "+ %"],
+              ] as const
+            ).map(([valor, rotulo]) => (
+              <button
+                key={valor}
+                type="button"
+                role="radio"
+                aria-checked={modo === valor}
+                onClick={() => setModo(valor)}
+                className={cn(
+                  "rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors",
+                  modo === valor ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          <Input
+            id={`${base}.valorPreco`}
+            name={`${base}.valorPreco`}
+            defaultValue={br(atual.valorPreco)}
+            aria-invalid={!!erros[`${base}.valorPreco`]}
+            inputMode="decimal"
+            className="text-base"
+          />
+          <span className="shrink-0 text-sm text-muted-foreground">{modo === "PERCENTUAL" ? "%" : "×"}</span>
+        </div>
+        {erros[`${base}.valorPreco`] ? (
+          <p className="text-sm text-destructive">{erros[`${base}.valorPreco`][0]}</p>
+        ) : (
+          <p className="text-xs leading-relaxed text-muted-foreground">{ROTULOS.preco.ajuda}</p>
+        )}
+      </div>
+    </Card>
   );
 }
 

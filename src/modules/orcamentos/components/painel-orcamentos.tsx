@@ -103,7 +103,7 @@ export async function PainelOrcamentos({
       <Lista>
         {lista.length > 0 ? (
           lista.map((o) => {
-            const sub = [o.data.toLocaleDateString("pt-BR"), plural(o.itens.length, "peça", "peças")];
+            const sub = [o.data.toLocaleDateString("pt-BR"), plural(o.itens.length, "produto", "produtos")];
             if (o.status === "ABERTO" && o.validoAte) {
               sub.push(
                 o.vencido
@@ -147,7 +147,7 @@ export async function PainelOrcamentos({
         ) : (
           <BlocoVazio
             titulo="Nenhum orçamento ainda"
-            texto="Orçamento é a proposta que vai para a cliente antes de fechar. Ele reserva as peças sem baixar o estoque e vira venda com um toque quando ela aprovar."
+            texto="Orçamento é a proposta que vai para a cliente antes de fechar. Ele reserva os produtos sem baixar o estoque e vira venda com um toque quando ela aprovar."
             acao={
               podeCriar ? (
                 <Button nativeButton={false} render={<Link href="/orcamentos/novo" />}>
