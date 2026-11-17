@@ -75,6 +75,13 @@ type ModoCusto = "codigo" | "pago";
 /* O Select não guarda valor vazio; "nenhum" vira esta marca e sai vazio no formulário. */
 const NENHUM = "__nenhum__";
 
+/* Exemplo de semijoia no cadastro de perfume confundia (pedido do João, 17/11). */
+const EXEMPLO: Record<Linha, { nome: string; tamanho: string; pago: string }> = {
+  SEMIJOIA: { nome: "ex.: Anel solitário zircônia", tamanho: "ex.: 17, 45 cm, P/M/G", pago: "ex.: 39,90" },
+  PERFUMARIA: { nome: "ex.: Sauvage Eau de Toilette", tamanho: "ex.: 100 ml", pago: "ex.: 189,90" },
+  OUTROS: { nome: "ex.: Bolsa de mão caramelo", tamanho: "ex.: P, M, G", pago: "ex.: 59,90" },
+};
+
 const br = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n).replace(".", ","));
 const paraNumero = (s: string) => Number(s.trim().replace(/\./g, "").replace(",", ".")) || 0;
 
@@ -284,7 +291,7 @@ function FormPeca({
               rotulo="Quanto vocês pagaram (por unidade)"
               erro={erroDe("custoPago")}
               inputMode="decimal"
-              placeholder="ex.: 189,90"
+              placeholder={EXEMPLO[linha].pago}
               value={valorPago}
               onChange={(e) => setValorPago(e.target.value)}
             />
@@ -348,7 +355,7 @@ function FormPeca({
         id="nome"
         rotulo="Nome do produto"
         erro={erroDe("nome")}
-        placeholder="ex.: Anel solitário zircônia"
+        placeholder={EXEMPLO[linha].nome}
         value={nome}
         onChange={(e) => setNome(e.target.value)}
         autoFocus={!editando}
@@ -373,7 +380,7 @@ function FormPeca({
           id="tamanho"
           rotulo="Tamanho"
           erro={erroDe("tamanho")}
-          placeholder="ex.: 17, 45 cm, P/M/G"
+          placeholder={EXEMPLO[linha].tamanho}
           maxLength={30}
           defaultValue={peca?.tamanho ?? ""}
           ajuda={

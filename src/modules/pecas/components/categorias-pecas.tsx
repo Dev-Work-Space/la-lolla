@@ -78,7 +78,7 @@ export function CategoriasPecas({
             id="nova-categoria"
             value={nova}
             onChange={(e) => setNova(e.target.value)}
-            placeholder="ex.: Alianças"
+            placeholder={{ SEMIJOIA: "ex.: Alianças", PERFUMARIA: "ex.: Body splash", OUTROS: "ex.: Carteiras" }[linhaLoja]}
             maxLength={40}
             aria-invalid={!!erro}
             aria-describedby={erro ? "nova-categoria-erro" : undefined}
