@@ -13,7 +13,6 @@ import {
   type CriarPecaDados,
 } from "./peca.schema";
 import { criarPeca, criarInsumo, editarPeca, editarInsumo } from "./peca.service";
-import { fotosConfiguradas } from "@/lib/storage";
 
 /*
  * Toda action segue os MESMOS TRÊS PASSOS, nesta ordem:
@@ -72,20 +71,10 @@ export async function criarPecaAction(formData: FormData): Promise<Result<PecaCr
   const foto = fotoDoFormulario(formData);
 
   /*
-   * FOTO OBRIGATÓRIA na peça — decisão do João, e é como o app antigo faz.
-   * O insumo fica de fora: saquinho e caixinha não precisam ser reconhecidos
-   * de relance na hora da venda, que é o motivo de a foto existir.
-   *
-   * Só vale com o Storage ligado. Sem as chaves, exigir foto travaria o
-   * cadastro de peça inteiro — e o site da loja cadastrava peça sem foto antes
-   * da foto existir. Decisão do João (05/10): enquanto as chaves não estiverem
-   * na Vercel, a peça entra sem foto.
+   * Foto OPCIONAL — decisão do João (17/11), que antes a queria obrigatória:
+   * na correria do cadastro a foto trava tudo, e dá para pôr depois em
+   * "Editar produto". O filtro "Sem foto" do catálogo mostra quem ficou sem.
    */
-  if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
-    return fail("DADOS_INVALIDOS", "O produto precisa de foto.", {
-      foto: ["Adicione a foto do produto — é por ela que o produto é achado na venda."],
-    });
-  }
 
   try {
     const peca = await criarPeca(parsed.data, veFinanceiro(sessao.data), foto);
@@ -111,19 +100,8 @@ export async function editarPecaAction(id: string, formData: FormData): Promise<
   if (semCodigo) return semCodigo;
 
   try {
-    /* Na edição a foto nova é opcional SÓ para quem já tem uma: sem arquivo
-       novo, a que já está fica. A peça cadastrada sem foto (enquanto o
-       armazenamento estava desligado) ganha a dela na primeira edição — senão
-       ela nunca deixaria de ser a exceção. Não existe "remover foto". */
+    /* Sem arquivo novo, a foto que já está fica. Não existe "remover foto". */
     const foto = fotoDoFormulario(formData);
-    if (!foto && parsed.data.tipo === "PECA" && fotosConfiguradas()) {
-      const { pecaTemFoto } = await import("./peca.service");
-      if (!(await pecaTemFoto(idOk.data))) {
-        return fail("DADOS_INVALIDOS", "O produto precisa de foto.", {
-          foto: ["Este produto ainda não tem foto. Adicione uma para salvar — é por ela que o produto é achado na venda."],
-        });
-      }
-    }
     const peca = await editarPeca(idOk.data, parsed.data, veFinanceiro(sessao.data), foto);
     recarregar("estoque", `/estoque/${idOk.data}`);
     return ok({ id: peca.id });

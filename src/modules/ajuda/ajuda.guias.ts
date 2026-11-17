@@ -53,7 +53,7 @@ export const GUIAS = [
     passos: [
       "Estoque › Produtos › Novo produto.",
       "Escolha a linha: Semijoias, Perfumaria ou Outros. Ela decide as categorias e a palavra da etiqueta.",
-      "Tire a foto: é por ela que o produto é achado rápido na hora da venda.",
+      "Tire a foto, se puder: é por ela que o produto é achado rápido na venda. Não é obrigatória — dá para pôr depois, em “Editar produto”, e o filtro “Sem foto” mostra quem ficou sem.",
       "Informe o custo: código do fornecedor × multiplicador, ou o valor pago.",
       "Dê um nome que você reconheça na prateleira, escolha a categoria e, se tiver, o tamanho (aro 17, 45 cm, 100 ml).",
       "Escolha o fornecedor e confira o preço sugerido.",

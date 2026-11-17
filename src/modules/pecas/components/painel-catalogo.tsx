@@ -146,7 +146,7 @@ export async function PainelCatalogo({
               Em <strong>Settings › API</strong>, copie a <em>anon public</em> e a{" "}
               <em>service_role</em> para o arquivo <code>.env</code>, no lugar de PREENCHER.
             </li>
-            <li>Reinicie o app. Daí em diante a foto passa a ser obrigatória no cadastro.</li>
+            <li>Reinicie o app. Daí em diante o cadastro aceita foto.</li>
           </ol>
         </div>
       )}
