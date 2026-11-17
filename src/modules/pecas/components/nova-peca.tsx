@@ -1,7 +1,7 @@
 "use client";
 
 import { Seletor } from "@/components/padrao/seletor";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import { criarPecaAction, editarPecaAction, pecaComCodigoAction } from "../peca.actions";
@@ -74,6 +74,23 @@ type ModoCusto = "codigo" | "pago";
 
 /* O Select não guarda valor vazio; "nenhum" vira esta marca e sai vazio no formulário. */
 const NENHUM = "__nenhum__";
+
+/* Para o resumo do erro perto do botão: "Foto: adicione…" diz onde olhar. */
+const NOME_DO_CAMPO: Record<string, string> = {
+  foto: "Foto",
+  linha: "Linha",
+  codigoFornecedor: "Código do fornecedor",
+  fator: "Multiplicador",
+  custoPago: "Valor pago",
+  nome: "Nome",
+  categoria: "Categoria",
+  tamanho: "Tamanho",
+  volumeMl: "Volume",
+  fornecedorId: "Fornecedor",
+  precoTabela: "Preço sugerido",
+  precoPromocional: "Preço promocional",
+  minimo: "Aviso de estoque",
+};
 
 /* Exemplo de semijoia no cadastro de perfume confundia (pedido do João, 17/11). */
 const EXEMPLO: Record<Linha, { nome: string; tamanho: string; pago: string }> = {
@@ -155,6 +172,19 @@ function FormPeca({
   const [repetida, setRepetida] = useState<{ id: string; nome: string; categoria: string } | null>(null);
   const [estado, setEstado] = useState<Result<{ id: string }> | null>(null);
   const [pendente, salvar] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /*
+   * Recusado, rola até o primeiro campo com erro. Sem isto o "Cadastrar
+   * produto" parecia não fazer nada: o aviso da foto (ou de outro campo de
+   * cima) aparecia no topo da janela, e quem clica está rolado lá embaixo.
+   * Defeito visto em vídeo pelo João, 17/11.
+   */
+  useEffect(() => {
+    if (!estado || estado.ok) return;
+    const alvo = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [role="alert"]');
+    alvo?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [estado]);
 
   const custo =
     modoCusto === "codigo"
@@ -212,6 +242,7 @@ function FormPeca({
 
   const erroDe = (campo: string) => (estado && !estado.ok ? estado.error.fields?.[campo]?.[0] : undefined);
   const erroGeral = estado && !estado.ok && !estado.error.fields ? estado.error.message : undefined;
+  const errosDeCampo = estado && !estado.ok && estado.error.fields ? Object.entries(estado.error.fields) : [];
 
   // Categoria que saiu da lista continua na peça, marcada, em vez de sumir calada.
   const daLinha = categorias[linha];
@@ -223,7 +254,7 @@ function FormPeca({
   ];
 
   return (
-    <form onSubmit={enviar} className="space-y-4">
+    <form ref={formRef} onSubmit={enviar} className="space-y-4">
       {/* Primeiro campo, como no app antigo: quem cadastra está com a peça na mão. */}
       {fotosLigadas && (
         <div className="space-y-2">
@@ -504,6 +535,20 @@ function FormPeca({
         <p role="alert" className="text-sm font-medium text-destructive">
           {erroGeral}
         </p>
+      )}
+
+      {errosDeCampo.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <p className="font-medium">Não salvou. Falta corrigir:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {errosDeCampo.map(([campo, msgs]) => (
+              <li key={campo}>
+                {NOME_DO_CAMPO[campo] ? `${NOME_DO_CAMPO[campo]}: ` : ""}
+                {msgs[0]}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="flex justify-end gap-2 pt-1">
