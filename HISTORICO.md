@@ -1155,6 +1155,22 @@ A loja virou **LaLolla Semijoias e Perfumaria**. O que mudou, e por quê:
 - Junção com a `main`: ela tinha reescrito o assistente (Groq). Ficou a versão
   dela, com o nome novo reaplicado.
 
+### 17/11 · Tutoriais com "?" em cada tela
+
+O app antigo tinha 13 guias (`viewTutoriais`) e o novo nunca os portou; o
+João sentiu falta. Não foram copiados: o estoque agora só entra pela compra,
+a devolução acerta o dinheiro sozinha, o comprovante pode vir depois e há
+perfumaria e decant. São 18 guias reescritos olhando a tela de hoje, em
+`modules/ajuda/ajuda.guias.ts` — acrescentar um guia é acrescentar um objeto.
+
+- O **?** fica dentro do título de cada tela. Cada tela diz qual é o guia
+  dela (`ajuda` no `TituloTela`, ou `<BotaoAjuda guia=…>` no título próprio):
+  a mesma tela muda de assunto pela aba (A receber, A pagar).
+- O guia abre em janela, com passos numerados e "Abrir esta tela".
+- `/tutoriais` lista todos, em três grupos. Qualquer pessoa logada vê.
+- Inventário e backup, que o antigo tinha, ficaram de fora: ainda não existem
+  no app novo, e guia de tela que não existe é pior que nenhum.
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o
@@ -1319,10 +1335,7 @@ done
 
 - **Kanban de vendas (CRM):** arrastar a venda pelas etapas depois de lançada.
   Fazer com calma — combinar as etapas antes.
-- **Tutorial com "?" em cada tela**, como no app antigo (13 guias, 72 passos,
-  `viewTutoriais`), reescrito para as telas novas.
 - **Next.js 16.4.2 tem falha moderada** (`npm audit`); atualizar numa branch própria.
-- **Bruno é Super Admin**, e a ordem permanente diz "só João e Hemily". Confirmar.
 
 **Dado de teste no banco:** ~~resolvido em 17/11~~ — banco limpo (ver 17/11).
 

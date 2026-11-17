@@ -19,7 +19,7 @@ Valem até ele mandar parar.
    `ZZQA ` e limpam por id exato no fim.
 2. **Conteste quando ele estiver errado.** Na cara, sem medo. Ele pediu isso
    explicitamente e repetiu.
-3. **Super admins são só João e Hemily.**
+3. **Super admins são João, Hemily e Bruno.** (Bruno confirmado pelo João em 17/11.)
 4. **Qualquer dúvida, pergunte antes de agir.**
 5. **Nunca fuja do padrão** de linguagem e estilo já estabelecido no código.
 6. **Sem multi-agente para QA.** Ele cancelou isso uma vez.
