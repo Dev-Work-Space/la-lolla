@@ -11,6 +11,7 @@ import { AcoesVenda, RemoverRecebimento } from "@/modules/vendas/components/acoe
 import { EmitirRecibo } from "@/modules/vendas/components/emitir-recibo";
 import { VerComprovante } from "@/modules/financeiro/components/ver-comprovante";
 import { AnexarComprovante } from "@/modules/financeiro/components/comprovantes-pendentes";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -60,7 +61,9 @@ export default async function VendaPage({ params }: { params: Promise<{ id: stri
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Venda #{v.numero}</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Venda #{v.numero}
+            <BotaoAjuda guia="errei" className="ml-2" />
+          </h1>
             {v.cancelada && <Pilula tom="due">cancelada</Pilula>}
             {!v.cancelada && v.saldo > 0 && <Pilula tom="due">a receber</Pilula>}
             {!v.cancelada && v.comprovantesPendentes > 0 && (

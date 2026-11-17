@@ -9,6 +9,7 @@ import { brl, data as fData } from "@/lib/formato";
 import { Indicador, Indicadores, Pilula } from "@/components/padrao/indicadores";
 import { AcoesOrcamento } from "@/modules/orcamentos/components/acoes-orcamento";
 import { EmitirOrcamento } from "@/modules/orcamentos/components/emitir-orcamento";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -66,7 +67,9 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Orçamento {o.rotulo}</h1>
+            <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Orçamento {o.rotulo}
+            <BotaoAjuda guia="orcamento" className="ml-2" />
+          </h1>
             {o.status === "ABERTO" && !o.vencido && <Pilula tom="accent">em aberto</Pilula>}
             {o.vencido && <Pilula tom="due">vencido</Pilula>}
             {o.status === "CONVERTIDO" && <Pilula>aprovado</Pilula>}

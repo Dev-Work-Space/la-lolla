@@ -51,7 +51,11 @@ export default async function FinanceiroPage({
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-4">
-        <TituloTela secao="Financeiro" titulo={tituloDaAba(qual, tipo, ver)} />
+        <TituloTela
+          secao="Financeiro"
+          titulo={tituloDaAba(qual, tipo, ver)}
+          ajuda={qual === "contas" && tipo === "receber" ? "receber" : qual === "contas" && tipo === "pagar" ? "pagar" : "caixa"}
+        />
       </div>
 
       <Suspense fallback={<EsqueletoIndicadores quantos={4} />}>

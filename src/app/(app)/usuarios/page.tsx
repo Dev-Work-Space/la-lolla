@@ -10,7 +10,7 @@ export default async function UsuariosPage() {
   if (!sessao.ok) return <main className="mx-auto max-w-5xl p-5"><h1 className="text-xl font-bold">Usuários</h1><p role="alert" className="mt-4">{sessao.error.message}</p></main>;
   const usuarios = await listarUsuarios();
   return <main className="mx-auto w-full max-w-5xl px-4 py-5">
-    <TituloTela secao="Cadastros" titulo="Usuários">
+    <TituloTela secao="Cadastros" titulo="Usuários" ajuda="equipe">
       <p className="mt-1 text-sm text-muted-foreground">Cadastros, perfis e acesso da equipe à loja.</p>
     </TituloTela>
     <GestaoUsuarios usuarios={usuarios} autorId={sessao.data.usuarioId} papelAutor={sessao.data.papel} />

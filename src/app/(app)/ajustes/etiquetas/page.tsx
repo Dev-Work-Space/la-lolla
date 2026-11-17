@@ -4,6 +4,7 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { lerDesenhos } from "@/modules/pecas/etiqueta.service";
 import { CriadorEtiquetas } from "@/modules/pecas/components/criador-etiquetas";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Criação de etiquetas · LaLolla" };
 
@@ -27,7 +28,9 @@ export default async function CriacaoDeEtiquetasPage() {
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Ajustes
       </Link>
-      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Criação de etiquetas</h1>
+      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Criação de etiquetas
+            <BotaoAjuda guia="etiquetas" className="ml-2" />
+          </h1>
       <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
         Monte o seu modelo arrastando cada elemento para a etiqueta. Salvo, ele aparece na hora de imprimir, junto dos
         outros modelos.

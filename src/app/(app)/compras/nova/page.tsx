@@ -5,6 +5,7 @@ import { exigirPermissao } from "@/lib/auth/guard";
 import { NovaCompra } from "@/modules/compras/components/nova-compra";
 import { itemParaCompra } from "@/modules/compras/compra.service";
 import { idPecaSchema } from "@/modules/pecas/peca.schema";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Nova compra · LaLolla" };
 
@@ -34,7 +35,9 @@ export default async function NovaCompraPage({
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Portal de compras
       </Link>
-      <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">Nova compra</h1>
+      <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">Nova compra
+            <BotaoAjuda guia="primeira-compra" className="ml-2" />
+          </h1>
       <NovaCompra inicial={inicial} />
     </main>
   );

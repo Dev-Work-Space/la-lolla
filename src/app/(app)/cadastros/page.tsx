@@ -38,7 +38,11 @@ export default async function CadastrosPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <TituloTela secao="Cadastros" titulo={qual === "clientes" ? "Clientes" : "Fornecedores"} />
+      <TituloTela
+        secao="Cadastros"
+        titulo={qual === "clientes" ? "Clientes" : "Fornecedores"}
+        ajuda={qual === "clientes" ? "clientes" : "primeira-compra"}
+      />
 
       <div className="mt-5">
         {/* As abas já estão na tela; a lista chega quando o banco responder. */}
