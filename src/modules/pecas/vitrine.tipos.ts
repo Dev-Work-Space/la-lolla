@@ -1,3 +1,5 @@
+import type { Linha } from "@prisma/client";
+
 /*
  * O que a cliente vê no catálogo público.
  *
@@ -7,6 +9,9 @@
  */
 export type PecaVitrine = {
   id: string;
+  linha: Linha;
+  /** O perfume de onde o decant sai: junta frasco e decants no mesmo card. */
+  perfumeId: string | null;
   sku: string;
   nome: string;
   categoria: string;
@@ -31,6 +36,8 @@ export type ModeloVitrine = {
   chave: string;
   nome: string;
   categoria: string;
+  /** Perfume escolhe por "Volume"; o resto, por "Tamanho". */
+  linha: Linha;
   /** Na ordem de tamanho; a primeira disponível é a que o card abre escolhida. */
   variantes: PecaVitrine[];
 };

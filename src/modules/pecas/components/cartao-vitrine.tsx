@@ -73,7 +73,7 @@ export function CartaoVitrine({ modelo }: { modelo: ModeloVitrine }) {
 
         {temEscolha ? (
           <fieldset className="mt-1">
-            <legend className="text-xs text-muted-foreground">Tamanho</legend>
+            <legend className="text-xs text-muted-foreground">{modelo.linha === "PERFUMARIA" ? "Volume" : "Tamanho"}</legend>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {modelo.variantes.map((v) => {
                 const ativa = v.id === p.id;

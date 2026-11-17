@@ -21,6 +21,7 @@ export async function listarVitrine(filtro: FiltroVitrine) {
     tipo: "PECA",
     arquivada: false,
     totalRecebido: { gt: 0 },
+    ...(filtro.linha ? { linha: filtro.linha } : {}),
     precoTabela: { not: null },
     ...(q
       ? {
@@ -40,6 +41,8 @@ export async function listarVitrine(filtro: FiltroVitrine) {
       nome: true,
       categoria: true,
       tamanho: true,
+      linha: true,
+      perfumeId: true,
       precoTabela: true,
       precoPromocional: true,
       imagens: { where: { principal: true }, take: 1, select: { pathMedia: true } },
@@ -64,6 +67,8 @@ export async function listarVitrine(filtro: FiltroVitrine) {
     const livre = (saldos.get(p.id) ?? 0) - (reservas.get(p.id) ?? 0);
     return {
       id: p.id,
+      linha: p.linha,
+      perfumeId: p.perfumeId,
       sku: p.sku,
       nome: p.nome,
       categoria: p.categoria,
@@ -79,7 +84,13 @@ export async function listarVitrine(filtro: FiltroVitrine) {
   const assinadas = await urlsAssinadas(linhas.map((l) => l.foto));
   linhas = linhas.map((l) => ({ ...l, foto: l.foto ? (assinadas.get(l.foto) ?? null) : null }));
 
-  return { modelos: agrupar(linhas), categorias };
+  // As abas só mostram linhas que têm produto: aba vazia na vitrine parece loja fechada.
+  const linhasComProduto = await prisma.peca.groupBy({
+    by: ["linha"],
+    where: { tipo: "PECA", arquivada: false, totalRecebido: { gt: 0 }, precoTabela: { not: null } },
+  });
+
+  return { modelos: agrupar(linhas), categorias, linhas: linhasComProduto.map((l) => l.linha) };
 }
 
 // "Aliança  Prata" e "aliança prata" são o mesmo modelo cadastrado duas vezes com digitação diferente.
@@ -87,12 +98,24 @@ const chaveDoModelo = (p: PecaVitrine) =>
   `${p.categoria}|${p.nome.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim()}`;
 
 function agrupar(linhas: PecaVitrine[]): ModeloVitrine[] {
+  /*
+   * Decant e frasco do mesmo perfume ficam juntos pela LIGAÇÃO, não pelo nome:
+   * o perfume pode ser renomeado e o decant não ir junto. Quem não é perfume
+   * com decant continua agrupado pelo nome, como antes.
+   */
+  const comDecant = new Set(linhas.map((p) => p.perfumeId).filter((id): id is string => !!id));
+  const chaveDe = (p: PecaVitrine) =>
+    p.perfumeId ? `perfume:${p.perfumeId}` : comDecant.has(p.id) ? `perfume:${p.id}` : chaveDoModelo(p);
+
   const porChave = new Map<string, ModeloVitrine>();
   for (const p of linhas) {
-    const chave = chaveDoModelo(p);
+    const chave = chaveDe(p);
     const m = porChave.get(chave);
-    if (m) m.variantes.push(p);
-    else porChave.set(chave, { chave, nome: p.nome, categoria: p.categoria, variantes: [p] });
+    if (m) {
+      m.variantes.push(p);
+      // O nome do card é o do frasco inteiro, quando ele está na vitrine.
+      if (!p.perfumeId && comDecant.has(p.id)) m.nome = p.nome;
+    } else porChave.set(chave, { chave, nome: p.nome, categoria: p.categoria, linha: p.linha, variantes: [p] });
   }
   const modelos = [...porChave.values()];
   for (const m of modelos) {
