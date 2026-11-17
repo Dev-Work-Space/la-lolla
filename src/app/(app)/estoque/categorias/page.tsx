@@ -7,6 +7,7 @@ import { painelCategorias } from "@/modules/pecas/categoria.service";
 import { CategoriasPecas } from "@/modules/pecas/components/categorias-pecas";
 import { LINHAS, ROTULO_LINHA, ehLinha } from "@/modules/pecas/linha";
 import { cn } from "@/lib/utils";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Categorias de produto · LaLolla" };
 
@@ -32,7 +33,9 @@ export default async function CategoriasPage({ searchParams }: { searchParams: P
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Estoque
       </Link>
-      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Categorias de produto</h1>
+      <h1 className="ll-entra-cabecalho mt-3 text-xl font-bold tracking-tight">Categorias de produto
+            <BotaoAjuda guia="custo-preco" className="ml-2" />
+          </h1>
       <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
         Servem para filtrar o catálogo e agrupar os relatórios. Renomear aqui renomeia em todos os produtos
         que usam a categoria.

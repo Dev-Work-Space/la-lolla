@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
+import type { IdGuia } from "@/modules/ajuda/ajuda.guias";
 
 /*
  * Peças de tela que o app antigo repete em toda página: `stat()`, `chips`,
@@ -290,16 +292,22 @@ export function TituloSecao({ children }: { children: React.ReactNode }) {
 export function TituloTela({
   secao,
   titulo,
+  ajuda,
   children,
 }: {
   secao: string;
   titulo: string;
+  /** O guia do "?" ao lado do título. */
+  ajuda?: IdGuia;
   children?: React.ReactNode;
 }) {
   return (
     <div className="min-w-0">
       <p className="text-[11px] font-bold tracking-wide text-(--ll-accent) uppercase">{secao}</p>
-      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{titulo}</h1>
+      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">
+        {titulo}
+        {ajuda && <BotaoAjuda guia={ajuda} className="ml-2" />}
+      </h1>
       {children}
     </div>
   );

@@ -4,6 +4,7 @@ import { Suspense, use, useEffect, useState } from "react";
 import { COLUNAS, lerPainel, normalizarPainel, type ItemPainel } from "../widgets";
 import { RenderWidget, widgetTemConteudo, type DadosPainel } from "./widgets-render";
 import { cn } from "@/lib/utils";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 /*
  * A largura de cada bloco só vale no monitor. Ela era um `style` solto e
@@ -55,7 +56,9 @@ export function PainelInicio({ dados }: { dados: Promise<DadosPainel> }) {
         João: o Início é para olhar a loja, não para configurá-la. A leitura do
         arranjo continua sendo feita aqui, no localStorage deste aparelho.
       */}
-      <h1 className="ll-entra-cabecalho mb-4 text-xl font-bold tracking-tight">Início</h1>
+      <h1 className="ll-entra-cabecalho mb-4 text-xl font-bold tracking-tight">Início
+            <BotaoAjuda guia="primeira-venda" className="ml-2" />
+          </h1>
 
       <Suspense fallback={<EsqueletoGrade />}>
         <Grade dados={dados} cfg={cfg} pronto={pronto} />

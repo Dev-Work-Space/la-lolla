@@ -6,6 +6,7 @@ import { campoDaData } from "@/lib/dia";
 import { buscarOrcamento } from "@/modules/orcamentos/orcamento.service";
 import { saldoDasPecas } from "@/modules/pecas/catalogo.service";
 import { NovaVenda, type VendaDeOrcamento } from "@/modules/vendas/components/nova-venda";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Nova venda · LaLolla" };
 
@@ -67,6 +68,7 @@ export default async function NovaVendaPage({
       </Link>
       <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">
         {deOrcamento ? "Fechar a venda do orçamento" : "Nova venda"}
+        <BotaoAjuda guia={deOrcamento ? "orcamento" : "primeira-venda"} className="ml-2" />
       </h1>
       <NovaVenda orcamento={deOrcamento} />
     </main>

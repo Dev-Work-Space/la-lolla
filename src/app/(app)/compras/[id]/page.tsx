@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { ImprimirEtiquetas } from "@/modules/pecas/components/imprimir-etiquetas";
 import { lerDesenhos, pecasParaEtiqueta } from "@/modules/pecas/etiqueta.service";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,9 @@ export default async function CompraPage({ params }: { params: Promise<{ id: str
 
       <div className="mt-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Compra #{c.numero}</h1>
+          <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Compra #{c.numero}
+            <BotaoAjuda guia="primeira-compra" className="ml-2" />
+          </h1>
           {c.saldo > 0 ? <Pilula tom="due">a pagar</Pilula> : <Pilula>quitada</Pilula>}
           {!c.aPrazo && <Pilula>à vista</Pilula>}
         </div>

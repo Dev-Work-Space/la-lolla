@@ -56,7 +56,11 @@ export default async function EstoquePage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
-      <TituloTela secao="Estoque" titulo={qual === "catalogo" ? "Produtos" : "Insumos"} />
+      <TituloTela
+        secao="Estoque"
+        titulo={qual === "catalogo" ? "Produtos" : "Insumos"}
+        ajuda={linha === "PERFUMARIA" ? "decant" : qual === "catalogo" ? "primeiro-produto" : "estoque-nao-bate"}
+      />
 
       <div className="mt-5">
         <Suspense

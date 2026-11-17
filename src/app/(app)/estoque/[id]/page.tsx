@@ -18,6 +18,7 @@ import { EditarPeca } from "@/modules/pecas/components/nova-peca";
 import { fornecedoresParaPeca } from "@/modules/pecas/peca.service";
 import { podeFazer } from "@/modules/usuarios/permissoes";
 import { fotosConfiguradas } from "@/lib/storage";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -115,7 +116,9 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{p.nome}</h1>
+              <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">{p.nome}
+            <BotaoAjuda guia={p.linha === "PERFUMARIA" ? "decant" : "estoque-nao-bate"} className="ml-2" />
+          </h1>
               {insumo && <Pilula>insumo</Pilula>}
               {"aPagar" in p && p.aPagar && <Pilula tom="due">A pagar</Pilula>}
             </div>

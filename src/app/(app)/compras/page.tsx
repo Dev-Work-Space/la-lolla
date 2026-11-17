@@ -74,7 +74,7 @@ export default async function ComprasPage({
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <TituloTela secao="Compra e venda" titulo="Compras">
+        <TituloTela secao="Compra e venda" titulo="Compras" ajuda="primeira-compra">
           <Suspense
             key={chave}
             fallback={<div className="mt-1 h-4 w-28 animate-pulse rounded bg-muted" />}

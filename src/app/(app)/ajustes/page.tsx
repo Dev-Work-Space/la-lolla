@@ -8,6 +8,7 @@ import { FormAjustes } from "@/modules/ajustes/components/form-ajustes";
 import { MontarPainel } from "@/modules/painel/components/montar-painel";
 import { EscolhaDeTema } from "@/components/layout/tema";
 import { LINHAS, ROTULO_LINHA } from "@/modules/pecas/linha";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Ajustes · LaLolla" };
 
@@ -28,7 +29,9 @@ export default async function AjustesPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-5">
-      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Ajustes</h1>
+      <h1 className="ll-entra-cabecalho text-xl font-bold tracking-tight">Ajustes
+            <BotaoAjuda guia="custo-preco" className="ml-2" />
+          </h1>
       <p className="mt-0.5 text-sm text-muted-foreground">
         O que vale para a loja inteira: multiplicador do custo, meta e desconto.
       </p>

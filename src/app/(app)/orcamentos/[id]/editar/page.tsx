@@ -5,6 +5,7 @@ import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { buscarOrcamento } from "@/modules/orcamentos/orcamento.service";
 import { campoDaData } from "@/lib/dia";
 import { EditorOrcamento } from "@/modules/orcamentos/components/editor-orcamento";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Editar orçamento · LaLolla" };
 
@@ -39,7 +40,9 @@ export default async function EditarOrcamentoPage({
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
         Orçamento {o.rotulo}
       </Link>
-      <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Editar {o.rotulo}</h1>
+      <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Editar {o.rotulo}
+            <BotaoAjuda guia="orcamento" className="ml-2" />
+          </h1>
       <p className="mb-5 text-sm text-muted-foreground">
         O número não muda. Se a cliente já recebeu o PDF, prefira <strong>Revisar</strong>: ali
         nasce um número novo e o papel antigo continua valendo o que dizia.

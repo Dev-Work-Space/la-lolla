@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { saldoDasPecas } from "@/modules/pecas/catalogo.service";
 import { buscarVenda } from "@/modules/vendas/venda.service";
 import { NovaVenda, type VendaParaEditar } from "@/modules/vendas/components/nova-venda";
+import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Editar venda · LaLolla" };
 
@@ -75,7 +76,9 @@ export default async function EditarVendaPage({ params }: { params: Promise<{ id
         <ArrowLeftIcon className="size-4" aria-hidden />
         Venda #{v.numero}
       </Link>
-      <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">Editar a venda #{v.numero}</h1>
+      <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">Editar a venda #{v.numero}
+            <BotaoAjuda guia="errei" className="ml-2" />
+          </h1>
       <NovaVenda edicao={edicao} />
     </main>
   );
