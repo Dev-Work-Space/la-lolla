@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { ROTULO_LINHA } from "@/modules/pecas/linha";
+import { EnvasarDecants } from "@/modules/pecas/components/envasar-decants";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
@@ -70,6 +71,12 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   ];
   if (p.volumeMl) ficha.push(["Volume", `${p.volumeMl} ml`]);
   if (p.perfume) ficha.push(["Decant de", p.perfume.nome]);
+  if (p.decants.length) ficha.push(["Decants", p.decants.map((d) => d.tamanho ?? `${d.volumeMl} ml`).join(" · ")]);
+
+  // Só o frasco inteiro da Perfumaria envasa; decant não sai de decant.
+  const envasa = !insumo && p.linha === "PERFUMARIA" && !p.perfume;
+  // Custo por ml só para quem vê dinheiro; null = vê, mas falta custo ou volume no perfume.
+  const custoPorMl = !fin ? undefined : "custo" in p && p.custo != null && p.volumeMl ? p.custo / p.volumeMl : null;
   if (p.tamanho) ficha.push(["Tamanho", p.tamanho]);
   if (p.fornecedor) ficha.push(["Fornecedor", p.fornecedor.nome]);
   if (p.minimo) ficha.push(["Estoque mínimo", `${p.minimo} ${un}`]);
@@ -153,6 +160,15 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                   ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator, custo: p.custo }
                   : {}),
               }}
+            />
+          )}
+          {podeEditar && envasa && ajustes && (
+            <EnvasarDecants
+              perfumeId={p.id}
+              perfumeNome={p.nome}
+              decants={p.decants}
+              custoPorMl={custoPorMl}
+              regra={ajustes.precificacao.PERFUMARIA}
             />
           )}
           {podeEditar && (

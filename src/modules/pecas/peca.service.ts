@@ -30,7 +30,7 @@ const dec = (v: Prisma.Decimal | null) => (v === null ? null : Number(v));
  * do fornecedor. Gerado dentro da transação para dois cadastros simultâneos
  * não receberem o mesmo número.
  */
-async function proximoSku(tx: Prisma.TransactionClient): Promise<string> {
+export async function proximoSku(tx: Prisma.TransactionClient): Promise<string> {
   const ultima = await tx.peca.findFirst({
     where: { sku: { startsWith: "LL-" } },
     orderBy: { sku: "desc" },
