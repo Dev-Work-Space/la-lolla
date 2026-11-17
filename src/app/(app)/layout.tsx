@@ -11,6 +11,8 @@ import {
   CabecalhoEsqueleto,
 } from "@/components/layout/molduras";
 import { cn } from "@/lib/utils";
+import { assistenteConfigurado } from "@/modules/assistente/assistente.config";
+import { podeUsarAssistente } from "@/modules/assistente/assistente.acesso";
 
 /*
  * Duas navegações, uma por tamanho de tela — como no app antigo:
@@ -78,11 +80,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* O assistente só existe com a chave do Gemini no servidor. Daqui desce só o
-   sim/não — a chave em si NUNCA vai para o cliente. Sem ela, a opção "IA"
-   some do menu. */
-const temIA = () => Boolean(process.env.GEMINI_API_KEY);
-
 /** Sem sessão válida não há app: volta para o login (o proxy só confere se o cookie existe). */
 async function sessaoOuLogin() {
   const sessao = await sessaoAtual();
@@ -96,10 +93,10 @@ async function CabecalhoDaSessao() {
 
 async function BarraLateralDaSessao() {
   const s = await sessaoOuLogin();
-  return <BarraLateral permissoes={s.permissoes} papel={s.papel} nome={s.nome} temIA={temIA()} />;
+  return <BarraLateral permissoes={s.permissoes} papel={s.papel} nome={s.nome} temIA={assistenteConfigurado() && podeUsarAssistente(s)} />;
 }
 
 async function BarraNavegacaoDaSessao() {
   const s = await sessaoOuLogin();
-  return <BarraNavegacao permissoes={s.permissoes} papel={s.papel} temIA={temIA()} />;
+  return <BarraNavegacao permissoes={s.permissoes} papel={s.papel} temIA={assistenteConfigurado() && podeUsarAssistente(s)} />;
 }

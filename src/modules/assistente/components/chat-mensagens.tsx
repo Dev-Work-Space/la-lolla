@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef } from "react";
 import { CircleIcon, FileTextIcon } from "@phosphor-icons/react/ssr";
 import type { Mensagem } from "../assistente.schemas";
+import { ChatMarkdown } from "./chat-markdown";
 
 // O marcador permanece no histórico; apenas sua apresentação usa Phosphor.
 const MARCADOR_RESUMO = "\u{1F4C4} ";
@@ -60,13 +61,15 @@ export function ChatMensagens({ mensagens, digitando, erro }: ChatMensagensProps
           className={`flex ${msg.papel === "user" ? "justify-end" : "justify-start"}`}
         >
           <div
-            className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+            className={`min-w-0 max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere] ${
               msg.papel === "user"
-                ? "bg-primary text-primary-foreground rounded-br-sm"
+                ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                 : "bg-muted text-foreground rounded-bl-sm"
             }`}
           >
-            {msg.texto.startsWith(MARCADOR_RESUMO) ? (
+            {msg.papel === "model" ? (
+              <ChatMarkdown texto={msg.texto} />
+            ) : msg.texto.startsWith(MARCADOR_RESUMO) ? (
               <>
                 <FileTextIcon weight="regular" className="mr-1 inline-block size-4 align-text-bottom" aria-hidden />
                 {msg.texto.slice(MARCADOR_RESUMO.length)}

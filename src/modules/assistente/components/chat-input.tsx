@@ -3,6 +3,7 @@
 import { useRef, type KeyboardEvent } from "react";
 import { SpinnerGapIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
+import { MAX_MENSAGEM } from "../assistente.schemas";
 
 interface ChatInputProps {
   valor: string;
@@ -17,9 +18,9 @@ export function ChatInput({ valor, onChange, onEnviar, digitando, disabled }: Ch
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     // Enter envia; Shift+Enter quebra linha.
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (!digitando && valor.trim()) onEnviar();
+      if (!disabled && !digitando && valor.trim()) onEnviar();
     }
   }
 
@@ -44,6 +45,7 @@ export function ChatInput({ valor, onChange, onEnviar, digitando, disabled }: Ch
         placeholder="Pergunte sobre a loja…"
         disabled={disabled || digitando}
         rows={1}
+        maxLength={MAX_MENSAGEM}
         className="flex-1 resize-none rounded-xl border bg-muted/50 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 leading-relaxed"
         style={{ minHeight: "42px", maxHeight: "120px" }}
         aria-label="Campo de mensagem para o assistente"
