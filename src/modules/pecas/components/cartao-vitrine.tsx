@@ -70,6 +70,7 @@ export function CartaoVitrine({ modelo }: { modelo: ModeloVitrine }) {
       <div className="flex flex-1 flex-col gap-1 p-3">
         <p className="text-xs text-muted-foreground">{modelo.categoria}</p>
         <h2 className="text-sm leading-snug font-semibold">{modelo.nome}</h2>
+        {p.material && <p className="text-xs text-(--ll-brand)">{p.material}</p>}
 
         {temEscolha ? (
           <fieldset className="mt-1">

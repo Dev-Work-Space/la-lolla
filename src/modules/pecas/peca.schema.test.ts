@@ -40,3 +40,11 @@ test("envase num tamanho que já existe, sem ml, frasquinho nem preço", () => {
   const r = envaseSchema.safeParse({ perfumeId: "p1", decantId: "d1", quantidade: "3" });
   assert.ok(r.success, JSON.stringify(!r.success && r.error.issues));
 });
+
+test("semijoia com material, e sem ele (é opcional)", () => {
+  const com = criarPecaSchema.safeParse({ ...base, linha: "SEMIJOIA", codigoFornecedor: "10", fator: "2,9", material: "Prata 925" });
+  assert.ok(com.success, JSON.stringify(!com.success && com.error.issues));
+  assert.equal(com.data.material, "Prata 925");
+  const sem = criarPecaSchema.safeParse({ ...base, linha: "SEMIJOIA", codigoFornecedor: "10", fator: "2,9" });
+  assert.ok(sem.success);
+});

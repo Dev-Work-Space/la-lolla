@@ -143,6 +143,11 @@ model Peca {
 
   linha Linha @default(SEMIJOIA)
 
+  // Material da semijoia (Prata 925, Banhado a ouro…). Guarda o NOME, como a
+  // categoria: a lista mora nos Ajustes e renomear leva as peças junto.
+  // Opcional — pedido do João (17/11).
+  material String?
+
   // Perfume: quantos ml tem o frasco inteiro, ou o decant.
   volumeMl Int?
 

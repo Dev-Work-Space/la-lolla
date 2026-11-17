@@ -22,6 +22,8 @@ export type Ajustes = {
   urlApp: string;
   /** Categorias de cada linha: perfume não aparece entre as de anel, e vice-versa. */
   categorias: Record<Linha, string[]>;
+  /** Materiais da semijoia (Prata 925, Banhado a ouro…). Opcional no cadastro. */
+  materiais: string[];
 };
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -43,6 +45,18 @@ export const AJUSTES_PADRAO: Ajustes = {
     PERFUMARIA: ["Perfumes femininos", "Perfumes masculinos", "Unissex", "Decants", "Kits"],
     OUTROS: ["Bolsas", "Acessórios", "Outros"],
   },
+  // A lista que o João pediu (17/11), mais as variações que a loja usa.
+  materiais: [
+    "Prata pura",
+    "Prata 925",
+    "Ouro",
+    "Ouro 18k",
+    "Banhado a ouro",
+    "Ródio",
+    "Banhado a ródio",
+    "Aço inoxidável",
+    "Latão",
+  ],
 };
 
 /** Uma chave por ajuste na tabela Config — assim um não sobrescreve o outro. */
@@ -53,6 +67,7 @@ export const CHAVES = {
   descontoVista: "descontoVista",
   urlApp: "urlApp",
   categorias: "categorias",
+  materiais: "materiais",
 } as const;
 
 /*
@@ -92,5 +107,9 @@ export const ROTULOS = {
   categorias: {
     nome: "Categorias de produto",
     ajuda: "As opções que aparecem no cadastro, separadas por linha. Ficam em Estoque › Categorias.",
+  },
+  materiais: {
+    nome: "Materiais",
+    ajuda: "As opções de material no cadastro da semijoia: Prata 925, Banhado a ouro…",
   },
 } satisfies Record<string, { nome: string; ajuda: string }>;

@@ -396,6 +396,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       unidade: true,
       linha: true,
       volumeMl: true,
+      material: true,
       // Decant aponta para o perfume; o perfume lista os decants dele (para o "Envasar").
       perfume: { select: { id: true, nome: true } },
       decants: {
@@ -459,6 +460,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
     unidade: unidadeDe(p.unidade),
     linha: p.linha,
     volumeMl: p.volumeMl,
+    material: p.material,
     perfume: p.perfume,
     decants: p.decants,
     minimo: p.minimo,

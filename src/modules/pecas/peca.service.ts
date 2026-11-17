@@ -204,6 +204,11 @@ function camposDeCusto(dados: CriarPecaDados, veFinanceiro: boolean) {
   return {};
 }
 
+/** Material é coisa de semijoia: produto que mudou de linha perde o material junto. */
+function materialDe(dados: CriarPecaDados): string | null {
+  return dados.linha === "SEMIJOIA" && dados.material ? dados.material : null;
+}
+
 /** Perfume sem tamanho escrito mostra o volume ("100 ml"): é por ele que a cliente escolhe no catálogo. */
 function tamanhoDe(dados: CriarPecaDados): string | null {
   if (dados.tamanho) return dados.tamanho;
@@ -223,6 +228,7 @@ async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean)
         tipo: dados.tipo,
         linha: dados.linha,
         volumeMl: dados.volumeMl ?? null,
+        material: materialDe(dados),
         tamanho: tamanhoDe(dados),
         precoTabela: dados.precoTabela ?? null,
         precoPromocional: dados.precoPromocional ?? null,
@@ -296,6 +302,7 @@ export async function editarPeca(
       tipo: dados.tipo,
       linha: dados.linha,
       volumeMl: dados.volumeMl ?? null,
+      material: materialDe(dados),
       tamanho: tamanhoDe(dados),
       precoTabela: dados.precoTabela ?? null,
       precoPromocional: dados.precoPromocional ?? null,

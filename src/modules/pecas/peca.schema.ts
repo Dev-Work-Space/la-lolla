@@ -30,6 +30,8 @@ export const criarPecaSchema = z
     nome: z.string().trim().min(2, "Informe o nome do produto").max(120),
     // Vazio = "Sem categoria", como no app antigo.
     categoria: z.string().trim().max(60).default(""),
+    // Material da semijoia, opcional. Vazio = sem material.
+    material: z.string().trim().max(40, "Use no máximo 40 letras no material").optional(),
     // Texto livre: aro 17, 45 cm, P/M/G, "único".
     tamanho: z.string().trim().max(30, "Use no máximo 30 letras no tamanho").optional().or(z.literal("")),
     tipo: z.enum(["PECA", "INSUMO"]).default("PECA"),

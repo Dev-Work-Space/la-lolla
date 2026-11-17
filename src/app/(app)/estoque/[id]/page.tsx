@@ -70,6 +70,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
     ["Linha", ROTULO_LINHA[p.linha]],
     ["Categoria", p.categoria || "Sem categoria"],
   ];
+  if (p.material) ficha.push(["Material", p.material]);
   if (p.volumeMl) ficha.push(["Volume", `${p.volumeMl} ml`]);
   if (p.perfume) ficha.push(["Decant de", p.perfume.nome]);
   if (p.decants.length) ficha.push(["Decants", p.decants.map((d) => d.tamanho ?? `${d.volumeMl} ml`).join(" · ")]);
@@ -145,6 +146,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
               fotosLigadas={fotosConfiguradas()}
               precificacao={ajustes.precificacao}
               categorias={ajustes.categorias}
+              materiais={ajustes.materiais}
               fornecedores={fornecedores}
               peca={{
                 id: p.id,
@@ -159,6 +161,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                 fotoUrl: p.imagens[0]?.url ?? null,
                 linha: p.linha,
                 volumeMl: p.volumeMl,
+                material: p.material,
                 ...("codigoFornecedor" in p
                   ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator, custo: p.custo }
                   : {}),
