@@ -182,8 +182,35 @@ export async function criarPeca(
   return peca;
 }
 
+
+/*
+ * Os campos de custo que entram no banco, ou nenhum. Dois jeitos (17/11):
+ * código × fator (semijoia) ou o valor pago digitado (perfume). No valor pago
+ * o código e o fator são apagados: senão a próxima edição recalcularia o
+ * custo pelo código velho.
+ */
+function camposDeCusto(dados: CriarPecaDados, veFinanceiro: boolean) {
+  if (!veFinanceiro) return {};
+  if (dados.codigoFornecedor !== undefined && dados.fator !== undefined) {
+    return {
+      codigoFornecedor: dados.codigoFornecedor,
+      fator: dados.fator,
+      custo: calcularCusto(dados.codigoFornecedor, dados.fator),
+    };
+  }
+  if (dados.custoPago !== undefined) {
+    return { codigoFornecedor: null, fator: null, custo: dados.custoPago };
+  }
+  return {};
+}
+
+/** Perfume sem tamanho escrito mostra o volume ("100 ml"): é por ele que a cliente escolhe no catálogo. */
+function tamanhoDe(dados: CriarPecaDados): string | null {
+  if (dados.tamanho) return dados.tamanho;
+  return dados.linha === "PERFUMARIA" && dados.volumeMl ? `${dados.volumeMl} ml` : null;
+}
+
 async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean) {
-  const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
 
   return prisma.$transaction(async (tx) => {
     const sku = await proximoSku(tx);
@@ -194,20 +221,16 @@ async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean)
         nome: dados.nome,
         categoria: dados.categoria,
         tipo: dados.tipo,
-        tamanho: dados.tamanho || null,
+        linha: dados.linha,
+        volumeMl: dados.volumeMl ?? null,
+        tamanho: tamanhoDe(dados),
         precoTabela: dados.precoTabela ?? null,
         precoPromocional: dados.precoPromocional ?? null,
         minimo: dados.minimo,
         fornecedorId: dados.fornecedorId || null,
-        // Sem permissão de financeiro os três campos ficam de fora: a peça
+        // Sem permissão de financeiro os campos de custo ficam de fora: a peça
         // nasce SEM custo, em vez de nascer com custo errado.
-        ...(gravaCusto
-          ? {
-              codigoFornecedor: dados.codigoFornecedor,
-              fator: dados.fator,
-              custo: calcularCusto(dados.codigoFornecedor!, dados.fator!),
-            }
-          : {}),
+        ...camposDeCusto(dados, veFinanceiro),
       },
       select: { id: true, sku: true, nome: true },
     });
@@ -265,26 +288,20 @@ export async function editarPeca(
     await apagarImagem(antigas.flatMap((i) => [i.pathThumb, i.pathMedia, i.pathOriginal]));
   }
 
-  const gravaCusto = veFinanceiro && dados.codigoFornecedor !== undefined && dados.fator !== undefined;
-
   return prisma.peca.update({
     where: { id },
     data: {
       nome: dados.nome,
       categoria: dados.categoria,
       tipo: dados.tipo,
-      tamanho: dados.tamanho || null,
+      linha: dados.linha,
+      volumeMl: dados.volumeMl ?? null,
+      tamanho: tamanhoDe(dados),
       precoTabela: dados.precoTabela ?? null,
       precoPromocional: dados.precoPromocional ?? null,
       minimo: dados.minimo,
       fornecedorId: dados.fornecedorId || null,
-      ...(gravaCusto
-        ? {
-            codigoFornecedor: dados.codigoFornecedor,
-            fator: dados.fator,
-            custo: calcularCusto(dados.codigoFornecedor!, dados.fator!),
-          }
-        : {}),
+      ...camposDeCusto(dados, veFinanceiro),
     },
     select: { id: true, sku: true },
   });

@@ -1,3 +1,6 @@
+import type { Linha } from "@prisma/client";
+import type { Precificacao } from "@/modules/pecas/linha";
+
 /*
  * Ajustes do sistema — módulo NEUTRO (sem `server-only`, sem Prisma), porque
  * os formulários são Client Components e precisam dos padrões e dos rótulos.
@@ -7,8 +10,8 @@
  */
 
 export type Ajustes = {
-  /** Multiplica o código do fornecedor para chegar ao custo. Padrão 2,9. */
-  fator: number;
+  /** Custo e preço sugerido de cada linha (semijoia, perfumaria, outros). */
+  precificacao: Record<Linha, Precificacao>;
   /** Meta de faturamento do mês. 0 = sem meta, e o bloco some do Início. */
   meta: number;
   /** Dias sem comprar a partir dos quais o cliente entra em "Parados". */
@@ -17,19 +20,29 @@ export type Ajustes = {
   descontoVista: number;
   /** Endereço público do app. O QR da etiqueta NÃO usa: guarda só o código da peça. */
   urlApp: string;
-  /** Categorias de peça disponíveis no cadastro. */
-  categorias: string[];
+  /** Categorias de cada linha: perfume não aparece entre as de anel, e vice-versa. */
+  categorias: Record<Linha, string[]>;
 };
 
 export const AJUSTES_PADRAO: Ajustes = {
-  fator: 2.9,
+  precificacao: {
+    // O 2,9 de sempre. Preço sugerido desligado até o João escolher a regra.
+    SEMIJOIA: { fator: 2.9, modoPreco: "MULTIPLICADOR", valorPreco: 0 },
+    // Perfume não vem com código de fornecedor: o custo é o valor pago.
+    PERFUMARIA: { fator: 0, modoPreco: "PERCENTUAL", valorPreco: 0 },
+    OUTROS: { fator: 0, modoPreco: "PERCENTUAL", valorPreco: 0 },
+  },
   meta: 0,
   diasParado: 60,
   descontoVista: 5,
   urlApp: "",
-  /* A lista de fábrica do app antigo (CATEGORIAS_PADRAO). É o que volta no
-     "Restaurar lista de fábrica" da tela de Categorias. */
-  categorias: ["Anéis", "Brincos", "Colares", "Pulseiras", "Conjuntos", "Tornozeleiras", "Piercings", "Berloques", "Outros"],
+  categorias: {
+    /* A lista de fábrica do app antigo (CATEGORIAS_PADRAO). É o que volta no
+       "Restaurar lista de fábrica" da tela de Categorias. */
+    SEMIJOIA: ["Anéis", "Brincos", "Colares", "Pulseiras", "Conjuntos", "Tornozeleiras", "Piercings", "Berloques", "Outros"],
+    PERFUMARIA: ["Perfumes femininos", "Perfumes masculinos", "Unissex", "Decants", "Kits"],
+    OUTROS: ["Bolsas", "Acessórios", "Outros"],
+  },
 };
 
 /** Uma chave por ajuste na tabela Config — assim um não sobrescreve o outro. */
@@ -42,10 +55,23 @@ export const CHAVES = {
   categorias: "categorias",
 } as const;
 
-export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
+/*
+ * Semijoia continua nas chaves de antes ("fator", "categorias"): o 2,9 e a
+ * lista que a loja já ajustou valem sem gravar nada no banco. As outras
+ * linhas ganham chaves próprias.
+ */
+export const chaveFator = (l: Linha) => (l === "SEMIJOIA" ? CHAVES.fator : `fator.${l}`);
+export const chavePreco = (l: Linha) => `preco.${l}`;
+export const chaveCategorias = (l: Linha) => (l === "SEMIJOIA" ? CHAVES.categorias : `categorias.${l}`);
+
+export const ROTULOS = {
   fator: {
     nome: "Multiplicador do custo",
-    ajuda: "Multiplica o código do fornecedor para chegar ao custo do produto. Mudar aqui não recalcula produtos já cadastrados.",
+    ajuda: "Código do fornecedor × este número = custo. Deixe 0 quando a linha não vem com código: aí o custo é o valor pago, digitado no cadastro. Mudar aqui não recalcula produtos já cadastrados.",
+  },
+  preco: {
+    nome: "Preço sugerido",
+    ajuda: "Como o cadastro sugere o preço a partir do custo: multiplicando (× 2,5) ou somando um percentual (+ 60%). Deixe 0 para digitar o preço à mão. Mudar aqui não recalcula produtos já cadastrados.",
   },
   meta: {
     nome: "Meta do mês",
@@ -65,6 +91,6 @@ export const ROTULOS: Record<keyof Ajustes, { nome: string; ajuda: string }> = {
   },
   categorias: {
     nome: "Categorias de produto",
-    ajuda: "As opções que aparecem no cadastro. Ficam em Estoque › Categorias.",
+    ajuda: "As opções que aparecem no cadastro, separadas por linha. Ficam em Estoque › Categorias.",
   },
-};
+} satisfies Record<string, { nome: string; ajuda: string }>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LINHAS } from "./linha";
 
 /*
  * Uma fonte só de verdade. Este schema é usado em três lugares:
@@ -25,11 +26,18 @@ export const criarPecaSchema = z
     // Texto livre: aro 17, 45 cm, P/M/G, "único".
     tamanho: z.string().trim().max(30, "Use no máximo 30 letras no tamanho").optional().or(z.literal("")),
     tipo: z.enum(["PECA", "INSUMO"]).default("PECA"),
+    linha: z.enum(LINHAS, { message: "Escolha a linha do produto." }).default("SEMIJOIA"),
+    // Perfume: ml do frasco inteiro ou do decant.
+    volumeMl: z
+      .union([z.literal(""), z.undefined(), z.coerce.number().int("Use ml inteiros").min(1, "Maior que zero").max(5000, "Volume alto demais")])
+      .transform((v) => (v === "" || v === undefined ? undefined : v)),
 
     // Regra 2.1: custo = codigoFornecedor × fator.
     // Só quem tem permissão "financeiro" envia estes dois — a action confere.
     codigoFornecedor: opcionalDecimal,
     fator: opcionalDecimal,
+    // O outro jeito de chegar no custo: o valor pago, digitado (perfume não vem com código).
+    custoPago: opcionalDecimal,
 
     precoTabela: opcionalDecimal,
     // Menor que o de tabela vira o preço da venda e o "DE" riscado na etiqueta.
@@ -57,6 +65,13 @@ export const criarPecaSchema = z
     }
     if (temFator && v.fator !== undefined && v.fator <= 0) {
       ctx.addIssue({ code: "custom", path: ["fator"], message: "Deve ser maior que zero." });
+    }
+    // Dois custos para a mesma peça: qual vale? Melhor recusar do que escolher calado.
+    if (temCodigo && v.custoPago !== undefined) {
+      ctx.addIssue({ code: "custom", path: ["custoPago"], message: "Use o código do fornecedor OU o valor pago, não os dois." });
+    }
+    if (v.custoPago !== undefined && v.custoPago <= 0) {
+      ctx.addIssue({ code: "custom", path: ["custoPago"], message: "Deve ser maior que zero." });
     }
     for (const campo of ["precoTabela", "precoPromocional"] as const) {
       const n = v[campo];

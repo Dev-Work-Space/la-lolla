@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { ROTULO_LINHA } from "@/modules/pecas/linha";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
@@ -64,8 +65,11 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
 
   const ficha: Array<[string, string]> = [
     ["Código interno", p.sku],
+    ["Linha", ROTULO_LINHA[p.linha]],
     ["Categoria", p.categoria || "Sem categoria"],
   ];
+  if (p.volumeMl) ficha.push(["Volume", `${p.volumeMl} ml`]);
+  if (p.perfume) ficha.push(["Decant de", p.perfume.nome]);
   if (p.tamanho) ficha.push(["Tamanho", p.tamanho]);
   if (p.fornecedor) ficha.push(["Fornecedor", p.fornecedor.nome]);
   if (p.minimo) ficha.push(["Estoque mínimo", `${p.minimo} ${un}`]);
@@ -129,7 +133,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
             <EditarPeca
               veFinanceiro={fin}
               fotosLigadas={fotosConfiguradas()}
-              fator={ajustes.fator}
+              precificacao={ajustes.precificacao}
               categorias={ajustes.categorias}
               fornecedores={fornecedores}
               peca={{
@@ -143,7 +147,11 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                 minimo: p.minimo,
                 fornecedorId: p.fornecedor?.id ?? null,
                 fotoUrl: p.imagens[0]?.url ?? null,
-                ...("codigoFornecedor" in p ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator } : {}),
+                linha: p.linha,
+                volumeMl: p.volumeMl,
+                ...("codigoFornecedor" in p
+                  ? { codigoFornecedor: p.codigoFornecedor, fator: p.fator, custo: p.custo }
+                  : {}),
               }}
             />
           )}

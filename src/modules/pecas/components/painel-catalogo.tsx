@@ -150,7 +150,7 @@ export async function PainelCatalogo({
         <NovaPeca
           fotosLigadas={fotosConfiguradas()}
           veFinanceiro={veFinanceiro}
-          fator={ajustes.fator}
+          precificacao={ajustes.precificacao}
           categorias={ajustes.categorias}
           fornecedores={fornecedores}
         />
@@ -284,7 +284,7 @@ export async function PainelCatalogo({
                   fotosLigadas={fotosConfiguradas()}
                   veFinanceiro={veFinanceiro}
                   rotulo="Lançar o primeiro produto"
-                  fator={ajustes.fator}
+                  precificacao={ajustes.precificacao}
                   categorias={ajustes.categorias}
                   fornecedores={fornecedores}
                 />

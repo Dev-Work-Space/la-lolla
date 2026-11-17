@@ -19,6 +19,7 @@ import {
   renomearCategoriaAction,
   restaurarCategoriasAction,
 } from "../categoria.actions";
+import type { Linha as LinhaLoja } from "@prisma/client";
 
 /*
  * Categorias de peça — portada de `telaCategorias` do app antigo: criar,
@@ -32,11 +33,14 @@ type Linha = { nome: string; pecas: number };
 const pecas = (n: number) => (n === 1 ? "1 produto" : `${n} produtos`);
 
 export function CategoriasPecas({
+  linhaLoja,
   lista,
   semCategoria,
   foraDaLista,
   padrao,
 }: {
+  /** Semijoias, Perfumaria ou Outros: cada uma tem a sua lista. */
+  linhaLoja: LinhaLoja;
   lista: Linha[];
   semCategoria: number;
   foraDaLista: Linha[];
@@ -57,7 +61,7 @@ export function CategoriasPecas({
     setErro(null);
     setAviso(null);
     criar(async () => {
-      const r = await criarCategoriaAction(nova);
+      const r = await criarCategoriaAction({ linha: linhaLoja, nome: nova });
       if (!r.ok) return setErro(r.error.message);
       setNova("");
       setAviso(`Categoria ${r.data.nome} criada.`);
@@ -140,7 +144,7 @@ export function CategoriasPecas({
       </Button>
 
       {renomeando && (
-        <Renomear linha={renomeando} aoFechar={() => setRenomeando(null)} aoTerminar={setAviso} />
+        <Renomear linhaLoja={linhaLoja} linha={renomeando} aoFechar={() => setRenomeando(null)} aoTerminar={setAviso} />
       )}
       {excluindo && (
         <Confirmar
@@ -154,7 +158,7 @@ export function CategoriasPecas({
           }
           rotulo="Excluir"
           acao={async () => {
-            const r = await excluirCategoriaAction(excluindo.nome);
+            const r = await excluirCategoriaAction({ linha: linhaLoja, nome: excluindo.nome });
             if (!r.ok) return r.error.message;
             setAviso(`Categoria ${excluindo.nome} excluída.`);
             return null;
@@ -168,7 +172,7 @@ export function CategoriasPecas({
           texto={`A lista volta a ser: ${padrao.join(", ")}. Os produtos não são alterados — um que use categoria fora dessa lista continua com ela, marcado como fora da lista.`}
           rotulo="Restaurar"
           acao={async () => {
-            const r = await restaurarCategoriasAction();
+            const r = await restaurarCategoriasAction(linhaLoja);
             if (!r.ok) return r.error.message;
             setAviso("Lista de fábrica restaurada.");
             return null;
@@ -181,10 +185,12 @@ export function CategoriasPecas({
 }
 
 function Renomear({
+  linhaLoja,
   linha,
   aoFechar,
   aoTerminar,
 }: {
+  linhaLoja: LinhaLoja;
   linha: Linha;
   aoFechar: () => void;
   aoTerminar: (aviso: string) => void;
@@ -198,7 +204,7 @@ function Renomear({
     e.preventDefault();
     if (nome.trim() === linha.nome) return aoFechar();
     salvar(async () => {
-      const r = await renomearCategoriaAction({ de: linha.nome, para: nome });
+      const r = await renomearCategoriaAction({ linha: linhaLoja, de: linha.nome, para: nome });
       if (!r.ok) return setErro(r.error.message);
       aoTerminar(r.data.pecas ? `Renomeada em ${pecas(r.data.pecas)}.` : "Categoria renomeada.");
       aoFechar();

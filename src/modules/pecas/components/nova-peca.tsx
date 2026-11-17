@@ -12,6 +12,10 @@ import { brl } from "@/lib/formato";
 import type { Result } from "@/lib/result";
 import { FormFornecedor } from "@/modules/pessoas/components/form-fornecedor";
 import { SeletorFoto, type FotoEscolhida } from "./seletor-foto";
+import type { Linha } from "@prisma/client";
+import { cn } from "@/lib/utils";
+import { AJUSTES_PADRAO } from "@/modules/ajustes/ajustes.tipos";
+import { LINHAS, ROTULO_LINHA, descreverRegra, precoSugerido, type Precificacao } from "../linha";
 import {
   Dialog,
   DialogContent,
@@ -40,9 +44,9 @@ type Opcoes = {
   veFinanceiro: boolean;
   /** Sem o Storage configurado a foto não tem onde ficar: o seletor some e a peça entra sem foto. */
   fotosLigadas?: boolean;
-  /** Multiplicador vindo dos Ajustes; usado como padrão no cadastro. */
-  fator?: number;
-  categorias?: string[];
+  /** Multiplicador e regra de preço de cada linha, vindos dos Ajustes. */
+  precificacao?: Record<Linha, Precificacao>;
+  categorias?: Record<Linha, string[]>;
   fornecedores?: Array<{ id: string; nome: string }>;
 };
 
@@ -57,10 +61,16 @@ export type PecaEditavel = {
   minimo: number;
   fornecedorId: string | null;
   fotoUrl: string | null;
+  linha: Linha;
+  volumeMl: number | null;
   /** Só chegam a quem vê o financeiro. */
   codigoFornecedor?: number | null;
   fator?: number | null;
+  custo?: number | null;
 };
+
+/* Semijoia vem com código do fornecedor; perfume, não: o custo é o valor pago. */
+type ModoCusto = "codigo" | "pago";
 
 /* O Select não guarda valor vazio; "nenhum" vira esta marca e sai vazio no formulário. */
 const NENHUM = "__nenhum__";
@@ -110,8 +120,8 @@ export function EditarPeca({ peca, ...opcoes }: Opcoes & { peca: PecaEditavel })
 function FormPeca({
   veFinanceiro,
   fotosLigadas = true,
-  fator: fatorPadrao = 2.9,
-  categorias = [],
+  precificacao = AJUSTES_PADRAO.precificacao,
+  categorias = AJUSTES_PADRAO.categorias,
   fornecedores = [],
   peca,
   aoTerminar,
@@ -122,15 +132,40 @@ function FormPeca({
   const [nome, setNome] = useState(peca?.nome ?? "");
   const [categoria, setCategoria] = useState(peca?.categoria ?? "");
   const [fornecedorId, setFornecedorId] = useState(peca?.fornecedorId ?? "");
+  const [linha, setLinha] = useState<Linha>(peca?.linha ?? "SEMIJOIA");
+  const regra = precificacao[linha];
+  const fatorPadrao = regra.fator;
+  const [modoCusto, setModoCusto] = useState<ModoCusto>(
+    peca ? (peca.codigoFornecedor != null || (peca.custo == null && fatorPadrao > 0) ? "codigo" : "pago") : fatorPadrao > 0 ? "codigo" : "pago",
+  );
   const [codigo, setCodigo] = useState(br(peca?.codigoFornecedor));
-  const [fator, setFator] = useState(br(peca?.fator ?? fatorPadrao));
+  const [fator, setFator] = useState(br(peca?.fator ?? (fatorPadrao || null)));
+  const [valorPago, setValorPago] = useState(peca?.codigoFornecedor == null ? br(peca?.custo) : "");
   const [preco, setPreco] = useState(br(peca?.precoTabela));
+  /* Preço que a pessoa digitou vale; enquanto ninguém mexe (cadastro novo), o
+     campo acompanha a regra da linha a cada mudança do custo. */
+  const [precoDigitado, setPrecoDigitado] = useState(editando);
   const [repetida, setRepetida] = useState<{ id: string; nome: string; categoria: string } | null>(null);
   const [estado, setEstado] = useState<Result<{ id: string }> | null>(null);
   const [pendente, salvar] = useTransition();
 
-  const custo = Math.round(paraNumero(codigo) * (paraNumero(fator) || fatorPadrao) * 100) / 100;
-  const venda = paraNumero(preco);
+  const custo =
+    modoCusto === "codigo"
+      ? Math.round(paraNumero(codigo) * (paraNumero(fator) || fatorPadrao) * 100) / 100
+      : paraNumero(valorPago);
+  const sugerido = veFinanceiro ? precoSugerido(custo, regra) : null;
+  const precoNaTela = precoDigitado || sugerido === null ? preco : br(sugerido);
+  const venda = paraNumero(precoNaTela);
+
+  function trocarLinha(l: Linha) {
+    setLinha(l);
+    if (!categorias[l].includes(categoria)) setCategoria("");
+    // Cadastro novo segue o jeito da linha nova; na edição, o custo já gravado não muda sozinho.
+    if (!editando) {
+      setModoCusto(precificacao[l].fator > 0 ? "codigo" : "pago");
+      setFator(br(precificacao[l].fator || null));
+    }
+  }
 
   /* O aviso de código repetido só vale no cadastro: na edição, a peça com o
      código é ela mesma. */
@@ -172,11 +207,12 @@ function FormPeca({
   const erroGeral = estado && !estado.ok && !estado.error.fields ? estado.error.message : undefined;
 
   // Categoria que saiu da lista continua na peça, marcada, em vez de sumir calada.
-  const foraDaLista = categoria && !categorias.includes(categoria);
+  const daLinha = categorias[linha];
+  const foraDaLista = categoria && !daLinha.includes(categoria);
   const opcoesCategoria = [
     { value: NENHUM, label: "Sem categoria" },
     ...(foraDaLista ? [{ value: categoria, label: `${categoria} (fora da lista)` }] : []),
-    ...categorias.map((c) => ({ value: c, label: c })),
+    ...daLinha.map((c) => ({ value: c, label: c })),
   ];
 
   return (
@@ -195,8 +231,64 @@ function FormPeca({
         </div>
       )}
 
+      <div className="space-y-1.5">
+        <Label>Linha</Label>
+        <input type="hidden" name="linha" value={linha} />
+        <div role="radiogroup" aria-label="Linha do produto" className="flex gap-1 rounded-xl border bg-(--ll-surface-2) p-1">
+          {LINHAS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              role="radio"
+              aria-checked={linha === l}
+              onClick={() => trocarLinha(l)}
+              className={cn(
+                "flex-1 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors",
+                linha === l ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {ROTULO_LINHA[l]}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">Decide as categorias, a regra de preço e a palavra da etiqueta.</p>
+      </div>
+
       {veFinanceiro && (
         <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+          <div role="radiogroup" aria-label="Como chegar no custo" className="flex gap-1 rounded-lg border bg-card p-0.5 text-sm">
+            {(
+              [
+                ["codigo", "Código × multiplicador"],
+                ["pago", "Valor pago"],
+              ] as const
+            ).map(([m, rotuloModo]) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={modoCusto === m}
+                onClick={() => setModoCusto(m)}
+                className={cn(
+                  "flex-1 rounded-md px-2 py-1.5 font-medium transition-colors",
+                  modoCusto === m ? "bg-(--ll-surface-2) shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {rotuloModo}
+              </button>
+            ))}
+          </div>
+          {modoCusto === "pago" ? (
+            <Campo
+              id="custoPago"
+              rotulo="Quanto vocês pagaram (por unidade)"
+              erro={erroDe("custoPago")}
+              inputMode="decimal"
+              placeholder="ex.: 189,90"
+              value={valorPago}
+              onChange={(e) => setValorPago(e.target.value)}
+            />
+          ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               id="codigoFornecedor"
@@ -219,16 +311,17 @@ function FormPeca({
               onChange={(e) => setFator(e.target.value)}
             />
           </div>
+          )}
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Custo de aquisição
             </p>
             <p className="text-lg font-bold tabular-nums">{brl(custo)}</p>
             <p className="text-xs text-muted-foreground">
-              código {paraNumero(codigo) || 0} × {fator || br(fatorPadrao)}
+              {modoCusto === "codigo" ? `código ${paraNumero(codigo) || 0} × ${fator || br(fatorPadrao)}` : "valor pago"}
             </p>
           </div>
-          {repetida && paraNumero(codigo) > 0 && (
+          {modoCusto === "codigo" && repetida && paraNumero(codigo) > 0 && (
             <div role="status" className="space-y-2 rounded-lg border bg-card p-3 text-sm">
               <p>
                 Código já cadastrado em <strong>{repetida.nome}</strong>. Se for o mesmo produto, use{" "}
@@ -283,9 +376,25 @@ function FormPeca({
           placeholder="ex.: 17, 45 cm, P/M/G"
           maxLength={30}
           defaultValue={peca?.tamanho ?? ""}
-          ajuda="Opcional. Aparece no orçamento, no recibo e na etiqueta."
+          ajuda={
+            linha === "PERFUMARIA"
+              ? "Opcional. Vazio, vira o volume (“100 ml”)."
+              : "Opcional. Aparece no orçamento, no recibo e na etiqueta."
+          }
         />
       </div>
+
+      {linha === "PERFUMARIA" && (
+        <Campo
+          id="volumeMl"
+          rotulo="Volume (ml)"
+          erro={erroDe("volumeMl")}
+          inputMode="numeric"
+          placeholder="ex.: 100"
+          defaultValue={peca?.volumeMl ? String(peca.volumeMl) : ""}
+          ajuda="Do frasco inteiro ou do decant. É o que aparece para a cliente escolher no catálogo."
+        />
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor="fornecedor">Fornecedor</Label>
@@ -316,10 +425,31 @@ function FormPeca({
         erro={erroDe("precoTabela")}
         inputMode="decimal"
         placeholder="deixe em branco se decidir na hora"
-        value={preco}
-        onChange={(e) => setPreco(e.target.value)}
-        ajuda="Opcional. O preço final é definido na venda ou no orçamento."
+        value={precoNaTela}
+        onChange={(e) => {
+          setPreco(e.target.value);
+          setPrecoDigitado(true);
+        }}
+        ajuda={
+          sugerido !== null
+            ? `Sugerido pela regra da linha (${descreverRegra(regra)}): ${brl(sugerido)}. Pode mudar.`
+            : "Opcional. O preço final é definido na venda ou no orçamento."
+        }
       />
+      {precoDigitado && sugerido !== null && paraNumero(preco) !== sugerido && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-mt-2 h-auto px-0 text-(--ll-accent) hover:bg-transparent"
+          onClick={() => {
+            setPreco(br(sugerido));
+            setPrecoDigitado(false);
+          }}
+        >
+          Usar o sugerido ({brl(sugerido)})
+        </Button>
+      )}
       <Campo
         id="precoPromocional"
         rotulo="Preço promocional (opcional)"

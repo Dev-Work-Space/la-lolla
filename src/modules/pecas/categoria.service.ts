@@ -2,7 +2,8 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
-import { AJUSTES_PADRAO, CHAVES, lerAjustes } from "@/modules/ajustes/ajustes.service";
+import type { Linha } from "@prisma/client";
+import { AJUSTES_PADRAO, chaveCategorias, lerAjustes } from "@/modules/ajustes/ajustes.service";
 
 /*
  * CATEGORIAS DE PEÇA — portadas de `telaCategorias` do app antigo.
@@ -19,24 +20,31 @@ const igual = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivit
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-async function gravarLista(tx: Tx, lista: string[]) {
+/*
+ * Cada linha tem a sua lista (perfume não aparece entre as de anel). As
+ * peças são filtradas pela linha também: "Outros" de semijoia e "Outros" de
+ * Outros são categorias diferentes, e renomear uma não pode levar a outra.
+ */
+async function gravarLista(tx: Tx, linha: Linha, lista: string[]) {
+  const chave = chaveCategorias(linha);
   await tx.config.upsert({
-    where: { chave: CHAVES.categorias },
+    where: { chave },
     update: { valor: lista },
-    create: { chave: CHAVES.categorias, valor: lista },
+    create: { chave, valor: lista },
     select: { chave: true },
   });
 }
 
-export async function painelCategorias() {
-  const [{ categorias }, usos] = await Promise.all([
+export async function painelCategorias(linha: Linha) {
+  const [ajustes, usos] = await Promise.all([
     lerAjustes(),
     prisma.peca.groupBy({
       by: ["categoria"],
-      where: { tipo: "PECA", arquivada: false },
+      where: { tipo: "PECA", arquivada: false, linha },
       _count: true,
     }),
   ]);
+  const categorias = ajustes.categorias[linha];
   const porNome = new Map(usos.map((u) => [u.categoria, u._count]));
   return {
     lista: categorias.map((nome) => ({ nome, pecas: porNome.get(nome) ?? 0 })),
@@ -48,49 +56,50 @@ export async function painelCategorias() {
   };
 }
 
-export async function criarCategoria(nome: string) {
-  const { categorias } = await lerAjustes();
+export async function criarCategoria(linha: Linha, nome: string) {
+  const categorias = (await lerAjustes()).categorias[linha];
   if (categorias.some((c) => igual(c, nome))) {
-    throw new ErroDominio("REGRA_NEGOCIO", "Já existe uma categoria com esse nome.");
+    throw new ErroDominio("REGRA_NEGOCIO", "Já existe uma categoria com esse nome nesta linha.");
   }
-  await prisma.$transaction((tx) => gravarLista(tx, [...categorias, nome]));
+  await prisma.$transaction((tx) => gravarLista(tx, linha, [...categorias, nome]));
 }
 
 /** Devolve quantas peças mudaram junto. */
-export async function renomearCategoria(de: string, para: string): Promise<number> {
-  const { categorias } = await lerAjustes();
+export async function renomearCategoria(linha: Linha, de: string, para: string): Promise<number> {
+  const categorias = (await lerAjustes()).categorias[linha];
   const i = categorias.indexOf(de);
   if (i < 0) throw new ErroDominio("NAO_ENCONTRADO", "Essa categoria não está mais na lista. Atualize a tela.");
   if (de === para) return 0;
   if (categorias.some((c, k) => k !== i && igual(c, para))) {
-    throw new ErroDominio("REGRA_NEGOCIO", "Já existe uma categoria com esse nome.");
+    throw new ErroDominio("REGRA_NEGOCIO", "Já existe uma categoria com esse nome nesta linha.");
   }
   const nova = categorias.map((c, k) => (k === i ? para : c));
   return prisma.$transaction(async (tx) => {
-    await gravarLista(tx, nova);
-    const r = await tx.peca.updateMany({ where: { tipo: "PECA", categoria: de }, data: { categoria: para } });
+    await gravarLista(tx, linha, nova);
+    const r = await tx.peca.updateMany({ where: { tipo: "PECA", linha, categoria: de }, data: { categoria: para } });
     return r.count;
   });
 }
 
 /** Devolve quantas peças ficaram sem categoria. Nenhuma peça é apagada. */
-export async function excluirCategoria(nome: string): Promise<number> {
-  const { categorias } = await lerAjustes();
+export async function excluirCategoria(linha: Linha, nome: string): Promise<number> {
+  const categorias = (await lerAjustes()).categorias[linha];
   if (!categorias.includes(nome)) {
     throw new ErroDominio("NAO_ENCONTRADO", "Essa categoria não está mais na lista. Atualize a tela.");
   }
   return prisma.$transaction(async (tx) => {
     await gravarLista(
       tx,
+      linha,
       categorias.filter((c) => c !== nome),
     );
-    const r = await tx.peca.updateMany({ where: { tipo: "PECA", categoria: nome }, data: { categoria: "" } });
+    const r = await tx.peca.updateMany({ where: { tipo: "PECA", linha, categoria: nome }, data: { categoria: "" } });
     return r.count;
   });
 }
 
 /* "Restaurar lista de fábrica" não mexe nas peças, como no app antigo: uma
    que use categoria fora da lista continua com ela, marcada como fora. */
-export async function restaurarCategorias() {
-  await prisma.$transaction((tx) => gravarLista(tx, [...AJUSTES_PADRAO.categorias]));
+export async function restaurarCategorias(linha: Linha) {
+  await prisma.$transaction((tx) => gravarLista(tx, linha, [...AJUSTES_PADRAO.categorias[linha]]));
 }
