@@ -48,3 +48,13 @@ test("semijoia com material, e sem ele (é opcional)", () => {
   const sem = criarPecaSchema.safeParse({ ...base, linha: "SEMIJOIA", codigoFornecedor: "10", fator: "2,9" });
   assert.ok(sem.success);
 });
+
+test("data de fim da promoção: vazia é aceita, com data exige o preço promocional", () => {
+  const vazia = criarPecaSchema.safeParse({ ...base, promocaoAte: "" });
+  assert.equal(vazia.success, true);
+  const semPreco = criarPecaSchema.safeParse({ ...base, promocaoAte: "2026-11-30" });
+  assert.equal(semPreco.success, false);
+  const ok = criarPecaSchema.safeParse({ ...base, precoTabela: "99,90", precoPromocional: "79,90", promocaoAte: "2026-11-30" });
+  assert.equal(ok.success, true);
+  assert.equal(ok.success && ok.data.promocaoAte, "2026-11-30");
+});

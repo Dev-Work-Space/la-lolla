@@ -6,7 +6,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
 import { fichaPeca, ROTULO_MOTIVO } from "@/modules/pecas/catalogo.service";
-import { brl, dataHora } from "@/lib/formato";
+import { brl, data as fData, dataHora } from "@/lib/formato";
+import { campoDaData } from "@/lib/dia";
 import { cn } from "@/lib/utils";
 import { Indicador, Pilula } from "@/components/padrao/indicadores";
 import { FormMovimento } from "@/modules/pecas/components/form-movimento";
@@ -83,7 +84,13 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
   if (p.fornecedor) ficha.push(["Fornecedor", p.fornecedor.nome]);
   if (p.minimo) ficha.push(["Estoque mínimo", `${p.minimo} ${un}`]);
   if (p.precoTabela) ficha.push(["Preço sugerido", brl(p.precoTabela)]);
-  if (p.precoPromocional) ficha.push(["Preço promocional", brl(p.precoPromocional)]);
+  if (p.precoPromocional) {
+    const ate = p.promocaoAte ? fData(p.promocaoAte) : null;
+    ficha.push([
+      "Preço promocional",
+      `${brl(p.precoPromocional)}${ate ? (p.promocaoValendo ? ` · até ${ate}` : ` · encerrada em ${ate}`) : ""}`,
+    ]);
+  }
   if (fin && "codigoFornecedor" in p && p.codigoFornecedor) {
     ficha.push(["Código do fornecedor", String(p.codigoFornecedor)]);
     ficha.push(["Fator", String(p.fator)]);
@@ -156,6 +163,7 @@ export default async function PecaPage({ params }: { params: Promise<{ id: strin
                 tamanho: p.tamanho,
                 precoTabela: p.precoTabela,
                 precoPromocional: p.precoPromocional,
+                promocaoAte: p.promocaoAte ? campoDaData(p.promocaoAte) : null,
                 minimo: p.minimo,
                 fornecedorId: p.fornecedor?.id ?? null,
                 fotoUrl: p.imagens[0]?.url ?? null,

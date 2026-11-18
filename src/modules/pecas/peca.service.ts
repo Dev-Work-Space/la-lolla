@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio, NaoEncontrado } from "@/lib/errors";
 import { apagarImagem, subirImagemPeca } from "@/lib/storage";
+import { dataDoCampo, fimDoDia } from "@/lib/dia";
 import type { CriarPecaDados, InsumoDados, PecaComCusto, PecaPublica, PecaVisivel } from "./peca.schema";
 
 /*
@@ -30,6 +31,14 @@ const dec = (v: Prisma.Decimal | null) => (v === null ? null : Number(v));
  * do fornecedor. Gerado dentro da transação para dois cadastros simultâneos
  * não receberem o mesmo número.
  */
+/* A promoção vale até o FIM do dia escolhido, na hora da loja. Sem preço
+   promocional não há o que acabar: a data é descartada. */
+function fimDaPromocao(dados: Pick<CriarPecaDados, "precoPromocional" | "promocaoAte">): Date | null {
+  if (dados.precoPromocional === undefined || !dados.promocaoAte) return null;
+  const dia = dataDoCampo(dados.promocaoAte);
+  return dia ? fimDoDia(dia) : null;
+}
+
 export async function proximoSku(tx: Prisma.TransactionClient): Promise<string> {
   const ultima = await tx.peca.findFirst({
     where: { sku: { startsWith: "LL-" } },
@@ -232,6 +241,7 @@ async function criarRegistroDaPeca(dados: CriarPecaDados, veFinanceiro: boolean)
         tamanho: tamanhoDe(dados),
         precoTabela: dados.precoTabela ?? null,
         precoPromocional: dados.precoPromocional ?? null,
+      promocaoAte: fimDaPromocao(dados),
         minimo: dados.minimo,
         fornecedorId: dados.fornecedorId || null,
         // Sem permissão de financeiro os campos de custo ficam de fora: a peça
@@ -306,6 +316,7 @@ export async function editarPeca(
       tamanho: tamanhoDe(dados),
       precoTabela: dados.precoTabela ?? null,
       precoPromocional: dados.precoPromocional ?? null,
+      promocaoAte: fimDaPromocao(dados),
       minimo: dados.minimo,
       fornecedorId: dados.fornecedorId || null,
       ...camposDeCusto(dados, veFinanceiro),

@@ -185,6 +185,22 @@ export const GUIAS = [
     ir: { href: "/estoque?linha=PERFUMARIA", rotulo: "Abrir a Perfumaria" },
   },
   {
+    id: "promocoes",
+    grupo: "dia",
+    titulo: "Promoções",
+    resumo: "Desconto em grupo, com data para acabar",
+    passos: [
+      "Abra Estoque › Promoções.",
+      "Em “Aplicar em”, escolha o grupo: uma categoria, uma linha, um material, um fornecedor — ou marque produto a produto.",
+      "Escolha % de desconto (ex.: 20) ou preço fixo (ex.: 49,90 para todos).",
+      "Se a promoção tem dia para acabar, ponha a data: depois dela o preço volta ao normal sozinho.",
+      "Confira a prévia: quantos produtos entram e quanto fica cada um. Produto que já custa menos que o preço fixo fica de fora.",
+      "Aplicar: o preço novo já vale na venda, no PDV, na etiqueta e no catálogo das clientes — com o selo de %, o “DE” riscado e a aba Promoções.",
+      "Para acabar antes, marque os produtos na lista e toque em “Tirar das marcadas”. As encerradas pela data dá para limpar de uma vez.",
+    ],
+    ir: { href: "/estoque/promocoes", rotulo: "Abrir Promoções" },
+  },
+  {
     id: "pdv",
     grupo: "dia",
     titulo: "PDV (caixa)",

@@ -1247,6 +1247,31 @@ conteúdo novo surgindo no toque por hover e engole o clique. Saiu do celular
 (as opções do painel já são `<Link prefetch>`); na barra lateral só o mouse
 aquece. E o painel espera a tela nova em vez de sumir no toque.
 
+### 18/11 · Promoções com data para acabar; cliente novo na venda
+
+**O furo**: o cadastro dizia que o preço promocional "já vem na venda", e não
+vinha — venda, PDV e orçamento cobravam o preço cheio enquanto o catálogo
+mostrava o desconto. A regra ("vale se for menor que o de tabela", seção 02)
+estava copiada em quatro lugares e faltava em dois. Agora mora só em
+`pecas/promocao.ts` e todos perguntam a ela.
+
+- **Data de fim** (`Peca.promocaoAte`, migration `20261118190000_promocao_ate`,
+  aditiva): vale até 23:59 do dia, hora da loja. Passou, o preço volta sozinho;
+  o promocional fica gravado e a central mostra "encerrou" para limpar.
+- **Central de promoções** (Estoque › Promoções): aplicar em categoria, linha,
+  material, fornecedor ou produto a produto, com **%** ou **preço fixo**, prévia
+  antes de aplicar (preço fixo que não baixa o preço de um produto deixa esse
+  produto de fora, e a tela diz quantos). Aplica tudo numa transação.
+- **Catálogo**: aba "Promoções", promoção primeiro na vitrine, "Promoção até
+  dd/mm" no card. **Estoque**: filtro "Em promoção". **PDV**: preço cheio riscado.
+- Testado em banco de teste: sonda de promoções 25/25; PDV 26/26 e quadro 36/36
+  de novo (a sonda do quadro passou a soltar no topo das colunas altas).
+
+**Cliente na venda**: "+ Novo cliente" abre o cadastro por cima da venda e
+volta com o cliente escolhido. "Consumidor final" é o NOME da venda sem
+cliente — não um cliente de mentira, que somaria toda venda avulsa nos números
+de clientes e poderia "ficar devendo". Venda a prazo continua exigindo cliente.
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o

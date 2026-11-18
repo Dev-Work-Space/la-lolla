@@ -312,7 +312,7 @@ export async function fecharVenda(entrada: VendaEntrada) {
     if (saldo > 0.005 && !entrada.clienteId) {
       throw new ErroDominio(
         "REGRA_NEGOCIO",
-        "Selecione o cliente para venda a prazo — venda avulsa precisa sair quitada.",
+        "Consumidor final não fica devendo: escolha ou cadastre a cliente para vender a prazo, ou receba tudo agora.",
       );
     }
 
@@ -617,7 +617,7 @@ export async function editarVenda(entrada: EdicaoEntrada) {
     if (saldo > 0.005 && !entrada.clienteId) {
       throw new ErroDominio(
         "REGRA_NEGOCIO",
-        "Selecione o cliente para venda a prazo — venda avulsa precisa sair quitada.",
+        "Consumidor final não fica devendo: escolha ou cadastre a cliente para vender a prazo, ou receba tudo agora.",
       );
     }
     if (saldo > 0.005 && !entrada.aPrazo) {

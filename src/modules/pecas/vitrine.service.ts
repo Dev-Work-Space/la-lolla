@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { urlsAssinadas } from "@/lib/storage";
 import { reservaPorPeca } from "@/modules/orcamentos/orcamento.service";
 import { saldoDasPecas } from "./catalogo.service";
+import { precoComDesconto, promocaoValendo } from "./promocao";
 import type { FiltroVitrine } from "./vitrine.schemas";
 import type { ModeloVitrine, PecaVitrine } from "./vitrine.tipos";
 
@@ -46,6 +47,7 @@ export async function listarVitrine(filtro: FiltroVitrine) {
       material: true,
       precoTabela: true,
       precoPromocional: true,
+      promocaoAte: true,
       imagens: { where: { principal: true }, take: 1, select: { pathMedia: true } },
     },
     orderBy: { nome: "asc" },
@@ -61,10 +63,8 @@ export async function listarVitrine(filtro: FiltroVitrine) {
   ]);
 
   let linhas: PecaVitrine[] = escolhidas.map((p) => {
-    const sugerido = Number(p.precoTabela);
-    const promo = p.precoPromocional === null ? null : Number(p.precoPromocional);
-    // Promocional só vale se for MENOR que o sugerido (documentação, seção 02).
-    const emPromocao = promo !== null && promo < sugerido;
+    // Menor que o de tabela e dentro da data: a regra mora em promocao.ts.
+    const d = precoComDesconto(p);
     const livre = (saldos.get(p.id) ?? 0) - (reservas.get(p.id) ?? 0);
     return {
       id: p.id,
@@ -75,24 +75,39 @@ export async function listarVitrine(filtro: FiltroVitrine) {
       categoria: p.categoria,
       tamanho: p.tamanho,
       material: p.material,
-      preco: emPromocao ? promo : sugerido,
-      precoDe: emPromocao ? sugerido : null,
-      descontoPct: emPromocao ? Math.round((1 - promo / sugerido) * 100) : null,
+      preco: d.preco ?? 0,
+      precoDe: d.precoDe,
+      descontoPct: d.descontoPct,
+      promocaoAte: d.descontoPct !== null && p.promocaoAte ? p.promocaoAte.toISOString() : null,
       disponivel: livre > 0,
       foto: p.imagens[0]?.pathMedia ?? null,
     };
   });
 
+  if (filtro.promocoes) linhas = linhas.filter((l) => l.descontoPct !== null);
+
   const assinadas = await urlsAssinadas(linhas.map((l) => l.foto));
   linhas = linhas.map((l) => ({ ...l, foto: l.foto ? (assinadas.get(l.foto) ?? null) : null }));
 
   // As abas só mostram linhas que têm produto: aba vazia na vitrine parece loja fechada.
-  const linhasComProduto = await prisma.peca.groupBy({
-    by: ["linha"],
-    where: { tipo: "PECA", arquivada: false, totalRecebido: { gt: 0 }, precoTabela: { not: null } },
-  });
+  const [linhasComProduto, comPromo] = await Promise.all([
+    prisma.peca.groupBy({
+      by: ["linha"],
+      where: { tipo: "PECA", arquivada: false, totalRecebido: { gt: 0 }, precoTabela: { not: null } },
+    }),
+    // A aba "Promoções" pelo mesmo motivo: só aparece se há o que mostrar nela.
+    prisma.peca.findMany({
+      where: { tipo: "PECA", arquivada: false, totalRecebido: { gt: 0 }, precoPromocional: { not: null } },
+      select: { precoTabela: true, precoPromocional: true, promocaoAte: true },
+    }),
+  ]);
 
-  return { modelos: agrupar(linhas), categorias, linhas: linhasComProduto.map((l) => l.linha) };
+  return {
+    modelos: agrupar(linhas),
+    categorias,
+    linhas: linhasComProduto.map((l) => l.linha),
+    temPromocao: comPromo.some((p) => promocaoValendo(p)),
+  };
 }
 
 // "Aliança  Prata" e "aliança prata" são o mesmo modelo cadastrado duas vezes com digitação diferente.
@@ -125,6 +140,8 @@ function agrupar(linhas: PecaVitrine[]): ModeloVitrine[] {
     m.variantes.sort((a, b) => (a.tamanho ?? "").localeCompare(b.tamanho ?? "", "pt-BR", { numeric: true }));
   }
   // O que dá para levar agora vem primeiro; o modelo todo esgotado fica no fim, sem sumir.
+  // Entre os que dá para levar, a promoção abre a vitrine (João, 18/11).
   const temAlgum = (m: ModeloVitrine) => m.variantes.some((v) => v.disponivel);
-  return modelos.sort((a, b) => Number(temAlgum(b)) - Number(temAlgum(a)));
+  const emPromo = (m: ModeloVitrine) => m.variantes.some((v) => v.disponivel && v.descontoPct !== null);
+  return modelos.sort((a, b) => Number(temAlgum(b)) - Number(temAlgum(a)) || Number(emPromo(b)) - Number(emPromo(a)));
 }

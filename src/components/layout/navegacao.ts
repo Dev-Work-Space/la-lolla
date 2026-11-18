@@ -15,6 +15,7 @@ import {
   KanbanIcon,
   ListBulletsIcon,
   PackageIcon,
+  PercentIcon,
   ShoppingBagIcon,
   ShoppingCartIcon,
   SparkleIcon,
@@ -160,8 +161,11 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
         desc: "Catálogo, preço e saldo",
         area: "pecas",
         atual: (p, q) =>
-          (p === "/estoque" && q.get("aba") !== "insumos") || (dentro(p, "/estoque") && p !== "/estoque" && !dentro(p, "/estoque/categorias")),
+          (p === "/estoque" && q.get("aba") !== "insumos") ||
+          (dentro(p, "/estoque") && p !== "/estoque" && !dentro(p, "/estoque/categorias") && !dentro(p, "/estoque/promocoes")),
       },
+      // Central de promoções (João, 18/11): % ou preço fixo por grupo, com data para acabar.
+      { href: "/estoque/promocoes", nome: "Promoções", icone: PercentIcon, desc: "Descontos com data para acabar", area: "pecas", atual: (p) => dentro(p, "/estoque/promocoes") },
       { href: "/estoque?aba=insumos", nome: "Insumos", icone: ArchiveIcon, desc: "Embalagens e materiais", area: "pecas", atual: (p, q) => p === "/estoque" && q.get("aba") === "insumos" },
       /* Mesma permissão da tela: a lista de categorias é ajuste da loja. */
       { href: "/estoque/categorias", nome: "Categorias", icone: TagIcon, desc: "Os grupos do catálogo", area: "pecas", pode: editaAjustes, atual: (p) => dentro(p, "/estoque/categorias") },

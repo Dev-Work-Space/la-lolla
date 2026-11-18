@@ -241,7 +241,12 @@ export function Pdv() {
                 <p className="text-xs text-muted-foreground">
                   {[destaque.sku, destaque.tamanho, destaque.material].filter(Boolean).join(" · ")}
                 </p>
-                <p className="mt-1 text-lg font-bold tabular-nums text-(--ll-brand)">{brl(destaque.preco)}</p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-(--ll-brand)">
+                  {destaque.precoDe !== null && (
+                    <s className="mr-1.5 text-sm font-normal text-muted-foreground">{brl(destaque.precoDe)}</s>
+                  )}
+                  {brl(destaque.preco)}
+                </p>
               </div>
             </div>
             <dl className="mt-3 grid grid-cols-3 gap-2 text-center">

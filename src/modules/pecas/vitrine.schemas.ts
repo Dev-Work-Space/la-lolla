@@ -9,6 +9,8 @@ export const filtroVitrineSchema = z.object({
   busca: z.string().trim().max(60).optional(),
   categoria: z.string().trim().max(60).optional(),
   linha: z.enum(LINHAS).optional(),
+  // A aba "Promoções": só o que está com desconto valendo.
+  promocoes: z.literal("1").optional(),
 });
 
 export type FiltroVitrine = z.output<typeof filtroVitrineSchema>;

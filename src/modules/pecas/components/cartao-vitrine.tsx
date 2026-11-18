@@ -113,6 +113,11 @@ export function CartaoVitrine({ modelo }: { modelo: ModeloVitrine }) {
             {p.precoDe !== null && <span className="mr-1 text-xs font-semibold">POR</span>}
             {brl(p.preco)}
           </p>
+          {p.promocaoAte && (
+            <p className="text-[11px] font-medium text-(--ll-brand)">
+              Promoção até {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(p.promocaoAte))}
+            </p>
+          )}
         </div>
 
         {p.disponivel ? (

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ErroDominio } from "@/lib/errors";
 import { precosDaEtiqueta, type Etiqueta } from "./etiqueta.regras";
+import { promocaoValendo } from "./promocao";
 import { desenhoSchema, skuDoCodigo } from "./etiqueta.schemas";
 import { LIMITES, type DesenhoEtiqueta } from "./etiqueta-desenho";
 import { ASSINATURA_LINHA } from "./linha";
@@ -33,6 +34,7 @@ export async function pecasParaEtiqueta(ids: string[]) {
       linha: true,
       precoTabela: true,
       precoPromocional: true,
+      promocaoAte: true,
       movimentos: { select: { delta: true } },
     },
   });
@@ -43,7 +45,8 @@ export async function pecasParaEtiqueta(ids: string[]) {
     tamanho: p.tamanho,
     assinatura: ASSINATURA_LINHA[p.linha],
     saldo: p.movimentos.reduce((s, m) => s + m.delta, 0),
-    ...precosDaEtiqueta(num(p.precoTabela), num(p.precoPromocional)),
+    // Promoção vencida não vai para a etiqueta: sairia com o preço errado.
+    ...precosDaEtiqueta(num(p.precoTabela), promocaoValendo(p) ? num(p.precoPromocional) : null),
   }));
 }
 
@@ -53,7 +56,7 @@ export async function montarEtiquetas(
   const ids = [...new Set(itens.map((i) => i.pecaId))];
   const pecas = await prisma.peca.findMany({
     where: { id: { in: ids }, arquivada: false, tipo: "PECA" },
-    select: { id: true, sku: true, nome: true, tamanho: true, linha: true, precoTabela: true, precoPromocional: true },
+    select: { id: true, sku: true, nome: true, tamanho: true, linha: true, precoTabela: true, precoPromocional: true, promocaoAte: true },
   });
   const porId = new Map(pecas.map((p) => [p.id, p]));
   if (itens.some((i) => !porId.has(i.pecaId))) {
@@ -71,7 +74,8 @@ export async function montarEtiquetas(
       nome: p.nome,
       tamanho: p.tamanho,
       assinatura: ASSINATURA_LINHA[p.linha],
-      ...precosDaEtiqueta(num(p.precoTabela), num(p.precoPromocional)),
+      // Promoção vencida não vai para a etiqueta: sairia com o preço errado.
+    ...precosDaEtiqueta(num(p.precoTabela), promocaoValendo(p) ? num(p.precoPromocional) : null),
     };
     for (let u = 0; u < item.quantidade; u++) saida.push(etiqueta);
   }
