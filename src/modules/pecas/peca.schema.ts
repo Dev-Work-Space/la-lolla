@@ -52,6 +52,12 @@ export const criarPecaSchema = z
     precoTabela: opcionalDecimal,
     // Menor que o de tabela vira o preço da venda e o "DE" riscado na etiqueta.
     precoPromocional: opcionalDecimal,
+    // Último dia da promoção ("AAAA-MM-DD"). Vazio = sem data para acabar.
+    // `.optional()` no fim: sem ele o Zod 4 exige a chave (o defeito de 17/11).
+    promocaoAte: z
+      .union([z.literal(""), z.undefined(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")])
+      .transform((v) => (v ? v : undefined))
+      .optional(),
     minimo: z
       .union([z.literal(""), z.undefined(), z.coerce.number().int().min(0, "Não pode ser negativo")])
       .transform((v) => (v === "" || v === undefined ? 0 : v)),
@@ -82,6 +88,9 @@ export const criarPecaSchema = z
     }
     if (v.custoPago !== undefined && v.custoPago <= 0) {
       ctx.addIssue({ code: "custom", path: ["custoPago"], message: "Deve ser maior que zero." });
+    }
+    if (v.promocaoAte && v.precoPromocional === undefined) {
+      ctx.addIssue({ code: "custom", path: ["precoPromocional"], message: "Informe o preço promocional para a data de fim valer." });
     }
     for (const campo of ["precoTabela", "precoPromocional"] as const) {
       const n = v[campo];

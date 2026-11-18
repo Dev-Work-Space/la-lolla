@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Prisma, type Linha } from "@prisma/client";
+import { precoVigente, promocaoValendo } from "./promocao";
 import { prisma } from "@/lib/prisma";
 import { calcularCusto, calcularMargem, pecasComDividaAberta } from "./peca.service";
 import { urlAssinada, urlsAssinadas } from "@/lib/storage";
@@ -26,6 +27,7 @@ export const FILTROS_PECA = [
   ["parada", "Sem venda"],
   ["devendo", "A acertar"],
   ["semfoto", "Sem foto"],
+  ["promocao", "Em promoção"],
 ] as const;
 
 export type FiltroPeca = (typeof FILTROS_PECA)[number][0];
@@ -51,8 +53,9 @@ export type LinhaCatalogo = {
   fornecedor: string | null;
   codigoFornecedor: number | null;
   precoTabela: number | null;
-  /** Menor que o sugerido: vira o preço usado na venda e sai na etiqueta. */
+  /** Só quando a promoção está VALENDO (menor que o de tabela e dentro da data). */
   precoPromocional: number | null;
+  promocaoAte: Date | null;
   /** O preço que de fato vai para a venda. */
   precoVigente: number | null;
   /** só para quem vê financeiro */
@@ -71,6 +74,7 @@ const SELECAO = {
   minimo: true,
   precoTabela: true,
   precoPromocional: true,
+  promocaoAte: true,
   totalRecebido: true,
   codigoFornecedor: true,
   custo: true,
@@ -157,9 +161,10 @@ export async function listarCatalogo(opcoes: {
     const nuncaComprada = p.totalRecebido === 0;
     const custo = dec(p.custo);
     const preco = dec(p.precoTabela);
-    const promo = dec(p.precoPromocional);
-    // Promocional só vale se for MENOR que o sugerido (documentação, seção 02).
-    const vigente = promo !== null && preco !== null && promo < preco ? promo : preco;
+    // A regra (menor que o de tabela e dentro da data) mora em promocao.ts.
+    const valendo = promocaoValendo(p);
+    const promo = valendo ? dec(p.precoPromocional) : null;
+    const vigente = precoVigente(p);
 
     const base: LinhaCatalogo = {
       id: p.id,
@@ -177,6 +182,7 @@ export async function listarCatalogo(opcoes: {
       codigoFornecedor: veFinanceiro ? dec(p.codigoFornecedor) : null,
       precoTabela: preco,
       precoPromocional: promo,
+      promocaoAte: valendo ? p.promocaoAte : null,
       precoVigente: vigente,
     };
 
@@ -193,6 +199,7 @@ export async function listarCatalogo(opcoes: {
   else if (filtro === "parada") linhas = linhas.filter((p) => !vendeu.has(p.id));
   else if (filtro === "devendo") linhas = linhas.filter((p) => p.aPagar === true);
   else if (filtro === "semfoto") linhas = linhas.filter((p) => !p.foto);
+  else if (filtro === "promocao") linhas = linhas.filter((p) => p.precoPromocional !== null);
 
   /*
    * As URLs são assinadas por ÚLTIMO, depois dos filtros.
@@ -426,6 +433,7 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
       minimo: true,
       precoTabela: true,
       precoPromocional: true,
+  promocaoAte: true,
       codigoFornecedor: true,
       fator: true,
       custo: true,
@@ -485,6 +493,8 @@ export async function fichaPeca(id: string, veFinanceiro: boolean) {
     minimo: p.minimo,
     precoTabela: preco,
     precoPromocional: dec(p.precoPromocional),
+    promocaoAte: p.promocaoAte,
+    promocaoValendo: promocaoValendo(p),
     fornecedor: p.fornecedor,
     /* Assinadas aqui: a ficha mostra a imagem média, e o caminho cru do
        bucket não é endereço que o navegador saiba abrir. */

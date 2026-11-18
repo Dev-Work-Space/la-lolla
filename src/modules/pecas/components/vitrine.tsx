@@ -17,9 +17,10 @@ export function numeroWhatsapp(): string | null {
   return so.startsWith("55") && so.length >= 12 ? so : `55${so}`;
 }
 
-function hrefCom(busca: string | undefined, categoria: string | undefined, linha?: string): string {
+function hrefCom(busca: string | undefined, categoria: string | undefined, linha?: string, promocoes?: boolean): string {
   const qs = new URLSearchParams();
   if (busca) qs.set("busca", busca);
+  if (promocoes) qs.set("promocoes", "1");
   if (linha) qs.set("linha", linha);
   if (categoria) qs.set("categoria", categoria);
   const s = qs.toString();
@@ -29,12 +30,12 @@ function hrefCom(busca: string | undefined, categoria: string | undefined, linha
 export async function Vitrine({
   searchParams,
 }: {
-  searchParams: Promise<{ busca?: string; categoria?: string }>;
+  searchParams: Promise<{ busca?: string; categoria?: string; linha?: string; promocoes?: string }>;
 }) {
   const bruto = await searchParams;
   const lido = filtroVitrineSchema.safeParse(bruto);
   const filtro = lido.success ? lido.data : {};
-  const { modelos, categorias, linhas } = await listarVitrine(filtro);
+  const { modelos, categorias, linhas, temPromocao } = await listarVitrine(filtro);
 
   return (
     <>
@@ -44,6 +45,7 @@ export async function Vitrine({
           className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
         />
         {filtro.linha && <input type="hidden" name="linha" value={filtro.linha} />}
+        {filtro.promocoes && <input type="hidden" name="promocoes" value="1" />}
         {filtro.categoria && <input type="hidden" name="categoria" value={filtro.categoria} />}
         <input
           type="search"
@@ -56,10 +58,10 @@ export async function Vitrine({
       </form>
 
       {/* Semijoias, Perfumaria, Outros: trocar de linha limpa a categoria, as listas são separadas. */}
-      {linhas.length > 1 && (
-        <nav aria-label="Linhas" className="mt-4 flex gap-1 rounded-full border bg-card p-1">
+      {(linhas.length > 1 || temPromocao) && (
+        <nav aria-label="Linhas" className="mt-4 flex gap-1 overflow-x-auto rounded-full border bg-card p-1">
           {[undefined, ...LINHAS.filter((l) => linhas.includes(l))].map((l) => {
-            const ativa = filtro.linha === l;
+            const ativa = !filtro.promocoes && filtro.linha === l;
             return (
               <Link
                 key={l ?? "__todas"}
@@ -74,6 +76,19 @@ export async function Vitrine({
               </Link>
             );
           })}
+          {/* A aba das promoções, pedida pelo João (18/11): atravessa as linhas. */}
+          {temPromocao && (
+            <Link
+              href={hrefCom(filtro.busca, undefined, undefined, true)}
+              aria-current={filtro.promocoes ? "page" : undefined}
+              className={cn(
+                "flex-1 rounded-full px-3 py-1.5 text-center text-sm font-semibold whitespace-nowrap transition-colors",
+                filtro.promocoes ? "bg-(--ll-brand) text-(--ll-accent-ink)" : "text-(--ll-brand) hover:bg-(--ll-accent-soft)",
+              )}
+            >
+              Promoções
+            </Link>
+          )}
         </nav>
       )}
 
@@ -84,7 +99,7 @@ export async function Vitrine({
             return (
               <Link
                 key={c ?? "__todas"}
-                href={hrefCom(filtro.busca, c, filtro.linha)}
+                href={hrefCom(filtro.busca, c, filtro.linha, !!filtro.promocoes)}
                 aria-current={ativa ? "page" : undefined}
                 className={cn(
                   "shrink-0 rounded-full border px-4 py-1.5 text-sm whitespace-nowrap transition-colors",

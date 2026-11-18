@@ -5,6 +5,7 @@ import { ErroDominio } from "@/lib/errors";
 import { urlAssinada } from "@/lib/storage";
 import { skuDoCodigo } from "@/modules/pecas/etiqueta.schemas";
 import { reservaPorPeca } from "@/modules/orcamentos/orcamento.service";
+import { precoComDesconto, precoVigente } from "@/modules/pecas/promocao";
 
 /*
  * PDV — o "caixa de supermercado" pedido pelo João (18/11): passa a etiqueta
@@ -19,8 +20,10 @@ export type PecaPdv = {
   nome: string;
   tamanho: string | null;
   material: string | null;
-  /** O mesmo preço que a busca da venda usa (preço de tabela). */
+  /** O preço que se cobra: o promocional, se a promoção estiver valendo. */
   preco: number;
+  /** Preço cheio, riscado, quando há promoção valendo. */
+  precoDe: number | null;
   estoque: number;
   /** Em orçamento aberto e dentro da validade. */
   reservado: number;
@@ -34,6 +37,8 @@ const SELECAO = {
   tamanho: true,
   material: true,
   precoTabela: true,
+  precoPromocional: true,
+  promocaoAte: true,
   movimentos: { select: { delta: true } },
   imagens: { where: { principal: true }, take: 1, select: { pathThumb: true } },
 } as const;
@@ -54,7 +59,10 @@ export async function pecaParaPdv(codigo: string): Promise<PecaPdv> {
     nome: p.nome,
     tamanho: p.tamanho,
     material: p.material,
-    preco: p.precoTabela ? Number(p.precoTabela) : 0,
+    ...(() => {
+      const d = precoComDesconto(p);
+      return { preco: d.preco ?? 0, precoDe: d.precoDe };
+    })(),
     estoque: p.movimentos.reduce((s, m) => s + m.delta, 0),
     reservado: reservas.get(p.id) ?? 0,
     foto: await urlAssinada(p.imagens[0]?.pathThumb ?? null),
@@ -72,7 +80,7 @@ export async function itensDoPdv(lista: Array<{ id: string; quantidade: number }
   return lista.flatMap((i) => {
     const p = porId.get(i.id);
     if (!p) return [];
-    const preco = p.precoTabela ? Number(p.precoTabela) : 0;
+    const preco = precoVigente(p) ?? 0;
     return [
       {
         pecaId: p.id,

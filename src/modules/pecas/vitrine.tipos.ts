@@ -23,6 +23,8 @@ export type PecaVitrine = {
   /** O sugerido riscado ("DE"), só quando há promoção. */
   precoDe: number | null;
   descontoPct: number | null;
+  /** Último dia da promoção (ISO), quando ela tem data para acabar. */
+  promocaoAte: string | null;
   /** A cliente vê "disponível" ou "esgotada", nunca a quantidade. */
   disponivel: boolean;
   foto: string | null;

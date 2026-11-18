@@ -59,6 +59,8 @@ export type PecaEditavel = {
   tamanho: string | null;
   precoTabela: number | null;
   precoPromocional: number | null;
+  /** "AAAA-MM-DD" do último dia, ou null. */
+  promocaoAte: string | null;
   minimo: number;
   fornecedorId: string | null;
   fotoUrl: string | null;
@@ -91,6 +93,7 @@ const NOME_DO_CAMPO: Record<string, string> = {
   fornecedorId: "Fornecedor",
   precoTabela: "Preço sugerido",
   precoPromocional: "Preço promocional",
+  promocaoAte: "Promoção até",
   minimo: "Aviso de estoque",
   material: "Material",
 };
@@ -521,6 +524,14 @@ function FormPeca({
         placeholder="deixe em branco se não houver desconto"
         defaultValue={br(peca?.precoPromocional)}
         ajuda="Se for menor que o sugerido, o produto sai com desconto — que aparece na etiqueta e já vem na venda."
+      />
+      <Campo
+        id="promocaoAte"
+        rotulo="Promoção até (opcional)"
+        type="date"
+        erro={erroDe("promocaoAte")}
+        defaultValue={peca?.promocaoAte ?? ""}
+        ajuda="Depois deste dia o preço volta ao normal sozinho. Em branco, a promoção fica até alguém tirar."
       />
 
       {/* Margem = custo × venda: só quem vê o financeiro. */}

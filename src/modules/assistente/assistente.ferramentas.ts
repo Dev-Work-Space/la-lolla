@@ -1,5 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
+import { precoVigente } from "@/modules/pecas/promocao";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirPermissao, veFinanceiro } from "@/lib/auth/guard";
@@ -57,10 +58,14 @@ function definir<S extends z.ZodType>(nome: NomeFerramenta, area: Area, descrica
   };
 }
 
-const selecaoPeca = { id: true, sku: true, nome: true, categoria: true, minimo: true, precoTabela: true, precoPromocional: true } satisfies Prisma.PecaSelect;
+const selecaoPeca = { id: true, sku: true, nome: true, categoria: true, minimo: true, precoTabela: true, precoPromocional: true, promocaoAte: true } satisfies Prisma.PecaSelect;
+/* O preço que se cobra hoje — a mesma regra da venda e do catálogo (pecas/promocao.ts). */
+const vigente = (p: Parameters<typeof precoVigente>[0]) => {
+  const v = precoVigente(p);
+  return v === null ? null : new Prisma.Decimal(v);
+};
 function pecaPublica(p: Prisma.PecaGetPayload<{ select: typeof selecaoPeca }>, saldo: number) {
-  const promocional = p.precoPromocional;
-  const preco = promocional && (!p.precoTabela || promocional.lt(p.precoTabela)) ? promocional : p.precoTabela;
+  const preco = vigente(p);
   return { sku: p.sku, nome: p.nome.slice(0, 120), categoria: p.categoria.slice(0, 80), saldo, minimo: p.minimo, preco: preco ? moeda(preco) : "Não informado" };
 }
 
@@ -103,7 +108,7 @@ export const ferramentas = {
     conferirPrazo(ctx);
     const financeiro = await prisma.peca.findUnique({ where: { id: peca.id }, select: { custo: true } });
     const custo = financeiro?.custo;
-    const preco = peca.precoPromocional && (!peca.precoTabela || peca.precoPromocional.lt(peca.precoTabela)) ? peca.precoPromocional : peca.precoTabela;
+    const preco = vigente(peca);
     return { ...publico, posicao: diaDaLoja(ctx.agora), custo: custo == null ? "Não informado" : moeda(custo), margem: custo != null && preco?.gt(0) ? `${preco.minus(custo).div(preco).mul(100).toFixed(2)}%` : "Não disponível" };
   }),
   resumirVendas: definir("resumirVendas", "vendas", "Faturamento líquido registrado, quantidade de vendas e ticket médio no período, excluindo canceladas. Ranking de 10 peças por unidades líquidas de devoluções.", esquemasFerramentas.resumirVendas, async (p, ctx) => {

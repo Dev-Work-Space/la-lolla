@@ -16,6 +16,7 @@ import {
 import { listarVendas, mudarEtapaVenda, type FiltroVenda } from "./venda.service";
 import { codigoPdvSchema, mudarEtapaSchema, type MudarEtapa } from "./venda.schemas";
 import { pecaParaPdv, type PecaPdv } from "./pdv.service";
+import { precoVigente } from "@/modules/pecas/promocao";
 import type { EtapaVenda } from "./crm.tipos";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
@@ -317,6 +318,8 @@ export async function buscarPecasAction(termo: string) {
         tamanho: true,
         tipo: true,
         precoTabela: true,
+        precoPromocional: true,
+        promocaoAte: true,
         movimentos: { select: { delta: true } },
       },
       orderBy: { nome: "asc" },
@@ -330,7 +333,8 @@ export async function buscarPecasAction(termo: string) {
         nome: p.nome,
         tamanho: p.tamanho,
         insumo: p.tipo === "INSUMO",
-        preco: p.precoTabela ? Number(p.precoTabela) : 0,
+        // Promoção valendo já entra com o preço dela (o catálogo mostra o mesmo).
+        preco: precoVigente(p) ?? 0,
         saldo: p.movimentos.reduce((s, m) => s + m.delta, 0),
       })),
     );
