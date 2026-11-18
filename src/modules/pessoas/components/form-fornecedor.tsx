@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mascaraDoc, mascaraTelefone, soDig, validaDoc } from "@/lib/documento";
 import { consultarCnpjAction, salvarFornecedorAction } from "../pessoa.actions";
-import type { ErrosDeCampo } from "@/lib/result";
+import type { ErrosDeCampo, Result } from "@/lib/result";
 
 /*
  * Assistente de fornecedor, portado de `formFornecedor`. DUAS etapas
@@ -57,11 +58,14 @@ const ETAPAS = ["Quem é", "Contato"] as const;
 
 export function FormFornecedor({
   fornecedor,
+  carregar,
   gatilho = "botao",
   rotulo,
 }: {
   fornecedor?: Partial<Estado> & { id: string };
-  gatilho?: "botao" | "bloco";
+  /** Busca o cadastro inteiro ao abrir — a lista só tem o resumo. */
+  carregar?: () => Promise<Result<Estado>>;
+  gatilho?: "botao" | "bloco" | "icone";
   rotulo?: string;
 }) {
   const router = useRouter();
@@ -72,6 +76,9 @@ export function FormFornecedor({
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
   const [buscando, buscar] = useTransition();
+  // Salvar antes de o cadastro chegar gravaria os campos vazios por cima dele.
+  const [pronto, setPronto] = useState(!carregar);
+  const [carregando, carregarDados] = useTransition();
 
   const set = <K extends keyof Estado>(k: K, v: Estado[K]) => {
     setE((a) => ({ ...a, [k]: v }));
@@ -135,13 +142,37 @@ export function FormFornecedor({
           setE({ ...VAZIO, ...fornecedor });
           setErros({});
           setAviso(null);
+          if (carregar) {
+            setPronto(false);
+            carregarDados(async () => {
+              const r = await carregar();
+              if (r.ok) {
+                setE({ ...VAZIO, ...r.data });
+                setPronto(true);
+              } else {
+                setAviso(r.error.message);
+              }
+            });
+          }
         }
       }}
     >
       <DialogTrigger
-        render={gatilho === "bloco" ? <Button className="w-full" /> : <Button />}
+        render={
+          gatilho === "bloco" ? (
+            <Button className="w-full" />
+          ) : gatilho === "icone" ? (
+            <Button variant="ghost" size="icon" aria-label={rotulo ?? "Editar fornecedor"} />
+          ) : (
+            <Button />
+          )
+        }
       >
-        {rotulo ?? (fornecedor ? "Editar" : "Novo fornecedor")}
+        {gatilho === "icone" ? (
+          <PencilSimpleIcon className="size-4 text-muted-foreground" aria-hidden />
+        ) : (
+          (rotulo ?? (fornecedor ? "Editar" : "Novo fornecedor"))
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
@@ -151,6 +182,12 @@ export function FormFornecedor({
             Etapa {etapa + 1} de {ETAPAS.length} · {ETAPAS[etapa]}
           </DialogDescription>
         </DialogHeader>
+
+        {carregando && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando o cadastro…
+          </p>
+        )}
 
         <div className="flex gap-1.5">
           {ETAPAS.map((nome, i) => (
@@ -283,14 +320,14 @@ export function FormFornecedor({
           </Button>
           <div className="flex gap-2">
             {!ultima && (
-              <Button type="button" variant="secondary" onClick={enviar} disabled={salvando || !e.nome.trim()}>
+              <Button type="button" variant="secondary" onClick={enviar} disabled={salvando || !pronto || !e.nome.trim()}>
                 Salvar assim
               </Button>
             )}
             <Button
               type="button"
               onClick={() => (ultima ? enviar() : setEtapa(etapa + 1))}
-              disabled={salvando || (etapa === 0 && (!e.nome.trim() || !docValido))}
+              disabled={salvando || !pronto || (etapa === 0 && (!e.nome.trim() || !docValido))}
             >
               {ultima ? (salvando ? "Salvando…" : "Salvar fornecedor") : "Continuar"}
             </Button>

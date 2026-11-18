@@ -62,6 +62,8 @@ export const fornecedorSchema = z
   })
   .superRefine(conferirDoc);
 
+export const idPessoaSchema = z.string().trim().min(1, "Cadastro não informado.").max(40);
+
 export type ClienteInput = z.input<typeof clienteSchema>;
 export type ClienteDados = z.output<typeof clienteSchema>;
 export type FornecedorInput = z.input<typeof fornecedorSchema>;
@@ -95,6 +97,11 @@ export type ClienteLinha = {
   devendo: boolean;
   aniversarianteNoMes: boolean;
 };
+
+/* O cadastro inteiro, para o formulário de edição: ele trabalha com texto,
+   então o que está vazio no banco chega como "". */
+export type ClienteEditavel = { tipo: "PF" | "PJ" } & Record<Exclude<keyof ClienteDados, "tipo">, string>;
+export type FornecedorEditavel = { tipo: "PF" | "PJ" } & Record<Exclude<keyof FornecedorDados, "tipo">, string>;
 
 export type FornecedorLinha = {
   id: string;

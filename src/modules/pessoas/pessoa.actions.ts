@@ -4,7 +4,13 @@ import { recarregar as recarregarTelas } from "@/lib/recarregar";
 import { exigirPermissao } from "@/lib/auth/guard";
 import { tratarErro } from "@/lib/errors";
 import { ok, fail, type ErrosDeCampo, type Result } from "@/lib/result";
-import { clienteSchema, fornecedorSchema } from "./pessoa.schema";
+import {
+  clienteSchema,
+  fornecedorSchema,
+  idPessoaSchema,
+  type ClienteEditavel,
+  type FornecedorEditavel,
+} from "./pessoa.schema";
 import * as servico from "./pessoa.service";
 
 /* Zod 4 devolve `issues`; o formulário consome erro por campo. */
@@ -15,6 +21,8 @@ function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> 
 }
 
 const recarregar = () => recarregarTelas("pessoas");
+
+const ID_INVALIDO = "Não achei esse cadastro. Atualize a tela e tente de novo.";
 
 /* ── Clientes ───────────────────────────────────────────────── */
 
@@ -41,6 +49,21 @@ export async function salvarClienteAction(
   }
 }
 
+/* A lista só traz o resumo; o formulário de edição busca o cadastro inteiro ao abrir. */
+export async function dadosClienteAction(id: string): Promise<Result<ClienteEditavel>> {
+  const sessao = await exigirPermissao("pessoas", "editar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = idPessoaSchema.safeParse(id);
+  if (!parsed.success) return fail("DADOS_INVALIDOS", ID_INVALIDO);
+
+  try {
+    return ok(await servico.clienteParaEditar(parsed.data));
+  } catch (e) {
+    return tratarErro(e, "dadosClienteAction");
+  }
+}
+
 export async function excluirClienteAction(id: string): Promise<Result<{ nome: string }>> {
   const sessao = await exigirPermissao("pessoas", "excluir");
   if (!sessao.ok) return sessao;
@@ -55,6 +78,20 @@ export async function excluirClienteAction(id: string): Promise<Result<{ nome: s
 }
 
 /* ── Fornecedores ───────────────────────────────────────────── */
+
+export async function dadosFornecedorAction(id: string): Promise<Result<FornecedorEditavel>> {
+  const sessao = await exigirPermissao("pessoas", "editar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = idPessoaSchema.safeParse(id);
+  if (!parsed.success) return fail("DADOS_INVALIDOS", ID_INVALIDO);
+
+  try {
+    return ok(await servico.fornecedorParaEditar(parsed.data));
+  } catch (e) {
+    return tratarErro(e, "dadosFornecedorAction");
+  }
+}
 
 export async function salvarFornecedorAction(
   id: string | null,

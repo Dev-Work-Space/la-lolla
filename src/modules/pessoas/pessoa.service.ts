@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { NaoEncontrado } from "@/lib/errors";
 import type {
   ClienteDados,
+  ClienteEditavel,
   ClienteLinha,
   FiltroCliente,
   FornecedorDados,
+  FornecedorEditavel,
   FornecedorLinha,
 } from "./pessoa.schema";
 
@@ -211,6 +213,36 @@ export async function buscarCliente(id: string) {
   return c;
 }
 
+// Object.fromEntries perde as chaves no tipo; o map não acrescenta nem tira nenhuma.
+const semNulos = <T extends Record<string, string | null>>(o: T) =>
+  Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v ?? ""])) as { [K in keyof T]: string };
+
+export async function clienteParaEditar(id: string): Promise<ClienteEditavel> {
+  const c = await prisma.cliente.findUnique({
+    where: { id },
+    select: {
+      tipo: true,
+      nome: true,
+      fantasia: true,
+      doc: true,
+      telefone: true,
+      email: true,
+      nascimento: true,
+      cep: true,
+      logradouro: true,
+      numero: true,
+      complemento: true,
+      bairro: true,
+      cidade: true,
+      uf: true,
+      observacoes: true,
+    },
+  });
+  if (!c) throw new NaoEncontrado("Cliente");
+  const { tipo, ...resto } = c;
+  return { tipo, ...semNulos(resto) };
+}
+
 export async function criarCliente(dados: ClienteDados) {
   return prisma.cliente.create({ data: paraBanco(dados), select: { id: true, nome: true } });
 }
@@ -316,6 +348,26 @@ export async function buscarFornecedor(id: string) {
   const f = await prisma.fornecedor.findUnique({ where: { id } });
   if (!f) throw new NaoEncontrado("Fornecedor");
   return f;
+}
+
+export async function fornecedorParaEditar(id: string): Promise<FornecedorEditavel> {
+  const f = await prisma.fornecedor.findUnique({
+    where: { id },
+    select: {
+      tipo: true,
+      nome: true,
+      fantasia: true,
+      doc: true,
+      telefone: true,
+      email: true,
+      cidade: true,
+      uf: true,
+      observacoes: true,
+    },
+  });
+  if (!f) throw new NaoEncontrado("Fornecedor");
+  const { tipo, ...resto } = f;
+  return { tipo, ...semNulos(resto) };
 }
 
 export async function criarFornecedor(dados: FornecedorDados) {

@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { excluirFornecedorAction } from "../pessoa.actions";
+import { dadosFornecedorAction, excluirFornecedorAction } from "../pessoa.actions";
+import { FormFornecedor } from "./form-fornecedor";
 
 /*
  * `ACOES.excluirFornecedor` do app antigo.
@@ -34,22 +35,27 @@ export function AcoesFornecedor({
   const [erro, setErro] = useState<string | null>(null);
   const [excluindo, excluir] = useTransition();
 
-  if (!pode.excluir) return null;
+  if (!pode.editar && !pode.excluir) return null;
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={`Excluir ${nome}`}
-        onClick={() => {
-          setErro(null);
-          setAberto(true);
-        }}
-      >
-        <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
-      </Button>
+      {pode.editar && (
+        <FormFornecedor gatilho="icone" rotulo={`Editar ${nome}`} fornecedor={{ id }} carregar={() => dadosFornecedorAction(id)} />
+      )}
+      {pode.excluir && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={`Excluir ${nome}`}
+          onClick={() => {
+            setErro(null);
+            setAberto(true);
+          }}
+        >
+          <TrashIcon weight="regular" className="size-4 text-muted-foreground" />
+        </Button>
+      )}
 
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent className="sm:max-w-md">

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mascaraCEP, mascaraDoc, mascaraTelefone, soDig, validaDoc } from "@/lib/documento";
 import { consultarCepAction, consultarCnpjAction, salvarClienteAction } from "../pessoa.actions";
-import type { ErrosDeCampo } from "@/lib/result";
+import type { ErrosDeCampo, Result } from "@/lib/result";
 
 /*
  * Assistente de cliente, portado de `formCliente` + `assistenteCliente`.
@@ -71,11 +72,14 @@ const ETAPAS = ["Quem é", "Contato", "Endereço"] as const;
 
 export function FormCliente({
   cliente,
+  carregar,
   gatilho = "botao",
   rotulo,
 }: {
   cliente?: Partial<Estado> & { id: string };
-  gatilho?: "botao" | "bloco" | "link";
+  /** Busca o cadastro inteiro ao abrir — a lista só tem o resumo. */
+  carregar?: () => Promise<Result<Estado>>;
+  gatilho?: "botao" | "bloco" | "link" | "icone";
   rotulo?: string;
 }) {
   const router = useRouter();
@@ -86,6 +90,9 @@ export function FormCliente({
   const [aviso, setAviso] = useState<string | null>(null);
   const [salvando, salvar] = useTransition();
   const [buscando, buscar] = useTransition();
+  // Salvar antes de o cadastro chegar gravaria os campos vazios por cima dele.
+  const [pronto, setPronto] = useState(!carregar);
+  const [carregando, carregarDados] = useTransition();
 
   const set = <K extends keyof Estado>(k: K, v: Estado[K]) => {
     setE((a) => ({ ...a, [k]: v }));
@@ -99,6 +106,18 @@ export function FormCliente({
       setE({ ...VAZIO, ...cliente });
       setErros({});
       setAviso(null);
+      if (carregar) {
+        setPronto(false);
+        carregarDados(async () => {
+          const r = await carregar();
+          if (r.ok) {
+            setE({ ...VAZIO, ...r.data });
+            setPronto(true);
+          } else {
+            setAviso(r.error.message);
+          }
+        });
+      }
     }
   }
 
@@ -187,6 +206,8 @@ export function FormCliente({
         render={
           gatilho === "bloco" ? (
             <Button className="w-full" />
+          ) : gatilho === "icone" ? (
+            <Button variant="ghost" size="icon" aria-label={texto} />
           ) : gatilho === "link" ? (
             <Button variant="ghost" size="sm" />
           ) : (
@@ -194,7 +215,7 @@ export function FormCliente({
           )
         }
       >
-        {texto}
+        {gatilho === "icone" ? <PencilSimpleIcon className="size-4 text-muted-foreground" aria-hidden /> : texto}
       </DialogTrigger>
 
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
@@ -204,6 +225,12 @@ export function FormCliente({
             Etapa {etapa + 1} de {ETAPAS.length} · {ETAPAS[etapa]}
           </DialogDescription>
         </DialogHeader>
+
+        {carregando && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Carregando o cadastro…
+          </p>
+        )}
 
         {/* Trilha das etapas */}
         <div className="flex gap-1.5">
@@ -403,14 +430,14 @@ export function FormCliente({
           <div className="flex gap-2">
             {/* Só nome é obrigatório: o resto o João preenche quando tiver. */}
             {!ultima && (
-              <Button type="button" variant="secondary" onClick={enviar} disabled={salvando || !e.nome.trim()}>
+              <Button type="button" variant="secondary" onClick={enviar} disabled={salvando || !pronto || !e.nome.trim()}>
                 Salvar assim
               </Button>
             )}
             <Button
               type="button"
               onClick={() => (ultima ? enviar() : setEtapa(etapa + 1))}
-              disabled={salvando || (etapa === 0 && (!e.nome.trim() || !docValido))}
+              disabled={salvando || !pronto || (etapa === 0 && (!e.nome.trim() || !docValido))}
             >
               {ultima ? (salvando ? "Salvando…" : "Salvar cliente") : "Continuar"}
             </Button>
