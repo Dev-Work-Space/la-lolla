@@ -1,6 +1,7 @@
 import type { Icon } from "@phosphor-icons/react";
 import {
   ArchiveIcon,
+  BarcodeIcon,
   CalendarBlankIcon,
   ChartLineUpIcon,
   ChartPieSliceIcon,
@@ -129,7 +130,9 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
       { href: "/compras/nova", nome: "Nova compra", curto: "Compra", area: "pecas" },
     ],
     opcoes: [
-      { href: "/vendas", nome: "Vendas", icone: ShoppingBagIcon, desc: "Fechadas, a prazo e devolvidas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && !dentro(p, "/vendas/quadro") && q.get("aba") !== "orcamentos" },
+      { href: "/vendas", nome: "Vendas", icone: ShoppingBagIcon, desc: "Fechadas, a prazo e devolvidas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && !dentro(p, "/vendas/quadro") && !dentro(p, "/vendas/pdv") && q.get("aba") !== "orcamentos" },
+      // O caixa (João, 18/11): passa as etiquetas na câmera e cobra de uma vez.
+      { href: "/vendas/pdv", nome: "PDV", icone: BarcodeIcon, desc: "Passar as peças na câmera e cobrar", area: "vendas", atual: (p) => dentro(p, "/vendas/pdv") },
       // Opcional (João, 18/11): para quem quer organizar a entrega em colunas.
       { href: "/vendas/quadro", nome: "Quadro de pedidos", icone: KanbanIcon, desc: "Do orçamento à entrega", area: "vendas", atual: (p) => dentro(p, "/vendas/quadro") },
       {

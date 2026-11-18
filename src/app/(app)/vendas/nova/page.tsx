@@ -1,3 +1,5 @@
+import { itensPdvSchema } from "@/modules/vendas/venda.schemas";
+import { itensDoPdv } from "@/modules/vendas/pdv.service";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
@@ -13,14 +15,19 @@ export const metadata = { title: "Nova venda · LaLolla" };
 export default async function NovaVendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orcamento?: string; volta?: string }>;
+  searchParams: Promise<{ orcamento?: string; volta?: string; pdv?: string }>;
 }) {
   const sessao = await exigirPermissao("vendas", "criar");
   if (!sessao.ok) notFound();
 
-  const { orcamento: orcamentoId, volta } = await searchParams;
+  const { orcamento: orcamentoId, volta, pdv } = await searchParams;
   // Só destino conhecido: o endereço vem da URL e não pode mandar para qualquer lugar.
   const doQuadro = volta === "quadro";
+
+  /* Veio do PDV: as peças chegam no endereço e o preço/estoque é relido aqui.
+     Endereço adulterado vira venda vazia, nunca erro na tela. */
+  const lidos = !orcamentoId && pdv ? itensPdvSchema.safeParse(pdv) : null;
+  const doPdv = lidos?.success ? await itensDoPdv(lidos.data) : undefined;
 
   let deOrcamento: VendaDeOrcamento | undefined;
   if (orcamentoId) {
@@ -62,17 +69,22 @@ export default async function NovaVendaPage({
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5">
       <Link
-        href={doQuadro ? "/vendas/quadro" : deOrcamento ? `/orcamentos/${deOrcamento.id}` : "/vendas"}
+        href={doPdv ? "/vendas/pdv" : doQuadro ? "/vendas/quadro" : deOrcamento ? `/orcamentos/${deOrcamento.id}` : "/vendas"}
         className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
-        {doQuadro ? "Quadro de pedidos" : deOrcamento ? `Orçamento ${deOrcamento.rotulo}` : "Portal de vendas"}
+        {doPdv ? "Voltar ao PDV" : doQuadro ? "Quadro de pedidos" : deOrcamento ? `Orçamento ${deOrcamento.rotulo}` : "Portal de vendas"}
       </Link>
       <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">
-        {deOrcamento ? "Fechar a venda do orçamento" : "Nova venda"}
+        {deOrcamento ? "Fechar a venda do orçamento" : doPdv ? "Cobrar" : "Nova venda"}
         <BotaoAjuda guia={deOrcamento ? "orcamento" : "primeira-venda"} className="ml-2" />
       </h1>
-      <NovaVenda orcamento={deOrcamento} voltarPara={doQuadro ? "/vendas/quadro" : undefined} />
+      <NovaVenda
+        orcamento={deOrcamento}
+        doPdv={doPdv}
+        // Do PDV, fechada a venda, volta um caixa vazio para a próxima cliente.
+        voltarPara={doPdv ? "/vendas/pdv?limpar=1" : doQuadro ? "/vendas/quadro" : undefined}
+      />
     </main>
   );
 }
