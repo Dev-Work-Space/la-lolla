@@ -120,7 +120,11 @@ model Peca {
 
   // Se for MENOR que o sugerido, passa a ser o preço usado na venda e aparece
   // na etiqueta como desconto ("DE" riscado e percentual).
-  precoPromocional Decimal? @db.Decimal(10, 2)
+  precoPromocional Decimal?  @db.Decimal(10, 2)
+  // Até quando a promoção vale (fim do dia, hora da loja). Vazio = até alguém
+  // tirar. Passou da data, o preço volta ao normal sozinho — o promocional fica
+  // gravado, mas deixa de valer (ver pecas/promocao.ts).
+  promocaoAte      DateTime?
 
   // Quanto já veio do fornecedor no total. É DIFERENTE do estoque atual:
   // sobe na entrada e desce na devolução ao fornecedor. É com ele que se
