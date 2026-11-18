@@ -29,6 +29,7 @@ import {
 export function AcoesOrcamento({
   orcamento,
   pode,
+  doQuadro = false,
 }: {
   orcamento: {
     id: string;
@@ -40,14 +41,17 @@ export function AcoesOrcamento({
     itens: number;
   };
   pode: { criar: boolean; editar: boolean; excluir: boolean };
+  /** Veio do quadro de pedidos: converter, editar e excluir voltam para lá. */
+  doQuadro?: boolean;
 }) {
+  const volta = doQuadro ? "volta=quadro" : "";
   const { status } = orcamento;
 
   if (status === "CONVERTIDO") {
     return (
       <div className="flex flex-wrap gap-2">
         {orcamento.vendaId && (
-          <Button nativeButton={false} render={<Link href={`/vendas/${orcamento.vendaId}`} />}>
+          <Button nativeButton={false} render={<Link href={`/vendas/${orcamento.vendaId}${volta && `?${volta}`}`} />}>
             Abrir a venda
           </Button>
         )}
@@ -61,7 +65,7 @@ export function AcoesOrcamento({
         {orcamento.substituidoPor && (
           <Button
             nativeButton={false}
-            render={<Link href={`/orcamentos/${orcamento.substituidoPor.id}`} />}
+            render={<Link href={`/orcamentos/${orcamento.substituidoPor.id}${volta && `?${volta}`}`} />}
           >
             Abrir a revisão
           </Button>
@@ -75,7 +79,7 @@ export function AcoesOrcamento({
       {pode.criar && orcamento.itens > 0 && (
         <Button
           nativeButton={false}
-          render={<Link href={`/vendas/nova?orcamento=${orcamento.id}`} />}
+          render={<Link href={`/vendas/nova?orcamento=${orcamento.id}${volta && `&${volta}`}`} />}
         >
           Converter em venda
         </Button>
@@ -84,26 +88,26 @@ export function AcoesOrcamento({
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href={`/orcamentos/${orcamento.id}/editar`} />}
+          render={<Link href={`/orcamentos/${orcamento.id}/editar${volta && `?${volta}`}`} />}
         >
           Editar
         </Button>
       )}
-      {pode.criar && <Revisar id={orcamento.id} rotulo={orcamento.rotulo} />}
+      {pode.criar && <Revisar id={orcamento.id} rotulo={orcamento.rotulo} doQuadro={doQuadro} />}
       {pode.editar && (
         <MudarStatus
           id={orcamento.id}
           para={status === "RECUSADO" ? "ABERTO" : "RECUSADO"}
         />
       )}
-      {pode.excluir && <Excluir id={orcamento.id} rotulo={orcamento.rotulo} />}
+      {pode.excluir && <Excluir id={orcamento.id} rotulo={orcamento.rotulo} doQuadro={doQuadro} />}
     </div>
   );
 }
 
 /* ─────────────── revisar ─────────────── */
 
-function Revisar({ id, rotulo }: { id: string; rotulo: string }) {
+function Revisar({ id, rotulo, doQuadro }: { id: string; rotulo: string; doQuadro: boolean }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -139,7 +143,7 @@ function Revisar({ id, rotulo }: { id: string; rotulo: string }) {
                 const r = await revisarOrcamentoAction(id);
                 if (r.ok) {
                   setAberto(false);
-                  router.push(`/orcamentos/${r.data.id}`);
+                  router.push(`/orcamentos/${r.data.id}${doQuadro ? "?volta=quadro" : ""}`);
                   router.refresh();
                 } else {
                   setAviso(r.error.message);
@@ -189,7 +193,7 @@ function MudarStatus({ id, para }: { id: string; para: "RECUSADO" | "ABERTO" }) 
 
 /* ─────────────── excluir ─────────────── */
 
-function Excluir({ id, rotulo }: { id: string; rotulo: string }) {
+function Excluir({ id, rotulo, doQuadro }: { id: string; rotulo: string; doQuadro: boolean }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -226,7 +230,7 @@ function Excluir({ id, rotulo }: { id: string; rotulo: string }) {
                 const r = await excluirOrcamentoAction(id);
                 if (r.ok) {
                   setAberto(false);
-                  router.push("/vendas?aba=orcamentos");
+                  router.push(doQuadro ? "/vendas/quadro" : "/vendas?aba=orcamentos");
                   router.refresh();
                 } else {
                   setAviso(r.error.message);

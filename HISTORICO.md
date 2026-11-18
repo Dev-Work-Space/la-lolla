@@ -1198,6 +1198,27 @@ campos ainda vazios gravariam por cima.
   nessas linhas). A busca de texto passou a achar material, tamanho e — só para
   quem vê dinheiro, porque ele vira o custo — o código do fornecedor ("47,5").
 
+### 18/11 · Quadro de pedidos (kanban) e a entrega na venda
+
+Pedido do João, montado em modelo e ajustado com ele ao vivo. **Opcional**:
+"é só pra quem quer organizar". Colunas: Em orçamento → Vendido → Separação /
+A entregar → Entregue, e **Recusado** à parte, no fim e apagado (desvio, não
+etapa). A loja não faz venda de balcão por enquanto: toda venda passa pelas
+etapas.
+
+- **O quadro não finge.** Orçamento arrastado para Vendido abre a conversão de
+  verdade (`/vendas/nova?orcamento=`); recusar/reabrir é na tela do orçamento;
+  venda não volta a ser orçamento. O **pagamento não se mexe no quadro** (decisão
+  do João: é no Financeiro) — o cartão mostra "pago" ou "a receber R$ X", e o
+  clique abre parcelas, vencimentos, atrasos e o que já entrou.
+- **Entrega independe do pagamento**: no crediário a peça vai antes de quitar.
+- **A etapa é gravada na venda** (`etapa` VENDIDO/A_ENTREGAR/ENTREGUE +
+  `entregueEm`, migration `20261118120000_etapa_da_venda`, aditiva). A tela da
+  venda tem o bloco **Entrega** e o quadro chama a mesma
+  `mudarEtapaVendaAction` — os dois nunca discordam.
+- Entregues há mais de 30 dias saem do quadro (a coluna cresceria para sempre).
+- No menu, em Compra e venda. Guia "Quadro de pedidos" no "?".
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o

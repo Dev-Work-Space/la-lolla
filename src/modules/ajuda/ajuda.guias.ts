@@ -185,6 +185,22 @@ export const GUIAS = [
     ir: { href: "/estoque?linha=PERFUMARIA", rotulo: "Abrir a Perfumaria" },
   },
   {
+    id: "quadro",
+    grupo: "dia",
+    titulo: "Quadro de pedidos",
+    resumo: "Do orçamento à entrega, em colunas",
+    passos: [
+      "O quadro é opcional: serve para quem quer acompanhar a entrega em colunas. Nada no app depende dele.",
+      "Orçamento lançado aparece em “Em orçamento”. Venda fechada — direto ou vinda de orçamento — aparece em “Vendido”.",
+      "Arraste a venda para “A entregar” e depois para “Entregue” (no celular, use o “Mover” do cartão). É a mesma entrega que aparece na tela da venda.",
+      "Arrastou um orçamento para “Vendido”? O app oferece converter em venda, que baixa o estoque e lança o valor.",
+      "O pagamento não se mexe no quadro: o cartão mostra “pago” ou “a receber”. Toque no cartão para ver as parcelas e os vencimentos; receber é no Financeiro.",
+      "“Recusado” fica à parte, no fim: são os orçamentos que a cliente não fechou. Recusar e reabrir é na tela do orçamento.",
+      "Entregues somem do quadro depois de 30 dias; a venda continua na lista de vendas.",
+    ],
+    ir: { href: "/vendas/quadro", rotulo: "Abrir o quadro" },
+  },
+  {
     id: "catalogo",
     grupo: "dia",
     titulo: "O catálogo das clientes",

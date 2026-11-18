@@ -11,13 +11,16 @@ export const metadata = { title: "Editar orçamento · LaLolla" };
 
 export default async function EditarOrcamentoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ volta?: string }>;
 }) {
   const sessao = await exigirPermissao("vendas", "editar");
   if (!sessao.ok) notFound();
 
   const { id } = await params;
+  const doQuadro = (await searchParams).volta === "quadro";
 
   let o;
   try {
@@ -34,11 +37,11 @@ export default async function EditarOrcamentoPage({
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5">
       <Link
-        href={`/orcamentos/${o.id}`}
+        href={doQuadro ? "/vendas/quadro" : `/orcamentos/${o.id}`}
         className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
-        Orçamento {o.rotulo}
+        {doQuadro ? "Quadro de pedidos" : `Orçamento ${o.rotulo}`}
       </Link>
       <h1 className="ll-entra-cabecalho mb-1 mt-3 text-xl font-bold tracking-tight">Editar {o.rotulo}
             <BotaoAjuda guia="orcamento" className="ml-2" />
@@ -74,6 +77,7 @@ export default async function EditarOrcamentoPage({
             precoUnit: i.precoUnit,
           })),
         }}
+        voltarPara={doQuadro ? "/vendas/quadro" : undefined}
       />
     </main>
   );
