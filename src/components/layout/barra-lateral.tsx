@@ -136,7 +136,9 @@ export function BarraLateral({
                 aria-expanded={aberto}
                 aria-controls={aberto ? `painel-${c.id}` : undefined}
                 onClick={() => setAberta(aberto ? null : c.id)}
-                onPointerEnter={() => setQuente(c.id)}
+                // Só mouse: no iPad o dedo também "entra", e conteúdo novo no
+                // toque faz o Safari engolir o clique (ver barra-navegacao).
+                onPointerEnter={(e) => e.pointerType === "mouse" && setQuente(c.id)}
                 onFocus={() => setQuente(c.id)}
                 className="group/item flex w-full flex-col items-center gap-1 rounded-xl py-1"
               >

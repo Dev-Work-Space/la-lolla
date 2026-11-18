@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { Papel } from "@prisma/client";
 import type { Permissoes } from "@/modules/usuarios/permissoes";
 import { categoriasVisiveis, fixosVisiveis, opcaoAtual, type CategoriaNav } from "./navegacao";
-import { Aquecer, AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from "./menu-arvore";
+import { AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from "./menu-arvore";
 
 /*
  * Barra fixa de baixo, só no celular. No PC a navegação vive na barra
@@ -24,7 +24,7 @@ import { Aquecer, AtalhosDeCriar, ListaDeOpcoes, useArrastarParaFechar } from ".
  *
  * O painel abre sobre a tela e TRAVA a de trás: escurece, não rola e não
  * recebe toque. Fecha no X, deslizando para baixo, tocando fora, no Esc ou
- * ao escolher uma opção. Tocar noutra categoria troca o painel.
+ * quando a opção escolhida abre. Tocar noutra categoria troca o painel.
  */
 export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permissoes; papel: Papel; temIA: boolean }) {
   const pathname = usePathname();
@@ -33,9 +33,28 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
   const categorias = categoriasVisiveis(permissoes, papel);
   const ativa = categorias.find((c) => opcaoAtual(c, pathname, params))?.id ?? null;
   const [aberta, setAberta] = useState<string | null>(null);
-  const [quente, setQuente] = useState<string | null>(null);
   const fechar = () => setAberta(null);
   const categoriaAberta = categorias.find((c) => c.id === aberta) ?? null;
+
+  /*
+   * O PAINEL ESPERA A TELA NOVA (João, 18/11: "no celular preciso clicar duas
+   * vezes"). Ele fechava no toque, e a tela velha ficava parada até a nova
+   * chegar pela internet do celular — parecia que o toque não tinha pegado, e
+   * a pessoa tocava de novo. Agora fica aberto, com a setinha da opção
+   * piscando, e fecha quando o endereço muda. Tocar na tela em que já se
+   * está fecha na hora: não há o que esperar.
+   */
+  const busca = params.toString();
+  const aqui = pathname + (busca ? `?${busca}` : "");
+  const [ultimo, setUltimo] = useState(aqui);
+  if (ultimo !== aqui) {
+    setUltimo(aqui);
+    setAberta(null);
+  }
+  const escolher = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const destino = new URL(e.currentTarget.href);
+    if (destino.pathname + destino.search === aqui) fechar();
+  };
 
   /*
    * Painel aberto = tela de trás travada. O véu já recebe os toques, mas não
@@ -127,9 +146,11 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
                 key={c.id}
                 type="button"
                 onClick={() => setAberta(dela ? null : c.id)}
-                /* O dedo encostou: as telas da categoria já começam a ser
-                   buscadas, antes de o painel subir. Ver `Aquecer`. */
-                onPointerDown={() => setQuente(c.id)}
+                /* NADA de "Aquecer" no toque (João, 18/11: "tem que clicar duas
+                   vezes"). O iPhone trata como hover o toque que faz aparecer
+                   conteúdo novo e engole o clique — e o Aquecer inseria links
+                   na hora em que o dedo encostava. As opções do painel são
+                   <Link prefetch>: começam a ser buscadas quando ele sobe. */
                 aria-expanded={dela}
                 aria-haspopup="dialog"
                 aria-current={c.id === ativa ? "page" : undefined}
@@ -141,23 +162,24 @@ export function BarraNavegacao({ permissoes, papel, temIA }: { permissoes: Permi
             );
           })}
         </div>
-        {quente && !aberto && <AquecerDe id={quente} categorias={categorias} />}
         {categoriaAberta && (
-          <Painel key={categoriaAberta.id} categoria={categoriaAberta} pathname={pathname} params={params} fechar={fechar} />
+          <Painel
+            key={categoriaAberta.id}
+            categoria={categoriaAberta}
+            pathname={pathname}
+            params={params}
+            fechar={fechar}
+            escolher={escolher}
+          />
         )}
       </nav>
     </>
   );
 }
 
-function AquecerDe({ id, categorias }: { id: string; categorias: CategoriaNav[] }) {
-  const c = categorias.find((x) => x.id === id);
-  return c ? <Aquecer categoria={c} /> : null;
-}
-
 /*
  * O painel que sobe da barra com as opções da categoria — o mesmo conteúdo
- * do painel do PC. Fecha ao escolher uma opção, no X, deslizando para baixo,
+ * do painel do PC. Fecha quando a opção escolhida abre, no X, deslizando para baixo,
  * ao tocar fora e no Esc. O foco entra nele ao abrir, para quem usa leitor
  * de tela ouvir as opções.
  */
@@ -166,11 +188,13 @@ function Painel({
   pathname,
   params,
   fechar,
+  escolher,
 }: {
   categoria: CategoriaNav;
   pathname: string;
   params: URLSearchParams;
   fechar: () => void;
+  escolher: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const painel = useRef<HTMLDivElement>(null);
   const { zona, estilo } = useArrastarParaFechar("baixo", fechar);
@@ -220,10 +244,10 @@ function Painel({
 
       {(c.acoes?.length ?? 0) > 0 && (
         <div className="mb-3 px-1">
-          <AtalhosDeCriar acoes={c.acoes ?? []} aoEscolher={fechar} />
+          <AtalhosDeCriar acoes={c.acoes ?? []} aoEscolher={escolher} />
         </div>
       )}
-      <ListaDeOpcoes categoria={c} pathname={pathname} params={params} aoEscolher={fechar} />
+      <ListaDeOpcoes categoria={c} pathname={pathname} params={params} aoEscolher={escolher} />
     </div>
   );
 }
