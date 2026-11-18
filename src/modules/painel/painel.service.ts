@@ -130,8 +130,15 @@ export async function dadosDoInicio(nome: string, veFinanceiro: boolean) {
     /* 4) o que precisa de atenção, numa viagem só.
        As contas vêm separadas por tipo: antes "Contas vencidas" somava o que
        a loja deve com o que a cliente deve à loja, e o link abria só as
-       contas a pagar — o número não batia com a lista. */
-    prisma.$transaction([
+       contas a pagar — o número não batia com a lista.
+
+       Promise.all, e não $transaction: a transação desiste se não pegar
+       conexão em 2 s, e com o pool frio as ~15 consultas do Início ainda
+       estão abrindo as conexões. Onde abrir conexão é lento (no PC local
+       leva ~5 s cada), o Início CAÍA com "Unable to start a transaction in
+       the given time" em vez de só demorar. São contagens; não precisam ver
+       o banco no mesmo instante. Medido em 17/11. */
+    Promise.all([
       prisma.conta.aggregate({
         where: { tipo: "PAGAR", status: "ABERTA", vencimento: { lt: dia0 } },
         _count: { _all: true },
