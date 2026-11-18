@@ -1219,6 +1219,34 @@ etapas.
 - Entregues há mais de 30 dias saem do quadro (a coluna cresceria para sempre).
 - No menu, em Compra e venda. Guia "Quadro de pedidos" no "?".
 
+### 18/11 · PDV (caixa com a câmera) e menu do celular
+
+**PDV** (`/vendas/pdv`), pedido do João: "igual caixa de supermercado". A
+câmera fica lendo; cada etiqueta que passa entra no carrinho e aparece grande
+com estoque, reservado e disponível, e o – / + (ou digitar) da quantidade.
+"Cobrar" abre a venda de sempre já com as peças (`/vendas/nova?pdv=id:qtd,…`,
+preço e estoque relidos no servidor) — pagamento, parcelas e comprovante são
+os de lá, decisão dele. Fechada, a venda nasce **Entregue** no quadro (a
+cliente leva na hora) e o PDV volta vazio (`?limpar=1`).
+
+- **Estoque**: passar do DISPONÍVEL (reservado em orçamento) avisa e deixa
+  vender — escolha do João. Passar do ESTOQUE não: `fecharVenda` recusaria
+  (saldo negativo é regra da documentação), então o + para ali.
+- A mesma etiqueta parada na câmera não soma a cada quadro (2,5 s por código).
+- O motor da câmera saiu do "Ler etiqueta" para `pecas/components/leitor-qr.ts`
+  e é dividido pelos dois.
+- **Armadilha**: este Next guarda viva a tela que ficou para trás (com o
+  estado). O PDV regravava o carrinho velho ao voltar da cobrança; o
+  `?limpar=1` agora esvazia a memória também, e o sessionStorage é lido uma vez.
+- Testado com câmera FALSA do Chrome mostrando um QR de verdade
+  (`--use-file-for-fake-video-capture`): 26/26.
+
+**Menu do celular pedia dois toques** (iPhone, app na tela de início): o toque
+na categoria inseria os links escondidos do `Aquecer`, e o Safari toma
+conteúdo novo surgindo no toque por hover e engole o clique. Saiu do celular
+(as opções do painel já são `<Link prefetch>`); na barra lateral só o mouse
+aquece. E o painel espera a tela nova em vez de sumir no toque.
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o

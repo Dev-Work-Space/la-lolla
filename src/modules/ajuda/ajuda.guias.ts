@@ -185,6 +185,22 @@ export const GUIAS = [
     ir: { href: "/estoque?linha=PERFUMARIA", rotulo: "Abrir a Perfumaria" },
   },
   {
+    id: "pdv",
+    grupo: "dia",
+    titulo: "PDV (caixa)",
+    resumo: "Passar as peças na câmera e cobrar",
+    passos: [
+      "Abra o PDV em Compra e venda. A câmera liga sozinha (no celular, libere a permissão na primeira vez).",
+      "Aproxime o QR da etiqueta: a peça entra no carrinho e aparece grande, com estoque, reservado e disponível.",
+      "Mais de uma? Toque no + ou digite a quantidade. Passar a mesma etiqueta de novo também soma uma.",
+      "Sem câmera ou com leitor de balcão: digite o código (LL-0001) e toque em Adicionar.",
+      "Aviso vermelho de “passa do disponível” quer dizer que a peça está reservada em orçamento — dá para vender, mas o orçamento fica sem ela. Mais que o estoque não passa.",
+      "Toque em Cobrar: abre a venda já com as peças. Escolha a cliente (se for a prazo) e o pagamento e feche.",
+      "Fechada, a venda já fica como Entregue no quadro de pedidos, e o PDV volta vazio para a próxima cliente.",
+    ],
+    ir: { href: "/vendas/pdv", rotulo: "Abrir o PDV" },
+  },
+  {
     id: "quadro",
     grupo: "dia",
     titulo: "Quadro de pedidos",

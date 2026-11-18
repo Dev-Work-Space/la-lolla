@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ScanIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
@@ -15,146 +15,44 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { pecaPorCodigoAction } from "../etiqueta.actions";
+import { useLeitorQr } from "./leitor-qr";
 
 /*
  * "Ler etiqueta" — portado de `abrirScannerQR` do app antigo.
  *
  * O QR da etiqueta guarda SÓ o código da peça (é o que a NIIMBOT imprime
  * nítido), então quem transforma o código em consulta é este leitor: aponta a
- * câmera, lê LL-0001-03 e cai na ficha da peça.
+ * câmera, lê LL-0001-03 e cai na ficha da peça. A câmera e a leitura moram em
+ * `leitor-qr.ts`, divididas com o PDV.
  *
- * Dois motores de leitura, nesta ordem: o leitor do próprio navegador
- * (BarcodeDetector, rápido, existe no Chrome do Android) e o jsQR, que roda em
- * qualquer lugar — inclusive no iPhone, que não tem o primeiro. O jsQR só é
- * baixado quando precisa.
- *
- * A câmera exige endereço seguro (https ou localhost). Pelo IP da rede de casa
- * ela não abre — por isso o campo de digitar fica sempre à mão, e também
- * serve para leitor de código de balcão, que "digita" o código e dá Enter.
+ * O campo de digitar fica sempre à mão: a câmera não abre fora do https, e ele
+ * também serve para leitor de código de balcão, que "digita" o código e dá Enter.
  */
-
-type Detector = { detect: (fonte: CanvasImageSource) => Promise<Array<{ rawValue: string }>> };
-
-function criarDetector(): Detector | null {
-  const Ctor = (globalThis as { BarcodeDetector?: new (o: { formats: string[] }) => Detector })
-    .BarcodeDetector;
-  try {
-    return Ctor ? new Ctor({ formats: ["qr_code"] }) : null;
-  } catch {
-    return null;
-  }
-}
-
-/* Canvas e câmera só existem no navegador. No servidor (e na hidratação) isto
-   é falso; logo depois vira verdadeiro — sem estado mudado dentro de efeito. */
-const assinarNada = () => () => {};
 
 export function LerEtiqueta() {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [estado, setEstado] = useState<"parado" | "lendo" | "sem-camera">("parado");
   const [digitado, setDigitado] = useState("");
   const [buscando, buscar] = useTransition();
-  // Sem mediaDevices (endereço inseguro, navegador antigo) não há câmera a pedir.
-  const temCamera = useSyncExternalStore(
-    assinarNada,
-    () => !!navigator.mediaDevices?.getUserMedia,
-    () => true,
-  );
-  const video = useRef<HTMLVideoElement>(null);
-  const fluxo = useRef<MediaStream | null>(null);
-  const ativo = useRef(false);
-  // Pausa a leitura enquanto o servidor procura o código lido, sem desligar a câmera.
-  const pausado = useRef(false);
 
-  const parar = useCallback(() => {
-    ativo.current = false;
-    fluxo.current?.getTracks().forEach((t) => t.stop());
-    fluxo.current = null;
-  }, []);
-
-  const abrirPeca = useCallback(
-    (codigo: string) => {
-      setAviso(null);
-      buscar(async () => {
-        const r = await pecaPorCodigoAction(codigo);
-        if (r.ok) {
-          parar();
-          setAberto(false);
-          router.push(`/estoque/${r.data.id}`);
-          return;
-        }
-        setAviso(r.error.message);
-        // Leu algo que não é peça: continua lendo, sem fechar a câmera.
-        pausado.current = false;
-      });
-    },
-    [parar, router],
-  );
-
-  const ler = useCallback(async () => {
-    const v = video.current;
-    if (!v) return;
-    const detector = criarDetector();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const jsQR = detector ? null : (await import("jsqr")).default;
-
-    const passo = async () => {
-      if (!ativo.current || !fluxo.current) return;
-      if (!pausado.current && v.readyState >= 2 && v.videoWidth > 0) {
-        let lido: string | null = null;
-        if (detector) {
-          const achados = await detector.detect(v).catch(() => []);
-          lido = achados[0]?.rawValue ?? null;
-        } else if (ctx && jsQR) {
-          canvas.width = v.videoWidth;
-          canvas.height = v.videoHeight;
-          ctx.drawImage(v, 0, 0);
-          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          lido = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" })?.data ?? null;
-        }
-        if (lido && lido.trim()) {
-          pausado.current = true;
-          abrirPeca(lido.trim());
-        }
+  // O motor da câmera é o mesmo do PDV (`leitor-qr`); aqui só se decide o que fazer com o código.
+  const abrirPeca = (codigo: string, retomar?: () => void) => {
+    setAviso(null);
+    buscar(async () => {
+      const r = await pecaPorCodigoAction(codigo);
+      if (r.ok) {
+        // Fechar a janela desliga a câmera.
+        setAberto(false);
+        router.push(`/estoque/${r.data.id}`);
+        return;
       }
-      requestAnimationFrame(passo);
-    };
-    requestAnimationFrame(passo);
-  }, [abrirPeca]);
-
-  useEffect(() => {
-    if (!aberto) {
-      parar();
-      return;
-    }
-    if (!temCamera) return;
-    let cancelado = false;
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "environment" }, audio: false })
-      .then(async (s) => {
-        if (cancelado) {
-          s.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        fluxo.current = s;
-        if (video.current) {
-          video.current.srcObject = s;
-          await video.current.play().catch(() => {});
-        }
-        ativo.current = true;
-        pausado.current = false;
-        setEstado("lendo");
-        ler();
-      })
-      .catch(() => setEstado("sem-camera"));
-    return () => {
-      cancelado = true;
-      parar();
-    };
-  }, [aberto, ler, parar, temCamera]);
+      setAviso(r.error.message);
+      // Leu algo que não é peça: continua lendo, sem fechar a câmera.
+      retomar?.();
+    });
+  };
+  const { video, estado, setEstado, temCamera } = useLeitorQr(aberto, abrirPeca);
 
   return (
     <Dialog

@@ -20,6 +20,7 @@ import {
   buscarInsumosDaVendaAction,
   buscarPecasAction,
   editarVendaAction,
+  mudarEtapaVendaAction,
   fecharVendaAction,
   ultimosInsumosAction,
 } from "../venda.actions";
@@ -131,11 +132,14 @@ export function NovaVenda({
   orcamento,
   edicao,
   voltarPara,
+  doPdv,
 }: {
   orcamento?: VendaDeOrcamento;
   edicao?: VendaParaEditar;
   /** Para onde ir depois de fechar ou salvar a edição; sem isso, abre a venda. O quadro de pedidos usa. */
   voltarPara?: string;
+  /** As peças que passaram no PDV. Ao contrário do orçamento, não travam: dá para mexer antes de cobrar. */
+  doPdv?: VendaDeOrcamento["itens"];
 }) {
   const router = useRouter();
   const travado = !!orcamento;
@@ -160,6 +164,18 @@ export function NovaVenda({
         }))
       : orcamento
       ? orcamento.itens.map((i) => ({
+          id: i.pecaId,
+          sku: i.sku,
+          nome: i.nome,
+          tamanho: i.tamanho,
+          insumo: false,
+          preco: i.precoUnit,
+          saldo: i.saldo,
+          quantidade: i.quantidade,
+          precoUnit: i.precoUnit,
+        }))
+      : doPdv
+      ? doPdv.map((i) => ({
           id: i.pecaId,
           sku: i.sku,
           nome: i.nome,
@@ -389,6 +405,12 @@ export function NovaVenda({
       });
 
       if (r.ok) {
+        /* Venda de PDV a cliente leva na hora: nasce Entregue (João, 18/11).
+           Se só esta marcação falhar, a venda está feita — avisa e segue. */
+        if (doPdv) {
+          const e = await mudarEtapaVendaAction({ id: r.data.id, etapa: "ENTREGUE" });
+          if (!e.ok) toast.warning(`Venda #${r.data.numero} fechada, mas não marcou como entregue. Marque na tela da venda.`);
+        }
         if (voltarPara) toast.success(`Venda #${r.data.numero} fechada`);
         router.push(voltarPara ?? `/vendas/${r.data.id}`);
         router.refresh();

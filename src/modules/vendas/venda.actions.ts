@@ -14,7 +14,8 @@ import {
   removerPagamento,
 } from "./venda.fechar";
 import { listarVendas, mudarEtapaVenda, type FiltroVenda } from "./venda.service";
-import { mudarEtapaSchema, type MudarEtapa } from "./venda.schemas";
+import { codigoPdvSchema, mudarEtapaSchema, type MudarEtapa } from "./venda.schemas";
+import { pecaParaPdv, type PecaPdv } from "./pdv.service";
 import type { EtapaVenda } from "./crm.tipos";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
@@ -470,5 +471,20 @@ export async function mudarEtapaVendaAction(entrada: MudarEtapa): Promise<Result
     return ok({ etapa: parsed.data.etapa });
   } catch (e) {
     return tratarErro(e, "mudarEtapaVendaAction");
+  }
+}
+
+/* PDV: a peça cuja etiqueta passou na câmera (ou foi digitada). Só lê. */
+export async function pecaParaPdvAction(codigo: string): Promise<Result<PecaPdv>> {
+  const sessao = await exigirPermissao("vendas", "criar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = codigoPdvSchema.safeParse(codigo);
+  if (!parsed.success) return fail("DADOS_INVALIDOS", parsed.error.issues[0]?.message ?? "Confira o código.");
+
+  try {
+    return ok(await pecaParaPdv(parsed.data));
+  } catch (e) {
+    return tratarErro(e, "pecaParaPdvAction");
   }
 }
