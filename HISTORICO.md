@@ -1171,6 +1171,33 @@ perfumaria e decant. São 18 guias reescritos olhando a tela de hoje, em
 - Inventário e backup, que o antigo tinha, ficaram de fora: ainda não existem
   no app novo, e guia de tela que não existe é pior que nenhum.
 
+### 18/11 · Editar cliente e fornecedor; Início que caía; Next 16.4.6
+
+O João pediu "qualquer opção editável, tipo cadastro que não é" e, perguntado,
+limitou à aba Cadastros. **Cliente e fornecedor não tinham como ser editados**:
+o formulário de edição e a action existiam, mas a lista só mostrava a lixeira.
+Agora cada linha tem um lápis (com a permissão `pessoas.editar`) que abre o
+mesmo assistente, já preenchido. A lista só traz o resumo, então o formulário
+busca o cadastro inteiro ao abrir (`dadosClienteAction` /
+`dadosFornecedorAction`) e **não deixa salvar antes de ele chegar** — senão os
+campos ainda vazios gravariam por cima.
+
+- **Início caía com internet lenta**: as contagens do "Precisa de você" iam
+  num `$transaction`, que desiste se não pegar conexão em 2 s. Com o pool frio
+  e abrir conexão lento (no PC do João, ~5 s cada, por causa do DNS da rede),
+  dava "Unable to start a transaction in the given time". Virou `Promise.all`.
+- **Next 16.4.2 → 16.4.6**: o build recusava rodar ("SecurityFatalError",
+  vulnerabilidade conhecida). Restam avisos do `npm audit` em ferramentas de
+  desenvolvimento (CLI do Prisma e do shadcn) e no DOMPurify do jsPDF; atualizar
+  Prisma/Zod fica para uma mudança à parte, testada.
+- Varredura de leitura de todas as telas contra o banco: fora o Início, nada
+  quebrou.
+- **Produtos: filtro por material e busca mais larga** (pedido do João). Terceiro
+  seletor ao lado de fornecedor e categoria, com contagem e "Sem material"
+  (semijoia que ficou sem; perfume e "Outros" não têm material e o seletor some
+  nessas linhas). A busca de texto passou a achar material, tamanho e — só para
+  quem vê dinheiro, porque ele vira o custo — o código do fornecedor ("47,5").
+
 ## 8. Armadilhas que já custaram tempo
 
 1. **Cliente Prisma velho no servidor em execução.** "Unknown field X" com o

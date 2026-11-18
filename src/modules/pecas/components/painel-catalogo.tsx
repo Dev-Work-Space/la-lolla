@@ -45,6 +45,7 @@ export async function PainelCatalogo({
   filtro,
   fornecedorId,
   categoria,
+  material,
   linha,
   veFinanceiro,
   pode,
@@ -53,13 +54,14 @@ export async function PainelCatalogo({
   filtro: FiltroPeca;
   fornecedorId?: string;
   categoria?: string;
+  material?: string;
   linha?: LinhaLoja;
   veFinanceiro: boolean;
   pode: { criar: boolean; editar: boolean; categorias?: boolean };
 }) {
   const [ind, { linhas, totalCatalogo }, opcoes, ajustes, fornecedores, desenhos] = await Promise.all([
     indicadoresCatalogo(veFinanceiro),
-    listarCatalogo({ busca, filtro, fornecedorId, categoria, linha, veFinanceiro }),
+    listarCatalogo({ busca, filtro, fornecedorId, categoria, material, linha, veFinanceiro }),
     opcoesDeFiltro(),
     lerAjustes(),
     pode.criar ? fornecedoresParaPeca() : [],
@@ -67,7 +69,7 @@ export async function PainelCatalogo({
   ]);
 
   const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
-  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria || linha);
+  const filtrando = Boolean(busca || filtro !== "todos" || fornecedorId || categoria || material || linha);
 
   const link = (mudanca: Record<string, string | undefined>) => {
     const p = new URLSearchParams({ aba: "catalogo" });
@@ -75,6 +77,7 @@ export async function PainelCatalogo({
     if (filtro !== "todos") p.set("filtro", filtro);
     if (fornecedorId) p.set("fornecedor", fornecedorId);
     if (categoria) p.set("categoria", categoria);
+    if (material) p.set("material", material);
     if (linha) p.set("linha", linha);
     for (const [k, v] of Object.entries(mudanca)) {
       if (v && v !== "todos") p.set(k, v);
@@ -165,7 +168,11 @@ export async function PainelCatalogo({
       <BuscaEstoque
         aba="catalogo"
         valor={busca}
-        placeholder="Buscar por nome, código, LL- ou fornecedor"
+        placeholder={
+          veFinanceiro
+            ? "Buscar por nome, LL-, código do fornecedor, material ou tamanho"
+            : "Buscar por nome, LL-, material, tamanho ou fornecedor"
+        }
       />
 
       {/*
@@ -198,11 +205,12 @@ export async function PainelCatalogo({
         )}
       </div>
 
-      {/* Trocar de linha limpa a categoria: as listas são separadas, e "Anéis" não existe na Perfumaria. */}
+      {/* Trocar de linha limpa a categoria: as listas são separadas, e "Anéis" não existe na Perfumaria.
+          O material só sobrevive indo para Semijoias, a única linha que tem. */}
       <Chips
         opcoes={[["todos", "Todas as linhas"], ...LINHAS.map((l) => [l, ROTULO_LINHA[l]] as const)]}
         atual={linha ?? "todos"}
-        href={(v) => link({ linha: v, categoria: undefined })}
+        href={(v) => link({ linha: v, categoria: undefined, material: v === "SEMIJOIA" ? material : undefined })}
       />
 
       <Chips
@@ -215,6 +223,7 @@ export async function PainelCatalogo({
         opcoes={opcoes}
         fornecedorId={fornecedorId}
         categoria={categoria}
+        material={material}
         linha={linha}
         busca={busca}
         filtro={filtro}

@@ -36,13 +36,14 @@ export default async function EstoquePage({
     filtro?: string;
     fornecedor?: string;
     categoria?: string;
+    material?: string;
     linha?: string;
   }>;
 }) {
   const sessao = await exigirPermissao("pecas", "ver");
   if (!sessao.ok) notFound();
 
-  const { aba, busca, filtro, fornecedor, categoria, linha: linhaPedida } = await searchParams;
+  const { aba, busca, filtro, fornecedor, categoria, material, linha: linhaPedida } = await searchParams;
   const linha = ehLinha(linhaPedida) ? linhaPedida : undefined;
   const qual = aba === "insumos" ? "insumos" : "catalogo";
 
@@ -64,7 +65,7 @@ export default async function EstoquePage({
 
       <div className="mt-5">
         <Suspense
-          key={`${qual}:${busca ?? ""}:${filtro ?? ""}:${fornecedor ?? ""}:${categoria ?? ""}:${linha ?? ""}`}
+          key={`${qual}:${busca ?? ""}:${filtro ?? ""}:${fornecedor ?? ""}:${categoria ?? ""}:${material ?? ""}:${linha ?? ""}`}
           fallback={<EsqueletoPainelEstoque catalogo={qual === "catalogo"} />}
         >
           {qual === "catalogo" ? (
@@ -73,6 +74,7 @@ export default async function EstoquePage({
               filtro={(filtro as FiltroPeca) ?? "todos"}
               fornecedorId={fornecedor}
               categoria={categoria}
+              material={material}
               linha={linha}
               veFinanceiro={veFinanceiro(sessao.data)}
               pode={pode}

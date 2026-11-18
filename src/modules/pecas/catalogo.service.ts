@@ -84,17 +84,23 @@ export async function listarCatalogo(opcoes: {
   filtro?: FiltroPeca;
   fornecedorId?: string;
   categoria?: string;
+  material?: string;
   linha?: Linha;
   veFinanceiro: boolean;
 }) {
-  const { busca, filtro = "todos", fornecedorId, categoria, linha, veFinanceiro } = opcoes;
+  const { busca, filtro = "todos", fornecedorId, categoria, material, linha, veFinanceiro } = opcoes;
 
   const q = busca?.trim();
+  /* O código do fornecedor é o número da etiqueta dele; vira o custo (código ×
+     fator), então só quem vê dinheiro procura por ele. "39,90" e "39.90" valem. */
+  const codigo = veFinanceiro && q && /^\d+([.,]\d{1,2})?$/.test(q) ? q.replace(",", ".") : null;
   const where: Prisma.PecaWhereInput = {
     tipo: "PECA",
     arquivada: false,
     ...(linha ? { linha } : {}),
     ...(categoria ? { categoria } : {}),
+    // Material só existe na semijoia: "sem material" é a semijoia que ficou sem.
+    ...(material === "__sem" ? { material: null, linha: "SEMIJOIA" as const } : material ? { material } : {}),
     ...(fornecedorId === "__sem"
       ? { fornecedorId: null }
       : fornecedorId
@@ -106,7 +112,10 @@ export async function listarCatalogo(opcoes: {
             { nome: { contains: q, mode: "insensitive" } },
             { sku: { contains: q, mode: "insensitive" } },
             { categoria: { contains: q, mode: "insensitive" } },
+            { material: { contains: q, mode: "insensitive" } },
+            { tamanho: { contains: q, mode: "insensitive" } },
             { fornecedor: { nome: { contains: q, mode: "insensitive" } } },
+            ...(codigo ? [{ codigoFornecedor: codigo }] : []),
           ],
         }
       : {}),
@@ -267,7 +276,7 @@ export async function indicadoresCatalogo(veFinanceiro: boolean) {
 
 /** Fornecedores e categorias que REALMENTE têm peça, com a contagem. */
 export async function opcoesDeFiltro() {
-  const [porFornecedor, porCategoria, semFornecedor] = await Promise.all([
+  const [porFornecedor, porCategoria, semFornecedor, porMaterial, semMaterial] = await Promise.all([
     prisma.peca.groupBy({
       by: ["fornecedorId"],
       where: { tipo: "PECA", arquivada: false, fornecedorId: { not: null } },
@@ -279,6 +288,12 @@ export async function opcoesDeFiltro() {
       _count: true,
     }),
     prisma.peca.count({ where: { tipo: "PECA", arquivada: false, fornecedorId: null } }),
+    prisma.peca.groupBy({
+      by: ["material"],
+      where: { tipo: "PECA", arquivada: false, material: { not: null } },
+      _count: true,
+    }),
+    prisma.peca.count({ where: { tipo: "PECA", arquivada: false, linha: "SEMIJOIA", material: null } }),
   ]);
 
   const nomes = await prisma.fornecedor.findMany({
@@ -297,6 +312,10 @@ export async function opcoesDeFiltro() {
       .filter((c) => c.categoria !== "")
       .map((c) => ({ nome: c.categoria, qtd: c._count }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    materiais: porMaterial
+      .flatMap((m) => (m.material ? [{ nome: m.material, qtd: m._count }] : []))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    semMaterial,
   };
 }
 
