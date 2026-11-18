@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/formato";
+import { FormCliente } from "@/modules/pessoas/components/form-cliente";
 import { PagamentoDaVenda, type Forma, type Pago } from "./pagamento-da-venda";
 import { useParcelamento } from "@/components/padrao/parcelamento";
 import {
@@ -133,6 +134,7 @@ export function NovaVenda({
   edicao,
   voltarPara,
   doPdv,
+  podeCriarCliente = false,
 }: {
   orcamento?: VendaDeOrcamento;
   edicao?: VendaParaEditar;
@@ -140,6 +142,8 @@ export function NovaVenda({
   voltarPara?: string;
   /** As peças que passaram no PDV. Ao contrário do orçamento, não travam: dá para mexer antes de cobrar. */
   doPdv?: VendaDeOrcamento["itens"];
+  /** Mostra o "+ Novo cliente": cadastrar sem sair da venda. */
+  podeCriarCliente?: boolean;
 }) {
   const router = useRouter();
   const travado = !!orcamento;
@@ -732,7 +736,23 @@ export function NovaVenda({
       <div className="space-y-4 lg:sticky lg:top-4">
         <Card as="section" className="block overflow-visible py-0 text-base space-y-4 p-4">
           <div className="space-y-1.5">
-            <Label htmlFor="cliente">Cliente</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="cliente">Cliente</Label>
+              {/* Cadastra numa janela por cima: a venda continua montada atrás e
+                  o cliente novo já volta escolhido (João, 18/11). */}
+              {podeCriarCliente && !travado && (
+                <FormCliente
+                  gatilho="link"
+                  rotulo="+ Novo cliente"
+                  aoSalvar={(c) => {
+                    setClientes((atual) =>
+                      [...atual.filter((x) => x.id !== c.id), c].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+                    );
+                    setClienteId(c.id);
+                  }}
+                />
+              )}
+            </div>
             <Seletor
               id="cliente"
               className="h-10 w-full rounded-lg border bg-card px-3 text-sm disabled:opacity-70"
@@ -740,7 +760,10 @@ export function NovaVenda({
               disabled={travado}
               onValueChange={(valor) => setClienteId(valor)}
               opcoes={[
-                { value: "", label: "Sem cliente" },
+                /* "Consumidor final" é a venda SEM cliente, não um cliente de
+                   mentira no cadastro: esse somaria toda venda avulsa nos
+                   números de clientes e poderia "ficar devendo". */
+                { value: "", label: "Consumidor final" },
                 ...clientes.map((c) => ({ value: c.id, label: c.nome }))
               ]}
             />

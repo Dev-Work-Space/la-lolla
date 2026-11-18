@@ -73,12 +73,15 @@ const ETAPAS = ["Quem é", "Contato", "Endereço"] as const;
 export function FormCliente({
   cliente,
   carregar,
+  aoSalvar,
   gatilho = "botao",
   rotulo,
 }: {
   cliente?: Partial<Estado> & { id: string };
   /** Busca o cadastro inteiro ao abrir — a lista só tem o resumo. */
   carregar?: () => Promise<Result<Estado>>;
+  /** Quem abriu o cadastro no meio de outra tarefa (a venda) recebe o cliente salvo e segue de onde estava. */
+  aoSalvar?: (c: { id: string; nome: string }) => void;
   gatilho?: "botao" | "bloco" | "link" | "icone";
   rotulo?: string;
 }) {
@@ -132,7 +135,8 @@ export function FormCliente({
       const r = await salvarClienteAction(cliente?.id ?? null, fd);
       if (r.ok) {
         setAberto(false);
-        router.refresh();
+        if (aoSalvar) aoSalvar({ id: r.data.id, nome: e.nome.trim() });
+        else router.refresh();
         return;
       }
       if (r.error.fields) {

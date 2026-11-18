@@ -86,7 +86,11 @@ export default async function EditarVendaPage({
       <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">Editar a venda #{v.numero}
             <BotaoAjuda guia="errei" className="ml-2" />
           </h1>
-      <NovaVenda edicao={edicao} voltarPara={doQuadro ? "/vendas/quadro" : undefined} />
+      <NovaVenda
+        edicao={edicao}
+        voltarPara={doQuadro ? "/vendas/quadro" : undefined}
+        podeCriarCliente={sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pessoas.criar}
+      />
     </main>
   );
 }

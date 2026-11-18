@@ -81,7 +81,7 @@ export default async function VendaPage({
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {dataHora(v.data)}
-            {v.cliente ? ` · ${v.cliente.nome}` : " · sem cliente"}
+            {v.cliente ? ` · ${v.cliente.nome}` : " · consumidor final"}
             {v.vendedor ? ` · atendeu ${v.vendedor.nome}` : ""}
           </p>
         </div>

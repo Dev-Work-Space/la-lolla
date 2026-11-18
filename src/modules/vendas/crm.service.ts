@@ -76,7 +76,7 @@ export async function quadroCrm(veFinanceiro: boolean): Promise<CartaoCrm[]> {
       tipo: "venda",
       href: `/vendas/${v.id}?volta=quadro`,
       rotulo: `Venda ${numero(v.numero)}`,
-      cliente: v.cliente?.nome ?? null,
+      cliente: v.cliente?.nome ?? "Consumidor final",
       itens: resumoItens(v.itens),
       total: v.total,
       falta,

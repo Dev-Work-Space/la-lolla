@@ -82,6 +82,7 @@ export default async function NovaVendaPage({
       <NovaVenda
         orcamento={deOrcamento}
         doPdv={doPdv}
+        podeCriarCliente={sessao.data.papel !== "VENDEDOR" || sessao.data.permissoes.pessoas.criar}
         // Do PDV, fechada a venda, volta um caixa vazio para a próxima cliente.
         voltarPara={doPdv ? "/vendas/pdv?limpar=1" : doQuadro ? "/vendas/quadro" : undefined}
       />

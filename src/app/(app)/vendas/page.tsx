@@ -241,7 +241,7 @@ async function ListaDasVendas({
             return (
               <Linha
                 key={v.id}
-                nome={`#${v.numero} · ${v.cliente?.nome ?? "Sem cliente"}`}
+                nome={`#${v.numero} · ${v.cliente?.nome ?? "Consumidor final"}`}
                 pilulas={
                   <>
                     {v.cancelada && <Pilula tom="due">cancelada</Pilula>}
