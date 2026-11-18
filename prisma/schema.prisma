@@ -210,6 +210,14 @@ enum StatusVenda {
   CANCELADA // regra 2.10: venda não se apaga
 }
 
+// Onde o pedido está no caminho até a cliente (quadro de pedidos, 18/11).
+// Independe do pagamento: no crediário a peça é entregue antes de quitar.
+enum EtapaVenda {
+  VENDIDO
+  A_ENTREGAR
+  ENTREGUE
+}
+
 enum FormaPagamento {
   DINHEIRO
   PIX
@@ -221,6 +229,11 @@ model Venda {
   id     String      @id @default(cuid())
   numero Int         @unique @default(autoincrement())
   status StatusVenda @default(ABERTA)
+
+  // Entrega: muda pela tela da venda ou pelo quadro de pedidos. `entregueEm`
+  // é quando virou ENTREGUE — o quadro some com os entregues antigos por ela.
+  etapa      EtapaVenda @default(VENDIDO)
+  entregueEm DateTime?
 
   // A data do FATO, separada de criadoEm (a data do registro). A venda de
   // sábado lançada na segunda fatura no sábado — sem este campo o relatório

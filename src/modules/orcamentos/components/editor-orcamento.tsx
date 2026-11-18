@@ -89,7 +89,14 @@ export type OrcamentoParaEditar = {
   itens: Item[];
 };
 
-export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar }) {
+export function EditorOrcamento({
+  orcamento,
+  voltarPara,
+}: {
+  orcamento?: OrcamentoParaEditar;
+  /** Para onde ir depois de salvar; sem isso, abre o orçamento. O quadro de pedidos usa. */
+  voltarPara?: string;
+}) {
   const router = useRouter();
   const editando = !!orcamento;
 
@@ -232,7 +239,7 @@ export function EditorOrcamento({ orcamento }: { orcamento?: OrcamentoParaEditar
       });
 
       if (r.ok) {
-        router.push(`/orcamentos/${r.data.id}`);
+        router.push(voltarPara ?? `/orcamentos/${r.data.id}`);
         router.refresh();
       } else {
         setAviso(r.error.message);

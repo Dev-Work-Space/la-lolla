@@ -11,11 +11,18 @@ import { BotaoAjuda } from "@/modules/ajuda/components/botao-ajuda";
 
 export const metadata = { title: "Editar venda · LaLolla" };
 
-export default async function EditarVendaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditarVendaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ volta?: string }>;
+}) {
   const sessao = await exigirPermissao("vendas", "editar");
   if (!sessao.ok) notFound();
 
   const { id } = await params;
+  const doQuadro = (await searchParams).volta === "quadro";
 
   let v;
   try {
@@ -70,7 +77,7 @@ export default async function EditarVendaPage({ params }: { params: Promise<{ id
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5">
       <Link
-        href={`/vendas/${v.id}`}
+        href={`/vendas/${v.id}${doQuadro ? "?volta=quadro" : ""}`}
         className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" aria-hidden />
@@ -79,7 +86,7 @@ export default async function EditarVendaPage({ params }: { params: Promise<{ id
       <h1 className="mb-5 mt-3 text-xl font-bold tracking-tight">Editar a venda #{v.numero}
             <BotaoAjuda guia="errei" className="ml-2" />
           </h1>
-      <NovaVenda edicao={edicao} />
+      <NovaVenda edicao={edicao} voltarPara={doQuadro ? "/vendas/quadro" : undefined} />
     </main>
   );
 }

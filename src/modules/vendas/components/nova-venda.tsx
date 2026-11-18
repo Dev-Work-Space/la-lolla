@@ -4,6 +4,7 @@ import { Seletor } from "@/components/padrao/seletor";
 
 import { Card } from "@/components/ui/card";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { PlusIcon, MagnifyingGlassIcon, TrashIcon, XIcon } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
@@ -129,9 +130,12 @@ export type VendaParaEditar = {
 export function NovaVenda({
   orcamento,
   edicao,
+  voltarPara,
 }: {
   orcamento?: VendaDeOrcamento;
   edicao?: VendaParaEditar;
+  /** Para onde ir depois de fechar ou salvar a edição; sem isso, abre a venda. O quadro de pedidos usa. */
+  voltarPara?: string;
 }) {
   const router = useRouter();
   const travado = !!orcamento;
@@ -342,7 +346,7 @@ export function NovaVenda({
       if (edicao) {
         const r = await editarVendaAction({ ...comuns, vendaId: edicao.id });
         if (r.ok) {
-          router.push(`/vendas/${r.data.id}`);
+          router.push(voltarPara ?? `/vendas/${r.data.id}`);
           router.refresh();
         } else {
           setAviso(r.error.message);
@@ -385,7 +389,8 @@ export function NovaVenda({
       });
 
       if (r.ok) {
-        router.push(`/vendas/${r.data.id}`);
+        if (voltarPara) toast.success(`Venda #${r.data.numero} fechada`);
+        router.push(voltarPara ?? `/vendas/${r.data.id}`);
         router.refresh();
       } else {
         setAviso(r.error.message);

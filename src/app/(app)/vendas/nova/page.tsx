@@ -13,12 +13,14 @@ export const metadata = { title: "Nova venda · LaLolla" };
 export default async function NovaVendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orcamento?: string }>;
+  searchParams: Promise<{ orcamento?: string; volta?: string }>;
 }) {
   const sessao = await exigirPermissao("vendas", "criar");
   if (!sessao.ok) notFound();
 
-  const { orcamento: orcamentoId } = await searchParams;
+  const { orcamento: orcamentoId, volta } = await searchParams;
+  // Só destino conhecido: o endereço vem da URL e não pode mandar para qualquer lugar.
+  const doQuadro = volta === "quadro";
 
   let deOrcamento: VendaDeOrcamento | undefined;
   if (orcamentoId) {
@@ -60,17 +62,17 @@ export default async function NovaVendaPage({
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-5">
       <Link
-        href={deOrcamento ? `/orcamentos/${deOrcamento.id}` : "/vendas"}
+        href={doQuadro ? "/vendas/quadro" : deOrcamento ? `/orcamentos/${deOrcamento.id}` : "/vendas"}
         className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
-        {deOrcamento ? `Orçamento ${deOrcamento.rotulo}` : "Portal de vendas"}
+        {doQuadro ? "Quadro de pedidos" : deOrcamento ? `Orçamento ${deOrcamento.rotulo}` : "Portal de vendas"}
       </Link>
       <h1 className="ll-entra-cabecalho mb-5 mt-3 text-xl font-bold tracking-tight">
         {deOrcamento ? "Fechar a venda do orçamento" : "Nova venda"}
         <BotaoAjuda guia={deOrcamento ? "orcamento" : "primeira-venda"} className="ml-2" />
       </h1>
-      <NovaVenda orcamento={deOrcamento} />
+      <NovaVenda orcamento={deOrcamento} voltarPara={doQuadro ? "/vendas/quadro" : undefined} />
     </main>
   );
 }

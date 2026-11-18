@@ -41,11 +41,14 @@ export function AcoesVenda({
   pode,
   itens,
   temDevolucao = false,
+  doQuadro = false,
 }: {
   vendaId: string;
   numero: number;
   saldo: number;
   pode: { editar: boolean; cancelar: boolean };
+  /** Veio do quadro de pedidos: a edição volta para lá. */
+  doQuadro?: boolean;
   itens: Array<{ id: string; nome: string; podeVoltar: number; precoUnit: number }>;
   /** Venda com devolução não se edita — a devolução já mexeu no estoque e no caixa. */
   temDevolucao?: boolean;
@@ -57,7 +60,7 @@ export function AcoesVenda({
         <Button
           variant="ghost"
           nativeButton={false}
-          render={<a href={`/vendas/${vendaId}/editar`} />}
+          render={<a href={`/vendas/${vendaId}/editar${doQuadro ? "?volta=quadro" : ""}`} />}
         >
           Editar
         </Button>

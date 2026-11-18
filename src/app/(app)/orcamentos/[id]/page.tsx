@@ -30,11 +30,19 @@ const MODOS: Record<string, string> = {
   PARCELADO: "Parcelado",
 };
 
-export default async function OrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrcamentoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ volta?: string }>;
+}) {
   const sessao = await exigirPermissao("vendas", "ver");
   if (!sessao.ok) notFound();
 
   const { id } = await params;
+  // Veio do quadro de pedidos: toda saída daqui volta para lá (João, 18/11).
+  const doQuadro = (await searchParams).volta === "quadro";
   const fin = veFinanceiro(sessao.data);
 
   let o;
@@ -57,11 +65,11 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
       <Link
-        href="/vendas?aba=orcamentos"
+        href={doQuadro ? "/vendas/quadro" : "/vendas?aba=orcamentos"}
         className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon weight="regular" className="size-4" aria-hidden />
-        Orçamentos
+        {doQuadro ? "Quadro de pedidos" : "Orçamentos"}
       </Link>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
@@ -135,6 +143,7 @@ export default async function OrcamentoPage({ params }: { params: Promise<{ id: 
               itens: o.itens.length,
             }}
             pode={pode}
+            doQuadro={doQuadro}
           />
         </div>
       </div>

@@ -11,6 +11,7 @@ import {
   HandCoinsIcon,
   HouseIcon,
   InvoiceIcon,
+  KanbanIcon,
   ListBulletsIcon,
   PackageIcon,
   ShoppingBagIcon,
@@ -128,7 +129,9 @@ export const CATEGORIAS_NAV: CategoriaNav[] = [
       { href: "/compras/nova", nome: "Nova compra", curto: "Compra", area: "pecas" },
     ],
     opcoes: [
-      { href: "/vendas", nome: "Vendas", icone: ShoppingBagIcon, desc: "Fechadas, a prazo e devolvidas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && q.get("aba") !== "orcamentos" },
+      { href: "/vendas", nome: "Vendas", icone: ShoppingBagIcon, desc: "Fechadas, a prazo e devolvidas", area: "vendas", atual: (p, q) => dentro(p, "/vendas") && !dentro(p, "/vendas/quadro") && q.get("aba") !== "orcamentos" },
+      // Opcional (João, 18/11): para quem quer organizar a entrega em colunas.
+      { href: "/vendas/quadro", nome: "Quadro de pedidos", icone: KanbanIcon, desc: "Do orçamento à entrega", area: "vendas", atual: (p) => dentro(p, "/vendas/quadro") },
       {
         href: "/vendas?aba=orcamentos",
         nome: "Orçamentos",

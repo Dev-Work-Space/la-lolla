@@ -6,9 +6,10 @@ import {
   type ResolucaoDevolucao,
   type TipoPessoa,
   type StatusVenda,
+  type EtapaVenda,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { NaoEncontrado } from "@/lib/errors";
+import { ErroDominio, NaoEncontrado } from "@/lib/errors";
 
 /*
  * REGRAS DA VENDA. Portadas do app antigo linha a linha, porque erro aqui é
@@ -93,6 +94,8 @@ const SELECAO_VENDA = {
   id: true,
   numero: true,
   status: true,
+  etapa: true,
+  entregueEm: true,
   desconto: true,
   observacao: true,
   data: true,
@@ -190,6 +193,8 @@ export type VendaPublica = {
   id: string;
   numero: number;
   status: StatusVenda;
+  etapa: EtapaVenda;
+  entregueEm: Date | null;
   cancelada: boolean;
   cliente: {
     id: string;
@@ -300,6 +305,8 @@ function montar(v: LinhaCrua, veFinanceiro: boolean): Venda {
     id: v.id,
     numero: v.numero,
     status: v.status,
+    etapa: v.etapa,
+    entregueEm: v.entregueEm,
     cancelada: v.status === "CANCELADA",
     cliente: v.cliente,
     vendedor: v.vendedor,
@@ -456,4 +463,24 @@ export async function indicadoresVendas(veFinanceiro: boolean) {
     vendasAbertas: abertas.length,
     semComprovante: pendentes.length,
   };
+}
+
+/**
+ * Entrega do pedido: Vendido → A entregar → Entregue, pela tela da venda ou
+ * pelo quadro. Não mexe em estoque nem em dinheiro — o pagamento anda à parte
+ * (no crediário a peça vai antes de quitar). Voltar uma etapa é permitido:
+ * marcou entregue sem querer, desmarca.
+ */
+export async function mudarEtapaVenda(id: string, etapa: EtapaVenda) {
+  const v = await prisma.venda.findUnique({ where: { id }, select: { status: true, etapa: true } });
+  if (!v) throw new NaoEncontrado("Venda");
+  if (v.status === "CANCELADA") {
+    throw new ErroDominio("REGRA_NEGOCIO", "Venda cancelada não tem entrega. Atualize a tela.");
+  }
+  if (v.etapa === etapa) return;
+  await prisma.venda.update({
+    where: { id },
+    data: { etapa, entregueEm: etapa === "ENTREGUE" ? new Date() : null },
+    select: { id: true },
+  });
 }

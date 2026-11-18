@@ -13,7 +13,9 @@ import {
   registrarDevolucao,
   removerPagamento,
 } from "./venda.fechar";
-import { listarVendas, type FiltroVenda } from "./venda.service";
+import { listarVendas, mudarEtapaVenda, type FiltroVenda } from "./venda.service";
+import { mudarEtapaSchema, type MudarEtapa } from "./venda.schemas";
+import type { EtapaVenda } from "./crm.tipos";
 
 function campos(erro: { issues: Array<{ path: PropertyKey[]; message: string }> }): ErrosDeCampo {
   const out: ErrosDeCampo = {};
@@ -448,5 +450,25 @@ export async function listarVendasAction(filtro: FiltroVenda, busca?: string) {
     return ok(await listarVendas({ filtro, busca, veFinanceiro: veFinanceiro(sessao.data) }));
   } catch (e) {
     return tratarErro(e, "listarVendasAction");
+  }
+}
+
+/* Entrega: a tela da venda e o quadro de pedidos chamam a mesma action, e por
+   isso nunca discordam. O quadro também é avisado para recarregar. */
+export async function mudarEtapaVendaAction(entrada: MudarEtapa): Promise<Result<{ etapa: EtapaVenda }>> {
+  const sessao = await exigirPermissao("vendas", "editar");
+  if (!sessao.ok) return sessao;
+
+  const parsed = mudarEtapaSchema.safeParse(entrada);
+  if (!parsed.success) {
+    return fail("DADOS_INVALIDOS", parsed.error.issues[0]?.message ?? "Confira a etapa da entrega.");
+  }
+
+  try {
+    await mudarEtapaVenda(parsed.data.id, parsed.data.etapa);
+    recarregarTelas("venda", `/vendas/${parsed.data.id}`, "/vendas/quadro");
+    return ok({ etapa: parsed.data.etapa });
+  } catch (e) {
+    return tratarErro(e, "mudarEtapaVendaAction");
   }
 }
