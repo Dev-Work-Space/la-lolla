@@ -71,8 +71,9 @@ export function useArrastarParaFechar(sentido: "baixo" | "esquerda", fechar: () 
  * Next só busca os dados completos de um <Link prefetch> que esteja na tela —
  * as opções moram num painel que nem existe até abrir.
  *
- * Por isso, quando o mouse chega numa categoria (ou o foco, ou o dedo), estes
- * links entram na página escondidos só para o Next buscá-los. Quando a
+ * Por isso, quando o mouse chega numa categoria (ou o foco), estes links
+ * entram na página escondidos só para o Next buscá-los. Nunca no toque: o
+ * iPhone toma conteúdo novo surgindo no toque por hover e engole o clique. Quando a
  * pessoa abre o painel e escolhe, a tela já está aqui. `aria-hidden` e
  * `tabIndex={-1}`: não existem para quem usa leitor de tela ou teclado.
  */
@@ -95,7 +96,13 @@ export function Aquecer({ categoria: c }: { categoria: CategoriaNav }) {
  * empilhados pesavam mais que as opções embaixo deles. O nome inteiro vai
  * no `aria-label` e no `title`.
  */
-export function AtalhosDeCriar({ acoes, aoEscolher }: { acoes: AcaoNav[]; aoEscolher?: () => void }) {
+export function AtalhosDeCriar({
+  acoes,
+  aoEscolher,
+}: {
+  acoes: AcaoNav[];
+  aoEscolher?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}) {
   if (acoes.length === 0) return null;
   return (
     <div>
@@ -136,7 +143,7 @@ export function ListaDeOpcoes({
   categoria: CategoriaNav;
   pathname: string;
   params: URLSearchParams;
-  aoEscolher?: () => void;
+  aoEscolher?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const acesa = opcaoAtual(c, pathname, params);
   return (
